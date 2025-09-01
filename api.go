@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 )
 
 type Asset struct {
@@ -78,8 +81,46 @@ func download_jar(url string, name string) {
 	}
 }
 
-func download_single_asset(id string, path string, metadata Asset, token string) {
+func download_single_asset(id string, path string, metadata Asset, token string) (error) {
+	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), 0600)
 
+	request, err := http.NewRequest(
+		http.MethodGet,
+		fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", id, path),
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+
+	hash := md5.New()
+	if _, err := io.Copy(hash, response.Body); err != nil {
+		return err
+	}
+
+	if hex.EncodeToString(hash.Sum(nil)) != metadata.Hash {
+		return errors.New("hash mismatch")
+	}
+
+	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
+	if err != nil {
+		return err
+	}
+
+	if _, err := io.Copy(file, response.Body); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func get_asset_metadata(id string) (Assets, error) {
@@ -152,7 +193,28 @@ func request_server_id() (string, error) {
 }
 
 func join_server_session(token string, selected_profile string, server_id string) {
+	params := make(map[string]string)
+	params["accessToken"] = token
+	params["selectedProfile"] = selected_profile
+	params["serverId"] = server_id
+	params_str, err := json.Marshal(params)
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	response, err := http.Post(
+		fmt.Sprintf("%s/session/minecraft/join", MOJANG_SESSION_URL),
+		"application/json",
+		bytes.NewBuffer(params_str),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		log.Fatal(response.StatusCode)
+	}
 }
 
 func get_norisk_versions() (Versions, error) {
@@ -169,4 +231,8 @@ func get_norisk_versions() (Versions, error) {
 	}
 
 	return versions, nil
+}
+
+func get_modrinth_versions(project string) {
+
 }
