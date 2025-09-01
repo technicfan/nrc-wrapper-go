@@ -15,41 +15,75 @@ import (
 )
 
 type Asset struct {
-    Hash string
-    Size int
+	Hash string `json:"hash"`
+	Size int `json:"size"`
 }
 
 type Assets struct {
-    Objects map[string]Asset
+	Objects map[string]Asset `json:"objects"`
+}
+
+type ServerId struct {
+	Id string `json:"serverId"`
+	Duration int `json:"expiresIn"`
 }
 
 type Mod struct {
-	id string
-	name string
-	source map[string]string
-	compatibility map[string]map[string]*string
+	Id string `json:"id"`
+	Name string `json:"displayName"`
+	Source map[string]string `json:"source"`
+	Compatibility map[string]map[string]*string `json:"compatibility"`
 }
 
 type Loader struct {
-	Default map[string]map[string]string
-	Minecraft []string
+	Default map[string]map[string]string `json:"default"`
+	Minecraft []string `json:"byMinecraft"`
 }
 
 type Pack struct {
-	name string
-	desc string
-	inherits []*string
-	exclude []*string
-	mods []Mod
-	asset []string
-	experimental bool
-	auto_update bool
-	loader *Loader
+	Name string `json:"displayName"`
+	Desc string `json:"description"`
+	Inherits []*string `json:"inheritsFrom"`
+	Exclude []*string `json:"excludeMods"`
+	Mods []Mod `json:"mods"`
+	Assets []string `json:"assets"`
+	Experimental bool `json:"isExperimental"`
+	Auto_update bool `json:"autoUpdate"`
+	Loader *Loader `json:"loaderPolicy"`
 }
 
 type Versions struct {
-	Packs map[string]Pack
-	Repositories map[string]string
+	Packs map[string]Pack `json:"packs"`
+	Repositories map[string]string `json:"repositories"`
+}
+
+type ModFile struct {
+	Hashes map[string]string `json:"hashes"`
+	Url string `json:"url"`
+	Filename string `json:"filename"`
+	Primary bool `json:"primary"`
+	Size int `json:"size"`
+	File_type *string `json:"file_type"`
+}
+
+type ModrinthMod struct {
+	Versions []string `json:"game_versions"`
+	Loaders []string `json:"loaders"`
+	Id string `json:"id"`
+	Project_id string `json:"project_id"`
+	Author_id string `json:"author_id"`
+	Featured bool `json:"featured"`
+	Name string `json:"name"`
+	Version string `json:"version_number"`
+	Changelog string `json:"changelog"`
+	Changelog_url *string `json:"changelog_url"`
+	Date string `json:"date_published"`
+	Downloads int `json:"downloads"`
+	Version_type string `json:"version_type"`
+	Status string `json:"status"`
+	Requested_status *string `json:"requested_status"`
+	Files map[string]ModFile `json:"files"`
+	Dependencies any `json:"dependencies"`
 }
 
 
@@ -139,7 +173,7 @@ func get_asset_metadata(id string) (Assets, error) {
 	return metadata, nil
 }
 
-func validate(username string, server_id string) (string, error) {
+func request_token(username string, server_id string) (string, error) {
 	params := make(map[string]string)
 	params["force"] = "False"
 	params["hwid"] = "null"
@@ -183,13 +217,13 @@ func request_server_id() (string, error) {
 		return "", err
 	}
 
-	var data Asset
+	var data ServerId
 	if err := json.NewDecoder(response.Body).Decode(&data); err != nil {
 		log.Fatal(err)
 		return "", err
 	}
 
-	return data.Hash, nil
+	return data.Id, nil
 }
 
 func join_server_session(token string, selected_profile string, server_id string) {
@@ -233,6 +267,18 @@ func get_norisk_versions() (Versions, error) {
 	return versions, nil
 }
 
-func get_modrinth_versions(project string) {
+func get_modrinth_versions(project string) (ModrinthMod, error) {
+	response, err := http.Get(fmt.Sprintf("%s/project/%s/version", MODRINTH_API_URL, project))
+	if err != nil {
+		log.Fatal(err)
+		return ModrinthMod{}, err
+	}
 
+	var mod ModrinthMod
+	if err := json.NewDecoder(response.Body).Decode(&mod); err != nil {
+		log.Fatal(err)
+		return ModrinthMod{}, err
+	}
+
+	return mod, nil
 }
