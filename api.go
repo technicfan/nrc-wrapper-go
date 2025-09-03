@@ -12,81 +12,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 )
-
-type Asset struct {
-	Hash string `json:"hash"`
-	Size int `json:"size"`
-}
-
-type Assets struct {
-	Objects map[string]Asset `json:"objects"`
-}
-
-type ServerId struct {
-	Id string `json:"serverId"`
-	Duration int `json:"expiresIn"`
-}
-
-type Mod struct {
-	Id string `json:"id"`
-	Name string `json:"displayName"`
-	Source map[string]string `json:"source"`
-	Compatibility map[string]map[string]*string `json:"compatibility"`
-}
-
-type Loader struct {
-	Default map[string]map[string]string `json:"default"`
-	Minecraft []string `json:"byMinecraft"`
-}
-
-type Pack struct {
-	Name string `json:"displayName"`
-	Desc string `json:"description"`
-	Inherits []*string `json:"inheritsFrom"`
-	Exclude []*string `json:"excludeMods"`
-	Mods []Mod `json:"mods"`
-	Assets []string `json:"assets"`
-	Experimental bool `json:"isExperimental"`
-	Auto_update bool `json:"autoUpdate"`
-	Loader *Loader `json:"loaderPolicy"`
-}
-
-type Versions struct {
-	Packs map[string]Pack `json:"packs"`
-	Repositories map[string]string `json:"repositories"`
-}
-
-type ModFile struct {
-	Hashes map[string]string `json:"hashes"`
-	Url string `json:"url"`
-	Filename string `json:"filename"`
-	Primary bool `json:"primary"`
-	Size int `json:"size"`
-	File_type *string `json:"file_type"`
-}
-
-type ModrinthMod struct {
-	Versions []string `json:"game_versions"`
-	Loaders []string `json:"loaders"`
-	Id string `json:"id"`
-	Project_id string `json:"project_id"`
-	Author_id string `json:"author_id"`
-	Featured bool `json:"featured"`
-	Name string `json:"name"`
-	Version string `json:"version_number"`
-	Changelog string `json:"changelog"`
-	Changelog_url *string `json:"changelog_url"`
-	Date string `json:"date_published"`
-	Downloads int `json:"downloads"`
-	Version_type string `json:"version_type"`
-	Status string `json:"status"`
-	Requested_status *string `json:"requested_status"`
-	Files map[string]ModFile `json:"files"`
-	Dependencies any `json:"dependencies"`
-}
-
-
 
 func download_jar(url string, name string) {
 	response, err := http.Get(url)
@@ -101,7 +28,7 @@ func download_jar(url string, name string) {
 		return
 	}
 
-	file, err := os.Create(fmt.Sprintf("./mods/%s", name))
+	file, err := os.Create(fmt.Sprintf("mods/%s", name))
 	if err != nil  {
 		log.Fatal(err)
 		return
@@ -115,7 +42,9 @@ func download_jar(url string, name string) {
 	}
 }
 
-func download_single_asset(id string, path string, metadata Asset, token string) (error) {
+func download_single_asset(id string, path string, metadata Asset, token string, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), 0600)
 
 	request, err := http.NewRequest(
@@ -124,7 +53,7 @@ func download_single_asset(id string, path string, metadata Asset, token string)
 		nil,
 	)
 	if err != nil {
-		return err
+		return
 	}
 
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -132,29 +61,27 @@ func download_single_asset(id string, path string, metadata Asset, token string)
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return err
+		return
 	}
 	defer response.Body.Close()
 
 	hash := md5.New()
 	if _, err := io.Copy(hash, response.Body); err != nil {
-		return err
+		return
 	}
 
 	if hex.EncodeToString(hash.Sum(nil)) != metadata.Hash {
-		return errors.New("hash mismatch")
+		return
 	}
 
 	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
 	if err != nil {
-		return err
+		return
 	}
 
 	if _, err := io.Copy(file, response.Body); err != nil {
-		return err
+		return
 	}
-
-	return nil
 }
 
 func get_asset_metadata(id string) (Assets, error) {
