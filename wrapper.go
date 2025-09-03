@@ -6,8 +6,9 @@ import (
 	"os"
 	"runtime"
 	"sync"
-	"syscall"
 	"os/exec"
+
+	"golang.org/x/sys/unix"
 )
 
 func main(){
@@ -46,7 +47,7 @@ func main(){
 		cmd.Stdin, cmd.Stderr, cmd.Stdout = os.Stdin, os.Stderr, os.Stdout
 		err = cmd.Run()
 	} else {
-		err = syscall.Exec(command, args, os.Environ())
+		err = unix.Exec(command, args, os.Environ())
 	}
 	if err != nil {
 		log.Fatal(err)
