@@ -16,8 +16,13 @@ func calc_hash(path string) (string, error) {
 	}
 	defer file.Close()
 
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return "", err
+	}
+
 	var hash = md5.New()
-	_, err = io.Copy(hash, file)
+	_, err = hash.Write(data)
 	if err != nil {
 		return "", err
 	}

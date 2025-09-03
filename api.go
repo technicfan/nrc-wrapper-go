@@ -15,39 +15,36 @@ import (
 	"sync"
 )
 
-func download_jar(url string, name string) (string) {
+func download_jar(url string, name string) (string, error) {
 	response, err := http.Get(url)
 	if err != nil {
-		log.Fatal(err)
-		return ""
+		return "", err
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
-		log.Fatal(response.StatusCode)
-		return ""
-	}
-
 	file, err := os.Create(fmt.Sprintf("mods/%s", name))
 	if err != nil  {
-		log.Fatal(err)
-		return ""
+		return "", err
 	}
 	defer file.Close()
 
-	_, err = io.Copy(file, response.Body)
+	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Fatal(err)
-		return ""
 	}
 
-	return fmt.Sprintf("mods/%s", name)
+	_, err = file.Write(body)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("mods/%s", name), nil
 }
 
 func download_single_asset(id string, path string, metadata Asset, token string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), 0600)
+	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), os.ModePerm)
 
 	request, err := http.NewRequest(
 		http.MethodGet,
@@ -55,7 +52,7 @@ func download_single_asset(id string, path string, metadata Asset, token string,
 		nil,
 	)
 	if err != nil {
-		return
+		log.Fatal(err)
 	}
 
 	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -63,26 +60,32 @@ func download_single_asset(id string, path string, metadata Asset, token string,
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return
+		log.Fatal(err)
 	}
 	defer response.Body.Close()
 
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	hash := md5.New()
-	if _, err := io.Copy(hash, response.Body); err != nil {
-		return
+	if _, err := hash.Write(body); err != nil {
+		log.Fatal(err)
 	}
 
 	if hex.EncodeToString(hash.Sum(nil)) != metadata.Hash {
-		return
+		log.Fatal(err)
 	}
 
 	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
 	if err != nil {
-		return
+		log.Fatal(err)
 	}
+	defer file.Close()
 
-	if _, err := io.Copy(file, response.Body); err != nil {
-		return
+	if _, err := file.Write(body); err != nil {
+		log.Fatal(err)
 	}
 }
 
@@ -103,31 +106,23 @@ func get_asset_metadata(id string) (Assets, error) {
 }
 
 func request_token(username string, server_id string) (string, error) {
-	params := make(map[string]string)
-	params["force"] = "False"
-	params["hwid"] = "null"
-	params["username"] = username
-	params["server_id"] = server_id
-	params_str, err := json.Marshal(params)
-	if err != nil {
-		log.Fatal(err)
-		return "", err
-	}
-
 	response, err := http.Post(
-		fmt.Sprintf("%s/launcher/auth/validate/v2", NORISK_API_URL),
+		fmt.Sprintf("%s/launcher/auth/validate/v2?force=false&hwid=null&username=%s&server_id=%s", NORISK_API_URL, username, server_id),
 		"application/json",
-		bytes.NewBuffer(params_str),
+		bytes.NewBuffer([]byte{}),
 	)
 	if err != nil {
-		log.Fatal(err)
 		return "", err
 	}
 	defer response.Body.Close()
 
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return "", nil
+	}
+
 	var data map[string]string
-	if err := json.NewDecoder(response.Body).Decode(&data); err != nil {
-		log.Fatal(err)
+	if err := json.Unmarshal(body, &data); err != nil {
 		return "", err
 	}
 
@@ -142,13 +137,12 @@ func request_token(username string, server_id string) (string, error) {
 func request_server_id() (string, error) {
 	response, err := http.Post(fmt.Sprintf("%s/launcher/auth/request-server-id", NORISK_API_URL), "", bytes.NewBuffer([]byte("")))
 	if err != nil {
-		log.Fatal(err)
 		return "", err
 	}
+	defer response.Body.Close()
 
 	var data ServerId
 	if err := json.NewDecoder(response.Body).Decode(&data); err != nil {
-		log.Fatal(err)
 		return "", err
 	}
 
@@ -174,22 +168,16 @@ func join_server_session(token string, selected_profile string, server_id string
 		log.Fatal(err)
 	}
 	defer response.Body.Close()
-
-	if response.StatusCode != http.StatusOK {
-		log.Fatal(response.StatusCode)
-	}
 }
 
 func get_norisk_versions() (Versions, error) {
 	response, err := http.Get(fmt.Sprintf("%s/launcher/modpacks", NORISK_API_URL))
 	if err != nil {
-		log.Fatal(err)
 		return Versions{}, err
 	}
 
 	var versions Versions
 	if err := json.NewDecoder(response.Body).Decode(&versions); err != nil {
-		log.Fatal(err)
 		return Versions{}, err
 	}
 
@@ -203,9 +191,16 @@ func get_modrinth_versions(project string, wg *sync.WaitGroup, results chan<- []
 		log.Fatal(err)
 		return
 	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	var mod []ModrinthMod
-	if err := json.NewDecoder(response.Body).Decode(&mod); err != nil {
+	if err := json.Unmarshal(body, &mod); err != nil {
+		log.Println(project)
 		log.Fatal(err)
 		return
 	}

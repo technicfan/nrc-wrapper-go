@@ -38,12 +38,6 @@ type Asset struct {
 	Size int `json:"size"`
 }
 
-type VerifiedAsset struct {
-	Result bool
-	Path string
-	Asset Asset
-}
-
 type Assets struct {
 	Objects map[string]Asset `json:"objects"`
 }
@@ -62,19 +56,20 @@ type NoriskMod struct {
 
 type Loader struct {
 	Default map[string]map[string]string `json:"default"`
-	Minecraft []string `json:"byMinecraft"`
+	Minecraft any `json:"byMinecraft"`
 }
 
 type Pack struct {
 	Name string `json:"displayName"`
 	Desc string `json:"description"`
-	Inherits []*string `json:"inheritsFrom"`
-	Exclude []*string `json:"excludeMods"`
+	Inherits []string `json:"inheritsFrom"`
+	Exclude []string `json:"excludeMods"`
 	Mods []NoriskMod `json:"mods"`
 	Assets []string `json:"assets"`
 	Experimental bool `json:"isExperimental"`
 	Auto_update bool `json:"autoUpdate"`
-	Loader *Loader `json:"loaderPolicy"`
+	Loader Loader `json:"loaderPolicy"`
+	StartupHelper any `json:"startupHelper"`
 }
 
 type Versions struct {
@@ -88,7 +83,7 @@ type ModFile struct {
 	Filename string `json:"filename"`
 	Primary bool `json:"primary"`
 	Size int `json:"size"`
-	File_type *string `json:"file_type"`
+	File_type any `json:"file_type"`
 }
 
 type ModrinthMod struct {
@@ -101,14 +96,20 @@ type ModrinthMod struct {
 	Name string `json:"name"`
 	Version string `json:"version_number"`
 	Changelog string `json:"changelog"`
-	Changelog_url *string `json:"changelog_url"`
+	Changelog_url any `json:"changelog_url"`
 	Date string `json:"date_published"`
 	Downloads int `json:"downloads"`
 	Version_type string `json:"version_type"`
 	Status string `json:"status"`
-	Requested_status *string `json:"requested_status"`
+	Requested_status any `json:"requested_status"`
 	Files []ModFile `json:"files"`
 	Dependencies any `json:"dependencies"`
+}
+
+type VerifiedAsset struct {
+	Result bool
+	Path string
+	Asset Asset
 }
 
 type ModEntry struct {

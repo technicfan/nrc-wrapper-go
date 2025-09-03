@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -17,12 +18,14 @@ func get_minecraft_version() string {
 
 func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan<- map[string]string) {
 	defer wg.Done()
-	a := download_jar(url, name)
+	a, err := download_jar(url, name)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if a != old_file && a != "" && old_file != "" {
 		os.Remove(fmt.Sprintf("mods/%s", old_file))
 	}
 
-	var err error
 	result := make(map[string]string)
 	result["id"] = id
 	result["hash"], err = calc_hash(fmt.Sprintf("mods/%s", name))
@@ -44,6 +47,7 @@ func read_index() []map[string]string {
 	if err != nil {
 		return nil
 	}
+	defer file.Close()
 
 	var data []map[string]string
 	err = json.Unmarshal(byte_data, &data)
@@ -73,6 +77,7 @@ func write_index(data []map[string]string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
 	return nil
 }
@@ -80,7 +85,7 @@ func write_index(data []map[string]string) error {
 func convert_to_index(mods []ModEntry) []map[string]string {
 	var results []map[string]string
 	for _, mod := range mods {
-		var info map[string]string
+		info := make(map[string]string)
 		info["id"] = mod.Id
 		info["hash"] = mod.Hash
 		info["version"] = mod.Version
@@ -175,45 +180,47 @@ func remove_installed_mods(mods []ModEntry, installed_mods map[string]map[string
 }
 
 func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
-	group_path := strings.Replace(mod.GroupId, ".", "/", -1)
+	group_path := strings.ReplaceAll(mod.GroupId, ".", "/")
 	filename := fmt.Sprintf("%s-%s.jar", mod.MavenId, mod.Version)
 	mod_path := fmt.Sprintf("%s/%s/%s/%s", group_path, mod.MavenId, mod.Version, filename)
 
 	return repos[mod.RepositoryRef] + mod_path, filename
 }
 
-func install(wg1 *sync.WaitGroup) {
+func install(wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 	mc_version := get_minecraft_version()
 	mods, repos, err := get_compatible_nrc_mods(mc_version)
 	if err != nil {
-		return
+		return err
 	}
 	installed_mods, err := get_installed_versions()
 	if err != nil {
-		return
+		return err
 	}
 	mods, removed := remove_installed_mods(mods, installed_mods)
 
-	var modrinth_lookup map[string]ModEntry
-	var mods_to_download []ModEntry
+	modrinth_lookup := make(map[string]ModEntry)
 	var modrinth_mods []ModEntry
 	var wg sync.WaitGroup
 
+	index := make(chan map[string]string, len(mods))
 	for _, mod := range mods {
 		if mod.SourceType == "modrinth" {
 			modrinth_lookup[mod.Id] = mod
 			modrinth_lookup[mod.ModrinthId] = mod
 			modrinth_mods = append(modrinth_mods, mod)
-		} else if mod.SourceType == "maven" {
-			mods_to_download = append(mods_to_download, mod)
+		} else {
+			url, filename := build_maven_url(mod, repos)
+			wg.Add(1)
+			go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, &wg, index)
 		}
 	}
 
 	results := make(chan []ModrinthMod, len(modrinth_mods))
 	for _, mod := range modrinth_mods {
 		wg.Add(1)
-		go get_modrinth_versions(mod.ModrinthId, &wg, results)
+		go get_modrinth_versions(mod.Id, &wg, results)
 	}
 
 	go func() {
@@ -221,7 +228,6 @@ func install(wg1 *sync.WaitGroup) {
 		close(results)
 	}()
 
-	index := make(chan map[string]string, len(mods))
 	for modrinth_versions := range results {
 		for _, modrinth_mod := range modrinth_versions {
 			mod := modrinth_lookup[modrinth_mod.Project_id]
@@ -236,12 +242,6 @@ func install(wg1 *sync.WaitGroup) {
 		}
 	}
 
-	for _, mod := range mods_to_download {
-		url, filename := build_maven_url(mod, repos)
-		wg.Add(1)
-		go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, &wg, index)
-	}
-
 	go func() {
 		wg.Wait()
 		close(index)
@@ -249,7 +249,14 @@ func install(wg1 *sync.WaitGroup) {
 
 	if len(index) > 0 {
 		existing_index := convert_to_index(removed)
-		new_index := <- index
-		existing_index = append(existing_index, new_index)
+		for entry := range index {
+			existing_index = append(existing_index, entry)
+		}
+		err = write_index(existing_index)
+		if err != nil {
+			return err
+		}
 	}
+
+	return nil
 }

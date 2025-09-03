@@ -86,6 +86,8 @@ func write_token_to_file(path string, uuid string, token string) {
 		}
 
 		json.Unmarshal(byte_data, &data)
+	} else {
+		data = make(map[string]string)
 	}
 
 	data[uuid] = token
@@ -156,6 +158,6 @@ func get_token() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	write_token_to_file(PRISM_UNIX, uuid, nrc_token)
+	// write_token_to_file(PRISM_UNIX, uuid, nrc_token)
 	return nrc_token, nil
 }
