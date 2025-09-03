@@ -124,3 +124,18 @@ type ModEntry struct {
 	ModrinthId string
 	MavenId string
 }
+
+type Software struct {
+	CName string `json:"cachedName"`
+	CVersion any `json:"cachedVersion"`
+	CVolatile any `json:"cachedVolatile"`
+	Dependency any `json:"dependencyOnly"`
+	Uid any `json:"uid"`
+	Version string `json:"version"`
+	Important any `json:"important"`
+	CRequires any `json:"cachedRequires"`
+}
+
+type PrismInstance struct {
+	Components []Software `json:"components"`
+}

@@ -38,7 +38,7 @@ func download_jar(url string, name string) (string, error) {
 		return "", err
 	}
 
-	return fmt.Sprintf("mods/%s", name), nil
+	return name, nil
 }
 
 func download_single_asset(id string, path string, metadata Asset, token string, wg *sync.WaitGroup) {

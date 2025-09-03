@@ -4,15 +4,23 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"strings"
+	"runtime"
 	"sync"
+	"syscall"
+	"os/exec"
 )
 
 func main(){
+	if len(os.Args) < 3 {
+		log.Fatal("you need to use it as the wrapper command")
+		os.Exit(1)
+	}
+
 	os.Mkdir("mods", os.ModePerm)
 
-	token, err := get_token()
+	config := get_config()
+
+	token, err := get_token(config["prism_data"])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,12 +37,17 @@ func main(){
 	}
 	wg.Wait()
 
-	args := []string{strings.TrimSpace(os.Args[1]), fmt.Sprintf("-Dnorisk.token=%s", token)}
-	args = append(args, os.Args[2:]...)
+    command := os.Args[1]
+    token_arg := fmt.Sprintf("-Dnorisk.token=%s", token)
+    args := append([]string{command, token_arg}, os.Args[2:]...)
 
-	cmd := exec.Command(args[0], args[1:]...)
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	err = cmd.Run()
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command(command, args[1:]...)
+		cmd.Stdin, cmd.Stderr, cmd.Stdout = os.Stdin, os.Stderr, os.Stdout
+		err = cmd.Run()
+	} else {
+		err = syscall.Exec(command, args, os.Environ())
+	}
 	if err != nil {
 		log.Fatal(err)
 	}

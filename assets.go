@@ -68,5 +68,7 @@ func load_assets(token string, wg1 *sync.WaitGroup) error {
 		}
 	}
 
+	wg.Wait()
+
 	return nil
 }

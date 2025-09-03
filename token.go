@@ -30,10 +30,8 @@ func is_token_expired(token_string string) (bool, error) {
 		currentTime := time.Now().Unix()
 
 		if currentTime > expTime {
-			log.Print("Stored Token is expired")
 			return true, nil
 		} else {
-			log.Print("Stored Token is valid")
 			return false, nil
 		}
 	}
@@ -42,7 +40,7 @@ func is_token_expired(token_string string) (bool, error) {
 }
 
 func read_token_from_file(path string, uuid string) (string, error) {
-	file, err := os.Open(fmt.Sprintf("%snorisk_data.json", path))
+	file, err := os.Open(fmt.Sprintf("%s/norisk_data.json", path))
 	if err != nil {
 		return "", err
 	}
@@ -66,45 +64,42 @@ func read_token_from_file(path string, uuid string) (string, error) {
 func write_token_to_file(path string, uuid string, token string) {
 	var file *os.File
 	var err error
-	created := false
-	file, err = os.Open(fmt.Sprintf("%snorisk_data.json", path))
+	var data map[string]string
+	file, err = os.OpenFile(fmt.Sprintf("%s/norisk_data.json", path), os.O_RDWR, os.ModePerm)
 	if err != nil {
-		created = true
-		file, err = os.Create(fmt.Sprintf("%snorisk_data.json", path))
+		file, err = os.Create(fmt.Sprintf("%s/norisk_data.json", path))
 		if err != nil {
 			return
 		}
-	}
-	defer file.Close()
-
-	var data map[string]string
-
-	if !created {
+		data = make(map[string]string)
+	} else {
 		byte_data, err := io.ReadAll(file)
 		if err != nil {
 			return
 		}
 
 		json.Unmarshal(byte_data, &data)
-	} else {
-		data = make(map[string]string)
 	}
+	defer file.Close()
 
-	data[uuid] = token
+	if _, exists := data[uuid]; !exists {
+		data[uuid] = token
 
-	json_string, err := json.Marshal(data)
-	if err != nil {
-		return
-	}
+		json_string, err := json.Marshal(data)
+		if err != nil {
+			return
+		}
 
-	_, err = file.WriteString(string(json_string))
-	if err != nil {
-		log.Fatal("failed to write data")
+		_, err = file.WriteString(string(json_string))
+		if err != nil {
+			log.Println(err)
+			log.Fatal("failed to write data")
+		}
 	}
 }
 
 func get_prism_data(path string) (string, string, string, error) {
-	file, err := os.Open(fmt.Sprintf("%saccounts.json", path))
+	file, err := os.Open(fmt.Sprintf("%s/accounts.json", path))
 	if err != nil {
 		return "", "", "", err
 	}
@@ -134,15 +129,15 @@ func get_prism_data(path string) (string, string, string, error) {
 	return "", "", "", errors.New("no active account found")
 }
 
-func get_token() (string, error) {
+func get_token(prism_data string) (string, error) {
 	var err error
 	var token, name, uuid string
-	token, name, uuid, err = get_prism_data(PRISM_UNIX)
+	token, name, uuid, err = get_prism_data(prism_data)
 	if err != nil {
 		return "", err
 	}
 
-	nrc_token, err := read_token_from_file(PRISM_UNIX, uuid)
+	nrc_token, err := read_token_from_file(prism_data, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			return nrc_token, nil
@@ -158,6 +153,6 @@ func get_token() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// write_token_to_file(PRISM_UNIX, uuid, nrc_token)
+	write_token_to_file(prism_data, uuid, nrc_token)
 	return nrc_token, nil
 }

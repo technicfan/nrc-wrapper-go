@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,8 +13,30 @@ import (
 	"sync"
 )
 
-func get_minecraft_version() string {
-	return "1.21.5"
+func get_minecraft_version() (string, error) {
+	file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		return "", err
+	}
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	var data PrismInstance
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		return "", err
+	}
+
+	for _, entry := range data.Components {
+		if entry.CName == "Minecraft" {
+			return entry.Version, nil
+		}
+	}
+
+	return "", errors.New("minecraft not found")
 }
 
 func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan<- map[string]string) {
@@ -189,7 +212,10 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 
 func install(wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
-	mc_version := get_minecraft_version()
+	mc_version, err := get_minecraft_version()
+	if err != nil {
+		return err
+	}
 	mods, repos, err := get_compatible_nrc_mods(mc_version)
 	if err != nil {
 		return err
