@@ -4,11 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"sync"
-	"os/exec"
-
-	"golang.org/x/sys/unix"
 )
 
 func main(){
@@ -21,7 +17,7 @@ func main(){
 
 	config := get_config()
 
-	token, err := get_token(config["prism_data"])
+	token, err := get_token(config["prism_dir"])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,16 +35,9 @@ func main(){
 	wg.Wait()
 
     command := os.Args[1]
-    token_arg := fmt.Sprintf("-Dnorisk.token=%s", token)
-    args := append([]string{command, token_arg}, os.Args[2:]...)
+    args := append([]string{command, fmt.Sprintf("-Dnorisk.token=%s", token)}, os.Args[2:]...)
 
-	if runtime.GOOS == "windows" {
-		cmd := exec.Command(command, args[1:]...)
-		cmd.Stdin, cmd.Stderr, cmd.Stdout = os.Stdin, os.Stderr, os.Stdout
-		err = cmd.Run()
-	} else {
-		err = unix.Exec(command, args, os.Environ())
-	}
+	err = Exec(command, args)
 	if err != nil {
 		log.Fatal(err)
 	}
