@@ -9,29 +9,35 @@ import (
 	"sync"
 )
 
-func verify_asset(path string, data Asset, wg *sync.WaitGroup, results chan<- VerifiedAsset) {
-	defer wg.Done()
-	var file, err = os.Open(fmt.Sprintf("NoRiskClient/assets/%s", path))
+func calc_hash(path string) (string, error) {
+	var file, err = os.Open(path)
 	if err != nil {
-		results <- VerifiedAsset{false, path, data}
+		return "", err
 	}
 	defer file.Close()
 
 	var hash = md5.New()
 	_, err = io.Copy(hash, file)
 	if err != nil {
-		results <- VerifiedAsset{false, path, data}
+		return "", err
 	}
 
 	var bytesHash = hash.Sum(nil)
-	if hex.EncodeToString(bytesHash[:]) == data.Hash {
+	return hex.EncodeToString(bytesHash[:]), nil
+}
+
+func verify_asset(path string, data Asset, wg *sync.WaitGroup, results chan<- VerifiedAsset) {
+	defer wg.Done()
+
+	if hash, err := calc_hash(fmt.Sprintf("NoRiskClient/assets/%s", path)); err == nil && hash == data.Hash {
 		results <- VerifiedAsset{true, "", Asset{}}
 	}
 
 	results <- VerifiedAsset{false, path, data}
 }
 
-func load_assets(token string) error {
+func load_assets(token string, wg1 *sync.WaitGroup) error {
+	defer wg1.Done()
 	metadata, err := get_asset_metadata("norisk-prod")
 	if err != nil {
 		return err

@@ -15,31 +15,33 @@ import (
 	"sync"
 )
 
-func download_jar(url string, name string) {
+func download_jar(url string, name string) (string) {
 	response, err := http.Get(url)
 	if err != nil {
 		log.Fatal(err)
-		return
+		return ""
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
 		log.Fatal(response.StatusCode)
-		return
+		return ""
 	}
 
 	file, err := os.Create(fmt.Sprintf("mods/%s", name))
 	if err != nil  {
 		log.Fatal(err)
-		return
+		return ""
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
 		log.Fatal(err)
-		return
+		return ""
 	}
+
+	return fmt.Sprintf("mods/%s", name)
 }
 
 func download_single_asset(id string, path string, metadata Asset, token string, wg *sync.WaitGroup) {
@@ -194,18 +196,19 @@ func get_norisk_versions() (Versions, error) {
 	return versions, nil
 }
 
-func get_modrinth_versions(project string) (ModrinthMod, error) {
+func get_modrinth_versions(project string, wg *sync.WaitGroup, results chan<- []ModrinthMod) {
+	defer wg.Done()
 	response, err := http.Get(fmt.Sprintf("%s/project/%s/version", MODRINTH_API_URL, project))
 	if err != nil {
 		log.Fatal(err)
-		return ModrinthMod{}, err
+		return
 	}
 
-	var mod ModrinthMod
+	var mod []ModrinthMod
 	if err := json.NewDecoder(response.Body).Decode(&mod); err != nil {
 		log.Fatal(err)
-		return ModrinthMod{}, err
+		return
 	}
 
-	return mod, nil
+	results <- mod
 }

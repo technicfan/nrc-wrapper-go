@@ -57,7 +57,7 @@ type NoriskMod struct {
 	Id string `json:"id"`
 	Name string `json:"displayName"`
 	Source map[string]string `json:"source"`
-	Compatibility map[string]map[string]*string `json:"compatibility"`
+	Compatibility map[string]map[string]map[string]string `json:"compatibility"`
 }
 
 type Loader struct {
@@ -107,7 +107,19 @@ type ModrinthMod struct {
 	Version_type string `json:"version_type"`
 	Status string `json:"status"`
 	Requested_status *string `json:"requested_status"`
-	Files map[string]ModFile `json:"files"`
+	Files []ModFile `json:"files"`
 	Dependencies any `json:"dependencies"`
 }
 
+type ModEntry struct {
+	Hash string
+	Version string
+	Id string
+	filename string
+	OldFile string
+	SourceType string
+	RepositoryRef string
+	GroupId string
+	ModrinthId string
+	MavenId string
+}
