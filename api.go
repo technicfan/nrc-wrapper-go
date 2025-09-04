@@ -38,6 +38,8 @@ func download_jar(url string, name string) (string, error) {
 		return "", err
 	}
 
+	log.Printf("Downloaded %s", name)
+
 	return name, nil
 }
 
@@ -87,6 +89,8 @@ func download_single_asset(id string, path string, metadata Asset, token string,
 	if _, err := file.Write(body); err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("Downloaded %s", filepath.Base(path))
 }
 
 func get_asset_metadata(id string) (Assets, error) {
@@ -184,7 +188,7 @@ func get_norisk_versions() (Versions, error) {
 	return versions, nil
 }
 
-func get_modrinth_versions(project string, wg *sync.WaitGroup, results chan<- []ModrinthMod) {
+func get_modrinth_versions(project string, wg *sync.WaitGroup, results chan <- []ModrinthMod) {
 	defer wg.Done()
 	response, err := http.Get(fmt.Sprintf("%s/project/%s/version", MODRINTH_API_URL, project))
 	if err != nil {

@@ -39,7 +39,7 @@ func get_minecraft_version() (string, error) {
 	return "", errors.New("minecraft not found")
 }
 
-func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan<- map[string]string) {
+func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan <- map[string]string) {
 	defer wg.Done()
 	a, err := download_jar(url, name)
 	if err != nil {

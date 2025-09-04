@@ -31,11 +31,12 @@ func calc_hash(path string) (string, error) {
 	return hex.EncodeToString(bytesHash[:]), nil
 }
 
-func verify_asset(path string, data Asset, wg *sync.WaitGroup, results chan<- VerifiedAsset) {
+func verify_asset(path string, data Asset, wg *sync.WaitGroup, results chan <- VerifiedAsset) {
 	defer wg.Done()
 
 	if hash, err := calc_hash(fmt.Sprintf("NoRiskClient/assets/%s", path)); err == nil && hash == data.Hash {
 		results <- VerifiedAsset{true, "", Asset{}}
+		return
 	}
 
 	results <- VerifiedAsset{false, path, data}
