@@ -127,7 +127,7 @@ func get_installed_versions() (map[string]map[string]string, error) {
 
 	hashes := make(map[string]map[string]string)
     for _, f := range files {
-        if !f.IsDir() && filepath.Ext(f.Name()) == ".jar" {
+        if !f.IsDir() && (filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
 			hash, err := calc_hash(fmt.Sprintf("mods/%s", f.Name()))
 			if err == nil {
 				info := make(map[string]string)
