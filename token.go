@@ -25,7 +25,7 @@ func is_token_expired(token_string string) (bool, error) {
 		exp := int64(claims["exp"].(float64))
 		current := time.Now().Unix()
 
-		return current < exp, nil
+		return current > exp, nil
 	}
 
 	return false, errors.New("invalid token")
