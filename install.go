@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -151,12 +152,12 @@ func get_installed_versions() (map[string]map[string]string, error) {
 	return results, nil
 }
 
-func get_compatible_nrc_mods(mc_version string, nrc_channel string) ([]ModEntry, map[string]string, error) {
+func get_compatible_nrc_mods(mc_version string, nrc_pack string) ([]ModEntry, map[string]string, error) {
 	versions, err := get_norisk_versions()
 	if err != nil {
 		return nil, nil, err
 	}
-	pack := versions.Packs[nrc_channel]
+	pack := versions.Packs[nrc_pack]
 
 	var mods []ModEntry
 	for _, mod := range pack.Mods {
@@ -224,7 +225,11 @@ func install(config map[string]string, wg1 *sync.WaitGroup) error {
 	if err != nil {
 		return err
 	}
-	mods, removed := remove_installed_mods(mods, installed_mods)
+	mods_to_download, already_installed := remove_installed_mods(mods, installed_mods)
+
+	if len(mods_to_download) == 0 {
+		return nil
+	}
 
 	log.Print("installing missing mods")
 
@@ -232,8 +237,8 @@ func install(config map[string]string, wg1 *sync.WaitGroup) error {
 	var modrinth_mods []ModEntry
 	var wg sync.WaitGroup
 
-	index := make(chan map[string]string, len(mods))
-	for _, mod := range mods {
+	index := make(chan map[string]string, len(mods_to_download))
+	for _, mod := range mods_to_download {
 		if mod.SourceType == "modrinth" {
 			modrinth_lookup[mod.Id] = mod
 			modrinth_lookup[mod.ModrinthId] = mod
@@ -256,10 +261,14 @@ func install(config map[string]string, wg1 *sync.WaitGroup) error {
 		close(results)
 	}()
 
+	reg := regexp.MustCompile(`-.*$`)
+
 	for modrinth_versions := range results {
 		for _, modrinth_mod := range modrinth_versions {
 			mod := modrinth_lookup[modrinth_mod.Project_id]
-			if slices.Contains(modrinth_mod.Loaders, "fabric") && mod.Version == modrinth_mod.Version {
+			if slices.Contains(modrinth_mod.Loaders, "fabric") && 
+				slices.Contains(modrinth_mod.Versions, mc_version) && 
+				(reg.ReplaceAllString(mod.Version, "") == modrinth_mod.Version || mod.Version == modrinth_mod.Id) {
 				for _, file := range modrinth_mod.Files {
 					if file.Primary {
 						wg.Add(1)
@@ -276,7 +285,7 @@ func install(config map[string]string, wg1 *sync.WaitGroup) error {
 	}()
 
 	if len(index) > 0 {
-		existing_index := convert_to_index(removed)
+		existing_index := convert_to_index(already_installed)
 		for entry := range index {
 			existing_index = append(existing_index, entry)
 		}

@@ -131,7 +131,7 @@ type ModEntry struct {
 	Hash string
 	Version string
 	Id string
-	filename string
+	Filename string
 	OldFile string
 	SourceType string
 	RepositoryRef string

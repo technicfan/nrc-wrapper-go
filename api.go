@@ -204,7 +204,6 @@ func get_modrinth_versions(project string, wg *sync.WaitGroup, results chan <- [
 
 	var mod []ModrinthMod
 	if err := json.Unmarshal(body, &mod); err != nil {
-		log.Println(project)
 		log.Fatal(err)
 		return
 	}
