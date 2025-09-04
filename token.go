@@ -128,6 +128,10 @@ func get_token(prism_data string) (string, error) {
 		return "", err
 	}
 
+	if token == "offline" {
+		return token, nil
+	}
+
 	nrc_token, err := read_token_from_file(prism_data, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
