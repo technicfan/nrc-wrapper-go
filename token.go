@@ -14,26 +14,18 @@ import (
 
 
 func is_token_expired(token_string string) (bool, error) {
-	token, err := jwt.Parse(token_string, func(token *jwt.Token) (any, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok && token.Method.Alg() != "none" {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return nil, nil
-	})
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	token, _, err := parser.ParseUnverified(token_string, jwt.MapClaims{})
 
 	if err != nil {
 		return false, err
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		expTime := int64(claims["exp"].(float64))
-		currentTime := time.Now().Unix()
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		exp := int64(claims["exp"].(float64))
+		current := time.Now().Unix()
 
-		if currentTime > expTime {
-			return true, nil
-		} else {
-			return false, nil
-		}
+		return current < exp, nil
 	}
 
 	return false, errors.New("invalid token")
