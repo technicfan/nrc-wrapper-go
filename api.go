@@ -94,7 +94,7 @@ func download_single_asset(id string, path string, metadata Asset, token string,
 }
 
 func get_asset_metadata(id string) (Assets, error) {
-	response, err := http.Get(fmt.Sprintf("https://api.norisk.gg/api/v1/launcher/pack/%s", id))
+	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", NORISK_API_URL, id))
 	if err != nil {
 		return Assets{}, err
 	}

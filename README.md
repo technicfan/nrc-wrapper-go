@@ -23,3 +23,7 @@ in the git repository.
 
 The binary that you'll have now has to be added as the wrapper command of a Minecraft 1.21-1.21.8 Fabric instance in PrismLauncher.<br>
 Just launch and enjoy.
+
+---
+
+You can chose the NRC Pack via the environment variable `NRC_PACK` (choose between `norisk-prod`, `norisk-dev` or `norisk-bughunter`)

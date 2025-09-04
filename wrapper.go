@@ -28,7 +28,7 @@ func main(){
 		log.Fatal(err)
 	}
 	wg.Add(1)
-	err = install(&wg)
+	err = install(config, &wg)
 	if err != nil {
 		log.Fatal(err)
 	}

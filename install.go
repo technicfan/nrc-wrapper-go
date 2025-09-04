@@ -83,13 +83,14 @@ func read_index() []map[string]string {
 
 func write_index(data []map[string]string) error {
 	var file *os.File
-	file, err := os.Open(".nrc-index.json")
+	file, err := os.OpenFile(".nrc-index.json", os.O_RDWR, os.ModePerm)
 	if err != nil {
 		file, err = os.Create(".nrc-index.json")
 		if err != nil {
 			return err
 		}
 	}
+	defer file.Close()
 
 	json_string, err := json.Marshal(data)
 	if err != nil {
@@ -100,7 +101,6 @@ func write_index(data []map[string]string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
 	return nil
 }
@@ -151,12 +151,12 @@ func get_installed_versions() (map[string]map[string]string, error) {
 	return results, nil
 }
 
-func get_compatible_nrc_mods(mc_version string) ([]ModEntry, map[string]string, error) {
+func get_compatible_nrc_mods(mc_version string, nrc_channel string) ([]ModEntry, map[string]string, error) {
 	versions, err := get_norisk_versions()
 	if err != nil {
 		return nil, nil, err
 	}
-	pack := versions.Packs["norisk-bughunter"]
+	pack := versions.Packs[nrc_channel]
 
 	var mods []ModEntry
 	for _, mod := range pack.Mods {
@@ -210,13 +210,13 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 	return repos[mod.RepositoryRef] + mod_path, filename
 }
 
-func install(wg1 *sync.WaitGroup) error {
+func install(config map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 	mc_version, err := get_minecraft_version()
 	if err != nil {
 		return err
 	}
-	mods, repos, err := get_compatible_nrc_mods(mc_version)
+	mods, repos, err := get_compatible_nrc_mods(mc_version, config["nrc-pack"])
 	if err != nil {
 		return err
 	}
