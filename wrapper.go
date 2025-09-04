@@ -37,8 +37,6 @@ func main(){
     command := os.Args[1]
     args := append([]string{command, fmt.Sprintf("-Dnorisk.token=%s", token)}, os.Args[2:]...)
 
-	log.Print("starting minecraft")
-
 	err = Exec(command, args)
 	if err != nil {
 		log.Fatal(err)
