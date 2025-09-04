@@ -226,6 +226,8 @@ func install(wg1 *sync.WaitGroup) error {
 	}
 	mods, removed := remove_installed_mods(mods, installed_mods)
 
+	log.Print("installing missing mods")
+
 	modrinth_lookup := make(map[string]ModEntry)
 	var modrinth_mods []ModEntry
 	var wg sync.WaitGroup

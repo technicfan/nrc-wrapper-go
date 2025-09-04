@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"sync"
 )
@@ -51,6 +52,8 @@ func load_assets(token string, wg1 *sync.WaitGroup) error {
 
 	var wg sync.WaitGroup
 	results := make(chan VerifiedAsset, len(metadata.Objects))
+
+	log.Print("verifying assets")
 
 	for i, v := range metadata.Objects {
 		wg.Add(1)
