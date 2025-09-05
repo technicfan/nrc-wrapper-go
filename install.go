@@ -208,8 +208,6 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 
-	log.Print("Verifying mods")
-
 	mc_version, err := get_minecraft_version()
 	if err != nil {
 		return err
