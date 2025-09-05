@@ -9,7 +9,7 @@ I wanted to write something in a language that was new for me and I decided for 
 
 Currently it can only launch the NoRiskClient through the PrismLauncher on Windows and Linux (idk about mac).
 Maybe I will try to add more launchers in the future.
-Once again most algorithms are **NOT** my own but those by [ThatCuteOne](https://github.com/ThatCuteOne)
+Once again most algorithms are **NOT** my own but those by [ThatCuteOne](https://github.com/ThatCuteOne), but everything after v1.0 and [`types.go`](./types.go) is my work.
 
 ---
 
