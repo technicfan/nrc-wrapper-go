@@ -77,7 +77,7 @@ func download_single_asset(id string, path string, asset map[string]string, toke
 	}
 
 	if hex.EncodeToString(hash.Sum(nil)) != asset["hash"] {
-		log.Fatal(err)
+		log.Fatalf("%s/%s has wrong hash", id, filepath.Base(path))
 	}
 
 	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
@@ -90,10 +90,12 @@ func download_single_asset(id string, path string, asset map[string]string, toke
 		log.Fatal(err)
 	}
 
-	log.Printf("Downloaded %s", filepath.Base(path))
+	log.Printf("Downloaded %s/%s", id, filepath.Base(path))
 }
 
-func get_asset_metadata(id string) (map[string]map[string]string, error) {
+func get_asset_metadata(id string, wg *sync.WaitGroup) (map[string]map[string]string, error) {
+	defer wg.Done()
+
 	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", NORISK_API_URL, id))
 	if err != nil {
 		return nil, err

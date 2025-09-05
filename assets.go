@@ -48,22 +48,23 @@ func load_assets(token string, packs []string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 	var wg sync.WaitGroup
 	data := make(map[string]map[string]map[string]string)
-	results := make(chan VerifiedAsset, 10)
 	for _, pack := range packs {
-		metadata, err := get_asset_metadata(pack)
+		wg.Add(1)
+		metadata, err := get_asset_metadata(pack, &wg)
 		if err != nil {
 			return err
 		}
 		data[pack] = metadata
 	}
 
+	wg.Wait()
+
 	merged := make(map[string]map[string]string)
 	for _, pack := range data {
 		maps.Copy(merged, pack)
 	}
 
-	log.Print("Verifying assets")
-
+	results := make(chan VerifiedAsset, len(merged))
 	for i, v := range merged {
 		wg.Add(1)
 		go verify_asset(i, v, &wg, results)
@@ -73,6 +74,10 @@ func load_assets(token string, packs []string, wg1 *sync.WaitGroup) error {
 		wg.Wait()
 		close(results)
 	}()
+
+	if len(results) != 0 {
+		log.Print("Downloading missing assets")
+	}
 
 	for result := range results {
 		if !result.Result {

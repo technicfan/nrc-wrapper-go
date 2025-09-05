@@ -27,7 +27,7 @@ func is_token_expired(token_string string) (bool, error) {
 		return current > exp, nil
 	}
 
-	return false, errors.New("invalid token")
+	return false, errors.New("Invalid token")
 }
 
 func read_token_from_file(path string, uuid string) (string, error) {
@@ -135,12 +135,12 @@ func get_token(prism_data string) (string, error) {
 	nrc_token, err := read_token_from_file(prism_data, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
-			log.Print("stored token is valid")
+			log.Print("Stored token is valid")
 			return nrc_token, nil
 		}
 	}
 
-	log.Print("requesting new token")
+	log.Print("Requesting new token")
 	server_id, err := request_server_id()
 	if err != nil {
 		return "", err

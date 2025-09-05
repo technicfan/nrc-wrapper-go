@@ -207,6 +207,9 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 
 func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
+
+	log.Print("Verifying mods")
+
 	mc_version, err := get_minecraft_version()
 	if err != nil {
 		return err
@@ -231,7 +234,7 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 	var modrinth_mods []ModEntry
 	var wg sync.WaitGroup
 
-	index := make(chan map[string]string, 10)
+	index := make(chan map[string]string, len(mods_to_download))
 	for _, mod := range mods_to_download {
 		if mod.SourceType == "modrinth" {
 			modrinth_lookup[mod.Id] = mod
@@ -244,7 +247,7 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 		}
 	}
 
-	results := make(chan []ModrinthMod, 10)
+	results := make(chan []ModrinthMod, len(modrinth_mods))
 	for _, mod := range modrinth_mods {
 		wg.Add(1)
 		go get_modrinth_versions(mod.Id, &wg, results)
