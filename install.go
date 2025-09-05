@@ -152,13 +152,7 @@ func get_installed_versions() (map[string]map[string]string, error) {
 	return results, nil
 }
 
-func get_compatible_nrc_mods(mc_version string, nrc_pack string) ([]ModEntry, map[string]string, error) {
-	versions, err := get_norisk_versions()
-	if err != nil {
-		return nil, nil, err
-	}
-	pack := versions.Packs[nrc_pack]
-
+func get_compatible_nrc_mods(mc_version string, pack Pack) ([]ModEntry, error) {
 	var mods []ModEntry
 	for _, mod := range pack.Mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
@@ -180,7 +174,7 @@ func get_compatible_nrc_mods(mc_version string, nrc_pack string) ([]ModEntry, ma
 		}
 	}
 
-	return mods, versions.Repositories, nil
+	return mods, nil
 }
 
 func remove_installed_mods(mods []ModEntry, installed_mods map[string]map[string]string) ([]ModEntry, []ModEntry) {
@@ -211,13 +205,13 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 	return repos[mod.RepositoryRef] + mod_path, filename
 }
 
-func install(config map[string]string, wg1 *sync.WaitGroup) error {
+func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 	mc_version, err := get_minecraft_version()
 	if err != nil {
 		return err
 	}
-	mods, repos, err := get_compatible_nrc_mods(mc_version, config["nrc-pack"])
+	mods, err := get_compatible_nrc_mods(mc_version, pack)
 	if err != nil {
 		return err
 	}
@@ -231,13 +225,13 @@ func install(config map[string]string, wg1 *sync.WaitGroup) error {
 		return nil
 	}
 
-	log.Print("installing missing mods")
+	log.Print("Installing missing mods")
 
 	modrinth_lookup := make(map[string]ModEntry)
 	var modrinth_mods []ModEntry
 	var wg sync.WaitGroup
 
-	index := make(chan map[string]string, len(mods_to_download))
+	index := make(chan map[string]string, 10)
 	for _, mod := range mods_to_download {
 		if mod.SourceType == "modrinth" {
 			modrinth_lookup[mod.Id] = mod
@@ -250,7 +244,7 @@ func install(config map[string]string, wg1 *sync.WaitGroup) error {
 		}
 	}
 
-	results := make(chan []ModrinthMod, len(modrinth_mods))
+	results := make(chan []ModrinthMod, 10)
 	for _, mod := range modrinth_mods {
 		wg.Add(1)
 		go get_modrinth_versions(mod.Id, &wg, results)

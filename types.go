@@ -124,7 +124,7 @@ type PrismInstance struct {
 type VerifiedAsset struct {
 	Result bool
 	Path string
-	Asset Asset
+	Asset map[string]string
 }
 
 type ModEntry struct {

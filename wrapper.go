@@ -9,7 +9,7 @@ import (
 
 func main(){
 	if len(os.Args) < 3 {
-		log.Fatal("you need to use it as the wrapper command")
+		log.Fatal("You need to use it as the wrapper command")
 		os.Exit(1)
 	}
 
@@ -21,14 +21,22 @@ func main(){
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	versions, err := get_norisk_versions()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	pack := versions.Packs[config["nrc-pack"]]
+
 	var wg sync.WaitGroup
 	wg.Add(1)
-	err = load_assets(token, &wg)
+	err = load_assets(token, pack.Assets, &wg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	wg.Add(1)
-	err = install(config, &wg)
+	err = install(pack, versions.Repositories, &wg)
 	if err != nil {
 		log.Fatal(err)
 	}

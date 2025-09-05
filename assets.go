@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"sync"
 )
@@ -32,30 +33,38 @@ func calc_hash(path string) (string, error) {
 	return hex.EncodeToString(bytesHash[:]), nil
 }
 
-func verify_asset(path string, data Asset, wg *sync.WaitGroup, results chan <- VerifiedAsset) {
+func verify_asset(path string, data map[string]string, wg *sync.WaitGroup, results chan <- VerifiedAsset) {
 	defer wg.Done()
 
-	if hash, err := calc_hash(fmt.Sprintf("NoRiskClient/assets/%s", path)); err == nil && hash == data.Hash {
-		results <- VerifiedAsset{true, "", Asset{}}
+	if hash, err := calc_hash(fmt.Sprintf("NoRiskClient/assets/%s", path)); err == nil && hash == data["hash"] {
+		results <- VerifiedAsset{true, "", nil}
 		return
 	}
 
 	results <- VerifiedAsset{false, path, data}
 }
 
-func load_assets(token string, wg1 *sync.WaitGroup) error {
+func load_assets(token string, packs []string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
-	metadata, err := get_asset_metadata("norisk-prod")
-	if err != nil {
-		return err
+	var wg sync.WaitGroup
+	data := make(map[string]map[string]map[string]string)
+	results := make(chan VerifiedAsset, 10)
+	for _, pack := range packs {
+		metadata, err := get_asset_metadata(pack)
+		if err != nil {
+			return err
+		}
+		data[pack] = metadata
 	}
 
-	var wg sync.WaitGroup
-	results := make(chan VerifiedAsset, len(metadata.Objects))
+	merged := make(map[string]map[string]string)
+	for _, pack := range data {
+		maps.Copy(merged, pack)
+	}
 
-	log.Print("verifying assets")
+	log.Print("Verifying assets")
 
-	for i, v := range metadata.Objects {
+	for i, v := range merged {
 		wg.Add(1)
 		go verify_asset(i, v, &wg, results)
 	}
@@ -68,7 +77,7 @@ func load_assets(token string, wg1 *sync.WaitGroup) error {
 	for result := range results {
 		if !result.Result {
 			wg.Add(1)
-			go download_single_asset("norisk-prod", result.Path, result.Asset, token, &wg)
+			go download_single_asset(result.Asset["pack"], result.Path, result.Asset, token, &wg)
 		}
 	}
 

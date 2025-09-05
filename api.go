@@ -43,7 +43,7 @@ func download_jar(url string, name string) (string, error) {
 	return name, nil
 }
 
-func download_single_asset(id string, path string, metadata Asset, token string, wg *sync.WaitGroup) {
+func download_single_asset(id string, path string, asset map[string]string, token string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), os.ModePerm)
@@ -76,7 +76,7 @@ func download_single_asset(id string, path string, metadata Asset, token string,
 		log.Fatal(err)
 	}
 
-	if hex.EncodeToString(hash.Sum(nil)) != metadata.Hash {
+	if hex.EncodeToString(hash.Sum(nil)) != asset["hash"] {
 		log.Fatal(err)
 	}
 
@@ -93,20 +93,27 @@ func download_single_asset(id string, path string, metadata Asset, token string,
 	log.Printf("Downloaded %s", filepath.Base(path))
 }
 
-func get_asset_metadata(id string) (Assets, error) {
+func get_asset_metadata(id string) (map[string]map[string]string, error) {
 	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", NORISK_API_URL, id))
 	if err != nil {
-		return Assets{}, err
+		return nil, err
 	}
 	defer response.Body.Close()
 
 	var metadata Assets
 	if err := json.NewDecoder(response.Body).Decode(&metadata); err != nil {
-		log.Fatal(err)
-		return Assets{}, err
+		return nil, err
 	}
 
-	return metadata, nil
+	results := make(map[string]map[string]string)
+	for i, v := range metadata.Objects {
+		asset := make(map[string]string)
+		asset["hash"] = v.Hash
+		asset["pack"] = id
+		results[i] = asset
+	}
+
+	return results, nil
 }
 
 func request_token(username string, server_id string) (string, error) {
