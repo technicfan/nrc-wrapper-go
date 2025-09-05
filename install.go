@@ -84,7 +84,7 @@ func read_index() []map[string]string {
 
 func write_index(data []map[string]string) error {
 	var file *os.File
-	file, err := os.OpenFile(".nrc-index.json", os.O_RDWR, os.ModePerm)
+	file, err := os.OpenFile(".nrc-index.json", os.O_TRUNC|os.O_RDWR, os.ModePerm)
 	if err != nil {
 		file, err = os.Create(".nrc-index.json")
 		if err != nil {
@@ -262,7 +262,8 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 			mod := modrinth_lookup[modrinth_mod.Project_id]
 			if slices.Contains(modrinth_mod.Loaders, "fabric") && 
 				slices.Contains(modrinth_mod.Versions, mc_version) && 
-				(reg.ReplaceAllString(mod.Version, "") == modrinth_mod.Version || mod.Version == modrinth_mod.Id) {
+				(reg.ReplaceAllString(mod.Version, "") == modrinth_mod.Version ||
+				mod.Version == modrinth_mod.Version || mod.Version == modrinth_mod.Id) {
 				for _, file := range modrinth_mod.Files {
 					if file.Primary {
 						wg.Add(1)

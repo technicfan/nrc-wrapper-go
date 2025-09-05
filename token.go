@@ -56,13 +56,12 @@ func write_token_to_file(path string, uuid string, token string) {
 	var file *os.File
 	var err error
 	var data map[string]string
-	file, err = os.OpenFile(fmt.Sprintf("%s/norisk_data.json", path), os.O_RDWR, os.ModePerm)
+	file, err = os.OpenFile(fmt.Sprintf("%s/norisk_data.json", path), os.O_TRUNC|os.O_RDWR, os.ModePerm)
 	if err != nil {
 		file, err = os.Create(fmt.Sprintf("%s/norisk_data.json", path))
 		if err != nil {
 			return
 		}
-		data = make(map[string]string)
 	} else {
 		byte_data, err := io.ReadAll(file)
 		if err != nil {
@@ -73,19 +72,20 @@ func write_token_to_file(path string, uuid string, token string) {
 	}
 	defer file.Close()
 
-	if _, exists := data[uuid]; !exists {
-		data[uuid] = token
+	if data == nil {
+		data = make(map[string]string)
+	}
 
-		json_string, err := json.Marshal(data)
-		if err != nil {
-			return
-		}
+	data[uuid] = token
 
-		_, err = file.WriteString(string(json_string))
-		if err != nil {
-			log.Println(err)
-			log.Fatal("failed to write data")
-		}
+	json_string, err := json.Marshal(data)
+	if err != nil {
+		return
+	}
+
+	_, err = file.WriteString(string(json_string))
+	if err != nil {
+		log.Fatal("failed to write data")
 	}
 }
 
