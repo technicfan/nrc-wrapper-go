@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -120,36 +121,40 @@ func get_prism_data(path string) (string, string, string, error) {
 	return "", "", "", errors.New("no active account found")
 }
 
-func get_token(prism_data string) (string, error) {
+func get_token(prism_data string, wg *sync.WaitGroup, out chan <- string) {
+	defer wg.Done()
+
 	var err error
 	var token, name, uuid string
 	token, name, uuid, err = get_prism_data(prism_data)
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 
 	if token == "offline" {
-		return token, nil
+		out <- token
+		return
 	}
 
 	nrc_token, err := read_token_from_file(prism_data, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			log.Print("Stored token is valid")
-			return nrc_token, nil
+			out <- nrc_token
+			return
 		}
 	}
 
 	log.Print("Requesting new token")
 	server_id, err := request_server_id()
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 	join_server_session(token, uuid, server_id)
 	nrc_token, err = request_token(name, server_id)
 	if err != nil {
-		return "", err
+		log.Fatal(err)
 	}
 	write_token_to_file(prism_data, uuid, nrc_token)
-	return nrc_token, nil
+	out <- nrc_token
 }

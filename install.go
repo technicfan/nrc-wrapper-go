@@ -40,8 +40,12 @@ func get_minecraft_version() (string, error) {
 	return "", errors.New("minecraft not found")
 }
 
-func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan <- map[string]string) {
+func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan <- map[string]string, limiter chan struct{}) {
 	defer wg.Done()
+
+	limiter <- struct{}{}
+	defer func() { <- limiter }()
+
 	a, err := download_jar(url, name)
 	if err != nil {
 		log.Fatal(err)
@@ -229,6 +233,7 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 	log.Print("Installing missing mods")
 
 	modrinth_lookup := make(map[string]ModEntry)
+	limiter := make(chan struct{}, 10)
 	var modrinth_mods []ModEntry
 	var wg sync.WaitGroup
 
@@ -241,7 +246,7 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 		} else {
 			url, filename := build_maven_url(mod, repos)
 			wg.Add(1)
-			go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, &wg, index)
+			go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, &wg, index, limiter)
 		}
 	}
 
@@ -268,7 +273,7 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 				for _, file := range modrinth_mod.Files {
 					if file.Primary {
 						wg.Add(1)
-						go download_jar_clean(file.Url, file.Filename, mod.Version, mod.Id, mod.OldFile, &wg, index)
+						go download_jar_clean(file.Url, file.Filename, mod.Version, mod.Id, mod.OldFile, &wg, index, limiter)
 					}
 				}
 			}

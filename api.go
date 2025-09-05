@@ -43,24 +43,15 @@ func download_jar(url string, name string) (string, error) {
 	return name, nil
 }
 
-func download_single_asset(id string, path string, asset map[string]string, token string, wg *sync.WaitGroup) {
+func download_single_asset(pack string, path string, expected_hash string, wg *sync.WaitGroup, limiter chan struct{}) {
 	defer wg.Done()
+
+	limiter <- struct{}{}
+	defer func() { <- limiter }()
 
 	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), os.ModePerm)
 
-	request, err := http.NewRequest(
-		http.MethodGet,
-		fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", id, path),
-		nil,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
-
-	client := &http.Client{}
-	response, err := client.Do(request)
+	response, err := http.Get(fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -76,8 +67,8 @@ func download_single_asset(id string, path string, asset map[string]string, toke
 		log.Fatal(err)
 	}
 
-	if hex.EncodeToString(hash.Sum(nil)) != asset["hash"] {
-		log.Fatalf("%s/%s has wrong hash", id, filepath.Base(path))
+	if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
+		log.Fatalf("%s/%s has wrong hash", pack, filepath.Base(path))
 	}
 
 	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
@@ -90,32 +81,32 @@ func download_single_asset(id string, path string, asset map[string]string, toke
 		log.Fatal(err)
 	}
 
-	log.Printf("Downloaded %s/%s", id, filepath.Base(path))
+	log.Printf("Downloaded %s/%s", pack, filepath.Base(path))
 }
 
-func get_asset_metadata(id string, wg *sync.WaitGroup) (map[string]map[string]string, error) {
+func get_asset_metadata(pack string, wg *sync.WaitGroup, data chan <- map[string]map[string]string) {
 	defer wg.Done()
 
-	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", NORISK_API_URL, id))
+	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", NORISK_API_URL, pack))
 	if err != nil {
-		return nil, err
+		return
 	}
 	defer response.Body.Close()
 
 	var metadata Assets
 	if err := json.NewDecoder(response.Body).Decode(&metadata); err != nil {
-		return nil, err
+		return
 	}
 
 	results := make(map[string]map[string]string)
 	for i, v := range metadata.Objects {
 		asset := make(map[string]string)
 		asset["hash"] = v.Hash
-		asset["pack"] = id
+		asset["pack"] = pack
 		results[i] = asset
 	}
 
-	return results, nil
+	data <- results
 }
 
 func request_token(username string, server_id string) (string, error) {

@@ -44,23 +44,22 @@ func verify_asset(path string, data map[string]string, wg *sync.WaitGroup, resul
 	results <- VerifiedAsset{false, path, data}
 }
 
-func load_assets(token string, packs []string, wg1 *sync.WaitGroup) error {
+func load_assets(packs []string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 	var wg sync.WaitGroup
-	data := make(map[string]map[string]map[string]string)
+	data := make(chan map[string]map[string]string)
 	for _, pack := range packs {
 		wg.Add(1)
-		metadata, err := get_asset_metadata(pack, &wg)
-		if err != nil {
-			return err
-		}
-		data[pack] = metadata
+		go get_asset_metadata(pack, &wg, data)
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(data)
+	}()
 
 	merged := make(map[string]map[string]string)
-	for _, pack := range data {
+	for pack := range data {
 		maps.Copy(merged, pack)
 	}
 
@@ -75,14 +74,13 @@ func load_assets(token string, packs []string, wg1 *sync.WaitGroup) error {
 		close(results)
 	}()
 
-	if len(results) != 0 {
-		log.Print("Downloading missing assets")
-	}
-
+	downloading := false
+	limiter := make(chan struct{}, 20)
 	for result := range results {
 		if !result.Result {
+			if !downloading { log.Print("Downloading missing assets"); downloading = true }
 			wg.Add(1)
-			go download_single_asset(result.Asset["pack"], result.Path, result.Asset, token, &wg)
+			go download_single_asset(result.Asset["pack"], result.Path, result.Asset["hash"], &wg, limiter)
 		}
 	}
 
