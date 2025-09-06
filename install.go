@@ -264,13 +264,13 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 		close(results)
 	}()
 
-	reg := regexp.MustCompile(`-.*$`)
+	reg := regexp.MustCompile(`(-|,).*$`)
 
 	for modrinth_versions := range results {
 		for _, modrinth_mod := range modrinth_versions {
 			mod := modrinth_lookup[modrinth_mod.Project_id]
 			if slices.Contains(modrinth_mod.Loaders, "fabric") && 
-				slices.Contains(modrinth_mod.Versions, mc_version) && 
+				(slices.Contains(modrinth_mod.Versions, mc_version) || mod.Version == modrinth_mod.Id || mod.Id == "silk") && 
 				(reg.ReplaceAllString(mod.Version, "") == modrinth_mod.Version ||
 				mod.Version == modrinth_mod.Version || mod.Version == modrinth_mod.Id) {
 				for _, file := range modrinth_mod.Files {
