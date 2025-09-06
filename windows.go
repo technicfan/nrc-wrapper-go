@@ -9,6 +9,7 @@ import (
 
 const (
 	PRISM_DIR = "AppData/Roaming/PrismLauncher"
+	MODRINTH_DIR = "AppData/Roaming/ModrinthApp"
 )
 
 func Exec(command string, args []string) error {

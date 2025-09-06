@@ -10,6 +10,7 @@ import (
 
 const (
 	PRISM_DIR = ".local/share/PrismLauncher"
+	MODRINTH_DIR = ".local/share/ModrinthApp"
 )
 
 func Exec(command string, args []string) error {
