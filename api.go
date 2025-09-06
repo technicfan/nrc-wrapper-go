@@ -12,8 +12,18 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
+
+func check_connection() bool {
+	_, err := http.Get(strings.ReplaceAll(NORISK_API_URL, "/api/v1", ""))
+	if err != nil {
+		return false
+	}
+
+	return true
+}
 
 func download_jar(url string, name string) (string, error) {
 	response, err := http.Get(url)
