@@ -156,9 +156,9 @@ func get_installed_versions() (map[string]map[string]string, error) {
 	return results, nil
 }
 
-func get_compatible_nrc_mods(mc_version string, pack Pack) ([]ModEntry, error) {
+func get_compatible_nrc_mods(mc_version string, nrc_mods []NoriskMod) ([]ModEntry, error) {
 	var mods []ModEntry
-	for _, mod := range pack.Mods {
+	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
 			mods = append(
 				mods,
@@ -209,19 +209,19 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 	return repos[mod.RepositoryRef] + mod_path, filename
 }
 
-func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
+func install(pack string, nrc_mods []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 
 	mc_version, err := get_minecraft_version()
 	if err != nil {
 		return err
 	}
-	mods, err := get_compatible_nrc_mods(mc_version, pack)
+	mods, err := get_compatible_nrc_mods(mc_version, nrc_mods)
 	if err != nil {
 		return err
 	}
 	if len(mods) == 0 {
-		log.Fatalf("There are no NRC mods for %s in %s", mc_version, pack.Name)
+		log.Fatalf("There are no NRC mods for %s in %s", mc_version, pack)
 	}
 	installed_mods, err := get_installed_versions()
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"sync"
 )
 
@@ -40,14 +41,24 @@ func main(){
 		if !exists {
 			log.Fatalf("%s is not a valid NRC pack", config["nrc-pack"])
 		}
+		mods := pack.Mods
+		assets := pack.Assets
+		for _, inherited_pack := range pack.Inherits {
+			mods = append(mods, versions.Packs[inherited_pack].Mods...)
+			for _, asset_pack := range versions.Packs[inherited_pack].Assets {
+				if !slices.Contains(assets, asset_pack) {
+					assets = append(assets, asset_pack)
+				}
+			}
+		}
 
 		var wg sync.WaitGroup
 		token_out := make(chan string, 1)
 		wg.Add(3)
 
 		go get_token(config["prism_dir"], &wg, token_out)
-		go load_assets(pack.Assets, &wg)
-		go install(pack, versions.Repositories, &wg)
+		go load_assets(assets, &wg)
+		go install(pack.Name, mods, versions.Repositories, &wg)
 
 		wg.Wait()
 
