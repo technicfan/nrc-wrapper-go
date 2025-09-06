@@ -78,7 +78,7 @@ func load_assets(packs []string, wg1 *sync.WaitGroup) error {
 	limiter := make(chan struct{}, 20)
 	for result := range results {
 		if !result.Result {
-			if !downloading { log.Print("Downloading missing assets"); downloading = true }
+			if !downloading { log.Println("Downloading missing assets"); downloading = true }
 			wg.Add(1)
 			go download_single_asset(result.Asset["pack"], result.Path, result.Asset["hash"], &wg, limiter)
 		}

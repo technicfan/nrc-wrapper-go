@@ -13,7 +13,7 @@ func main(){
 	}
 
 	var token string
-	log.Print("Loading NoRiskClient...")
+	log.Println("Loading NoRiskClient...")
 
 	if check_connection() {
 		os.Mkdir("mods", os.ModePerm)
@@ -42,8 +42,8 @@ func main(){
 
 		token = <- token_out
 	} else {
-		log.Print("No connection to the API")
-		log.Print("Launching without doing anything")
+		log.Println("No connection to the API")
+		log.Println("Launching without doing anything")
 		token = "offline"
 	}
 

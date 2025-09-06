@@ -220,6 +220,9 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 	if err != nil {
 		return err
 	}
+	if len(mods) == 0 {
+		log.Fatalf("There are no NRC mods for %s", mc_version)
+	}
 	installed_mods, err := get_installed_versions()
 	if err != nil {
 		return err
@@ -230,7 +233,7 @@ func install(pack Pack, repos map[string]string, wg1 *sync.WaitGroup) error {
 		return nil
 	}
 
-	log.Print("Installing missing mods")
+	log.Println("Installing missing mods")
 
 	modrinth_lookup := make(map[string]ModEntry)
 	limiter := make(chan struct{}, 10)

@@ -139,13 +139,13 @@ func get_token(prism_data string, wg *sync.WaitGroup, out chan <- string) {
 	nrc_token, err := read_token_from_file(prism_data, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
-			log.Print("Stored token is valid")
+			log.Println("Stored token is valid")
 			out <- nrc_token
 			return
 		}
 	}
 
-	log.Print("Requesting new token")
+	log.Println("Requesting new token")
 	server_id, err := request_server_id()
 	if err != nil {
 		log.Fatal(err)
