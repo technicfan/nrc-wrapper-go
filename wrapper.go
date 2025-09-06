@@ -8,22 +8,33 @@ import (
 )
 
 func main(){
-	if len(os.Args) < 3 {
+	launch := true
+	if len(os.Args) == 2 && os.Args[1] == "--packs" {
+		launch = false
+	} else if len(os.Args) < 3 {
 		log.Fatal("You need to use it as the wrapper command")
 	}
 
 	var token string
-	log.Println("Loading NoRiskClient...")
+	if launch { log.Println("Loading NoRiskClient...") }
 
 	if check_connection() {
-		os.Mkdir("mods", os.ModePerm)
-
-		config := get_config()
-
 		versions, err := get_norisk_versions()
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		if !launch {
+			fmt.Println("Available values for \"NRC_PACK\":")
+			for pack := range versions.Packs {
+				fmt.Printf("- %s\n", pack)
+			}
+			return
+		}
+
+		os.Mkdir("mods", os.ModePerm)
+
+		config := get_config()
 
 		pack, exists := versions.Packs[config["nrc-pack"]]
 		if !exists {
