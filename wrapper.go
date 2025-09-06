@@ -51,6 +51,7 @@ func main(){
 				}
 			}
 		}
+		slices.Reverse(assets)
 
 		var wg sync.WaitGroup
 		token_out := make(chan string, 1)
