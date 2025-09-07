@@ -16,6 +16,7 @@ func main(){
 	}
 
 	var token string
+	var mods_dir string
 	if launch { log.Println("Loading NoRiskClient...") }
 
 	if check_connection() {
@@ -33,6 +34,7 @@ func main(){
 		}
 
 		config := get_config()
+		mods_dir = config["mods-dir"]
 
 		pack, exists := versions.Packs[config["nrc-pack"]]
 		if !exists {
@@ -66,7 +68,12 @@ func main(){
 	}
 
     command := os.Args[1]
-    args := append([]string{command, fmt.Sprintf("-Dnorisk.token=%s", token)}, os.Args[2:]...)
+    args := append(
+		[]string{
+			command, fmt.Sprintf("-Dnorisk.token=%s", token),
+			fmt.Sprintf("-Dfabric.addMods=%s", mods_dir),
+		}, os.Args[2:]...
+	)
 
 	err := Exec(command, args)
 	if err != nil {

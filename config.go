@@ -40,6 +40,12 @@ func get_config() map[string]string {
 		log.Fatal("No valid launcher detected or set manually")
 	}
 
+	if value := os.Getenv("NRC_MODS_DIR"); value != "" {
+		config["mods-dir"] = value
+	} else {
+		config["mods-dir"] = "mods/NoRiskClient"
+	}
+
 	if value := os.Getenv("NRC_PACK"); value != "" {
 		config["nrc-pack"] = value
 	} else {

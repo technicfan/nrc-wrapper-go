@@ -25,14 +25,14 @@ func check_connection() bool {
 	return true
 }
 
-func download_jar(url string, name string) (string, error) {
+func download_jar(url string, name string, path string) (string, error) {
 	response, err := http.Get(url)
 	if err != nil {
 		return "", err
 	}
 	defer response.Body.Close()
 
-	file, err := os.Create(fmt.Sprintf("mods/%s", name))
+	file, err := os.Create(filepath.Join(path, name))
 	if err != nil  {
 		return "", err
 	}

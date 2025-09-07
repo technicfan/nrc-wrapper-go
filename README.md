@@ -12,6 +12,11 @@ Once again most algorithms are **NOT** my own but those by [ThatCuteOne](https:/
 
 ---
 
+It installs the mods in a seperate directory from all your other mods to prevent the launcher messing with them.
+If you used the wrapper before this change, you should probably delete the nrc mods from your regular mods folder (don't know whether it matters that much though).
+
+---
+
 ### Config:
 
 The wrapper can be configured through environment variables
@@ -19,6 +24,7 @@ The wrapper can be configured through environment variables
 |    Variable    |                                                        Description                                                         |
 | :------------: | :------------------------------------------------------------------------------------------------------------------------: |
 |   `NRC_PACK`   | This lets you choose, which nrc modpack to use; You can see available option when using the `--packs` flag in the terminal |
+| `NRC_MOD_DIR`  |        This lets you change the directory the wrapper installs the nrc mods in (the default is `mods/NoRiskClient`)        |
 |   `LAUNCHER`   | The wrapper generally detects the launcher by itself, but in case it doesn't you have the option for `prism` or `modrinth` |
 |  `PRISM_DIR`   |                         The data directory of Prism Launcher in case it's not the default location                         |
 | `MODRINTH_DIR` |                       The data directory of Modrinth Launcher in case it's not the default location                        |

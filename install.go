@@ -72,23 +72,23 @@ func get_minecraft_version(path string, launcher string) (string, error) {
 	return "", errors.New("Minecraft version not found")
 }
 
-func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan <- map[string]string, limiter chan struct{}) {
+func download_jar_clean(url string, name string, version string, id string, old_file string, path string, wg *sync.WaitGroup, index chan <- map[string]string, limiter chan struct{}) {
 	defer wg.Done()
 
 	limiter <- struct{}{}
 	defer func() { <- limiter }()
 
-	a, err := download_jar(url, name)
+	a, err := download_jar(url, name, path)
 	if err != nil {
 		log.Fatal(err)
 	}
 	if a != old_file && a != "" && old_file != "" {
-		os.Remove(fmt.Sprintf("mods/%s", old_file))
+		os.Remove(filepath.Join(path, old_file))
 	}
 
 	result := make(map[string]string)
 	result["id"] = id
-	result["hash"], err = calc_hash(fmt.Sprintf("mods/%s", name))
+	result["hash"], err = calc_hash(filepath.Join(path, name))
 	if err != nil {
 		result["hash"] = ""
 	}
@@ -155,8 +155,8 @@ func convert_to_index(mods []ModEntry) []map[string]string {
 	return results
 }
 
-func get_installed_versions() (map[string]map[string]string, error) {
-    files, err := os.ReadDir("mods")
+func get_installed_versions(path string) (map[string]map[string]string, error) {
+    files, err := os.ReadDir(path)
     if err != nil {
         return nil, err
     }
@@ -165,7 +165,7 @@ func get_installed_versions() (map[string]map[string]string, error) {
 	hashes := make(map[string]map[string]string)
     for _, f := range files {
         if !f.IsDir() && (filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
-			hash, err := calc_hash(fmt.Sprintf("mods/%s", f.Name()))
+			hash, err := calc_hash(filepath.Join(path, f.Name()))
 			if err == nil {
 				info := make(map[string]string)
 				info["filename"] = f.Name()
@@ -243,7 +243,7 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 
 func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inherited []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
-	os.Mkdir("mods", os.ModePerm)
+	os.Mkdir(config["mods-dir"], os.ModePerm)
 
 	mc_version, err := get_minecraft_version(config["launcher_dir"], config["launcher"])
 	if err != nil {
@@ -261,13 +261,13 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 		return err
 	}
 	mods = append(mods, inherited_mods...)
-	installed_mods, err := get_installed_versions()
+	installed_mods, err := get_installed_versions(config["mods-dir"])
 	if err != nil {
 		return err
 	}
 	mods_to_download, already_installed := remove_installed_mods(mods, installed_mods)
 
-	if len(mods_to_download) == 0 {
+	if len(mods_to_download) == 0 || mods_to_download[0].Id == "ukulib" {
 		return nil
 	}
 
@@ -287,7 +287,7 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 		} else {
 			url, filename := build_maven_url(mod, repos)
 			wg.Add(1)
-			go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, &wg, index, limiter)
+			go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, config["mods-dir"], &wg, index, limiter)
 		}
 	}
 
@@ -314,7 +314,7 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 				for _, file := range modrinth_mod.Files {
 					if file.Primary {
 						wg.Add(1)
-						go download_jar_clean(file.Url, file.Filename, mod.Version, mod.Id, mod.OldFile, &wg, index, limiter)
+						go download_jar_clean(file.Url, file.Filename, mod.Version, mod.Id, mod.OldFile, config["mods-dir"], &wg, index, limiter)
 					}
 				}
 			}
