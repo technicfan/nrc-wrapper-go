@@ -33,8 +33,6 @@ func main(){
 			return
 		}
 
-		os.Mkdir("mods", os.ModePerm)
-
 		config := get_config()
 
 		pack, exists := versions.Packs[config["nrc-pack"]]

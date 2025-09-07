@@ -48,6 +48,7 @@ func get_minecraft_version(path string, launcher string) (string, error) {
 			return "", err
 		}
 		defer db.Close()
+
 		cwd, err := os.Getwd()
 		if err != nil {
 			return "", err
@@ -57,6 +58,7 @@ func get_minecraft_version(path string, launcher string) (string, error) {
 			return "", err
 		}
 		defer rows.Close()
+
 		var version string
 		for rows.Next() {
 			err = rows.Scan(&version)
@@ -241,6 +243,7 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 
 func install(config map[string]string, nrc_mods []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
+	os.Mkdir("mods", os.ModePerm)
 
 	mc_version, err := get_minecraft_version(config["launcher_dir"], config["launcher"])
 	if err != nil {

@@ -15,10 +15,10 @@ func get_config() map[string]string {
 	if value := os.Getenv("LAUNCHER"); value != "" {
 		log.Printf("Set %s manually", value)
 		config["launcher"] = value
-	} else if _, err := os.Open("../mmc.pack"); err != nil {
+	} else if _, err := os.Open("../mmc-pack.json"); err == nil {
 		log.Println("Detected Prism Launcher")
 		config["launcher"] = "prism"
-	} else if _, err := os.Open("../../app.db"); err != nil {
+	} else if _, err := os.Open("../../app.db"); err == nil {
 		log.Println("Detected Modrinth Launcher")
 		config["launcher"] = "modrinth"
 	}
