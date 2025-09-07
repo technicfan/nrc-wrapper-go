@@ -49,7 +49,6 @@ func load_assets(packs []string, wg1 *sync.WaitGroup) error {
 	var wg sync.WaitGroup
 	data := make(chan map[int]map[string]map[string]string, len(packs))
 	for i, pack := range packs {
-		log.Printf("%s - %v", pack, i)
 		wg.Add(1)
 		go get_asset_metadata(i, pack, &wg, data)
 	}
