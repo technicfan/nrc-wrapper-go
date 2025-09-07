@@ -38,7 +38,7 @@ func main(){
 		if !exists {
 			log.Fatalf("%s is not a valid NRC pack", config["nrc-pack"])
 		}
-		mods := pack.Mods
+		var mods []NoriskMod
 		var assets []string
 		for _, inherited_pack := range pack.Inherits {
 			mods = append(mods, versions.Packs[inherited_pack].Mods...)
@@ -54,7 +54,7 @@ func main(){
 
 		go get_token(config, &wg, token_out)
 		go load_assets(assets, &wg)
-		go install(config, mods, versions.Repositories, &wg)
+		go install(config, pack.Mods, mods, versions.Repositories, &wg)
 
 		wg.Wait()
 

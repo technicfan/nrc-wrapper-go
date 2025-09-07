@@ -241,7 +241,7 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 	return repos[mod.RepositoryRef] + mod_path, filename
 }
 
-func install(config map[string]string, nrc_mods []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
+func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inherited []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 	os.Mkdir("mods", os.ModePerm)
 
@@ -249,13 +249,18 @@ func install(config map[string]string, nrc_mods []NoriskMod, repos map[string]st
 	if err != nil {
 		return err
 	}
-	mods, err := get_compatible_nrc_mods(mc_version, nrc_mods)
+	mods, err := get_compatible_nrc_mods(mc_version, nrc_mods_main)
 	if err != nil {
 		return err
 	}
 	if len(mods) == 0 {
 		log.Fatalf("There are no NRC mods for %s in %s", mc_version, config["nrc-pack"])
 	}
+	inherited_mods, err := get_compatible_nrc_mods(mc_version, nrc_mods_inherited)
+	if err != nil {
+		return err
+	}
+	mods = append(mods, inherited_mods...)
 	installed_mods, err := get_installed_versions()
 	if err != nil {
 		return err
