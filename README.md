@@ -12,7 +12,7 @@ Once again most algorithms are **NOT** my own but those by [ThatCuteOne](https:/
 
 ---
 
-##### Config:
+### Config:
 
 The wrapper can be configured through environment variables
 
@@ -53,4 +53,12 @@ go build -ldflags -H=windowsgui -o nrc-wrapper-go.exe
 in the git repository.
 
 The binary that you'll have now has to be added as the wrapper command of a Minecraft 1.21-1.21.8 Fabric instance in a supported Launcher.<br>
-Just launch and enjoy (sometimes you'll have to restart a few times until it works the first time; idk why; but still wait a little bit as the initial download takes time too).
+Just launch and enjoy.
+
+---
+
+Things to keep in mind:
+
+- this is no official project supported by NoRiskClient
+- first launch takes longer and maybe needs to be restarted some times (idk why)
+- on Windows there is no way to replace the current process, so minecraft will just continue running if you terminate the instance from your launcher
