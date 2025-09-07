@@ -84,7 +84,7 @@ func write_token_to_file(path string, uuid string, token string) {
 
 	data[uuid] = token
 
-	json_string, err := json.Marshal(data)
+	json_string, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return
 	}

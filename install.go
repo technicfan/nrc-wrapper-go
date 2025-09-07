@@ -129,7 +129,7 @@ func write_index(data []map[string]string) error {
 	}
 	defer file.Close()
 
-	json_string, err := json.Marshal(data)
+	json_string, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
 		return err
 	}
