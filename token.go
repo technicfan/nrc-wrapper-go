@@ -1,18 +1,21 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/golang-jwt/jwt/v5"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func is_token_expired(token_string string) (bool, error) {
@@ -180,10 +183,15 @@ func get_token(config map[string]string, wg *sync.WaitGroup, out chan <- string)
 		log.Fatal(err)
 	}
 	join_server_session(token, uuid, server_id)
-	nrc_token, err = request_token(name, server_id, config["launcher"])
+
+	host, _ := os.Hostname()
+	system_id := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, host)
+	hash := sha256.Sum256([]byte(system_id))
+	nrc_token, err = request_token(name, server_id, fmt.Sprintf("NRC%s", hex.EncodeToString(hash[:])))
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	write_token_to_file(config["launcher_dir"], uuid, nrc_token)
 	out <- nrc_token
 }
