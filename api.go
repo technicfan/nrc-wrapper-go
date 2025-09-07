@@ -94,7 +94,7 @@ func download_single_asset(pack string, path string, expected_hash string, wg *s
 	log.Printf("Downloaded %s/%s", pack, filepath.Base(path))
 }
 
-func get_asset_metadata(pack string, wg *sync.WaitGroup, data chan <- map[string]map[string]string) {
+func get_asset_metadata(index int, pack string, wg *sync.WaitGroup, data chan <- map[int]map[string]map[string]string) {
 	defer wg.Done()
 
 	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", NORISK_API_URL, pack))
@@ -116,7 +116,7 @@ func get_asset_metadata(pack string, wg *sync.WaitGroup, data chan <- map[string
 		results[i] = asset
 	}
 
-	data <- results
+	data <- map[int]map[string]map[string]string{index: results}
 }
 
 func request_token(username string, server_id string, hwid string) (string, error) {

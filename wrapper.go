@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"sync"
 )
 
@@ -40,16 +39,14 @@ func main(){
 			log.Fatalf("%s is not a valid NRC pack", config["nrc-pack"])
 		}
 		mods := pack.Mods
-		assets := pack.Assets
+		var assets []string
 		for _, inherited_pack := range pack.Inherits {
 			mods = append(mods, versions.Packs[inherited_pack].Mods...)
 			for _, asset_pack := range versions.Packs[inherited_pack].Assets {
-				if !slices.Contains(assets, asset_pack) {
-					assets = append(assets, asset_pack)
-				}
+				assets = append(assets, asset_pack)
 			}
 		}
-		slices.Reverse(assets)
+		assets = append(assets, pack.Assets...)
 
 		var wg sync.WaitGroup
 		token_out := make(chan string, 1)

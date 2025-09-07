@@ -47,10 +47,11 @@ func verify_asset(path string, data map[string]string, wg *sync.WaitGroup, resul
 func load_assets(packs []string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
 	var wg sync.WaitGroup
-	data := make(chan map[string]map[string]string)
-	for _, pack := range packs {
+	data := make(chan map[int]map[string]map[string]string, len(packs))
+	for i, pack := range packs {
+		log.Printf("%s - %v", pack, i)
 		wg.Add(1)
-		go get_asset_metadata(pack, &wg, data)
+		go get_asset_metadata(i, pack, &wg, data)
 	}
 
 	go func() {
@@ -58,9 +59,13 @@ func load_assets(packs []string, wg1 *sync.WaitGroup) error {
 		close(data)
 	}()
 
+	final_data := make(map[int]map[string]map[string]string)
+	for obj := range data {
+		maps.Copy(final_data, obj)
+	}
 	merged := make(map[string]map[string]string)
-	for pack := range data {
-		maps.Copy(merged, pack)
+	for i := 0; i < len(final_data); i++ {
+		maps.Copy(merged, final_data[i])
 	}
 
 	results := make(chan VerifiedAsset, len(merged))
