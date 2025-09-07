@@ -119,9 +119,9 @@ func get_asset_metadata(pack string, wg *sync.WaitGroup, data chan <- map[string
 	data <- results
 }
 
-func request_token(username string, server_id string) (string, error) {
+func request_token(username string, server_id string, hwid string) (string, error) {
 	response, err := http.Post(
-		fmt.Sprintf("%s/launcher/auth/validate/v2?force=false&hwid=null&username=%s&server_id=%s", NORISK_API_URL, username, server_id),
+		fmt.Sprintf("%s/launcher/auth/validate/v2?force=false&hwid=%s&username=%s&server_id=%s", NORISK_API_URL, hwid, username, server_id),
 		"application/json",
 		bytes.NewBuffer([]byte{}),
 	)

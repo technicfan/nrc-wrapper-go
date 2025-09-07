@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,32 +13,63 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
-func get_minecraft_version() (string, error) {
-	file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
-	if err != nil {
-		return "", err
-	}
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	var data PrismInstance
-	err = json.Unmarshal(content, &data)
-	if err != nil {
-		return "", err
-	}
-
-	for _, entry := range data.Components {
-		if entry.CName == "Minecraft" {
-			return entry.Version, nil
+func get_minecraft_version(path string, launcher string) (string, error) {
+	switch launcher {
+	case "prism":
+		file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
+		if err != nil {
+			return "", err
 		}
+		content, err := io.ReadAll(file)
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+
+		var data PrismInstance
+		err = json.Unmarshal(content, &data)
+		if err != nil {
+			return "", err
+		}
+
+		for _, entry := range data.Components {
+			if entry.CName == "Minecraft" {
+				return entry.Version, nil
+			}
+		}
+
+	case "modrinth":
+		db, err := sql.Open("sqlite3", fmt.Sprintf("%s/app.db", path))
+		if err != nil {
+			return "", err
+		}
+		defer db.Close()
+
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", err
+		}
+		rows, err := db.Query(fmt.Sprintf("SELECT game_version FROM profiles WHERE path = '%s'", filepath.Base(cwd)))
+		if err != nil {
+			return "", err
+		}
+		defer rows.Close()
+
+		var version string
+		for rows.Next() {
+			err = rows.Scan(&version)
+			if err != nil {
+				return "", err
+			}
+		}
+		return version, nil
 	}
 
-	return "", errors.New("minecraft not found")
+	return "", errors.New("Minecraft version not found")
 }
 
 func download_jar_clean(url string, name string, version string, id string, old_file string, wg *sync.WaitGroup, index chan <- map[string]string, limiter chan struct{}) {
@@ -209,10 +241,11 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 	return repos[mod.RepositoryRef] + mod_path, filename
 }
 
-func install(pack string, nrc_mods []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
+func install(config map[string]string, nrc_mods []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
 	defer wg1.Done()
+	os.Mkdir("mods", os.ModePerm)
 
-	mc_version, err := get_minecraft_version()
+	mc_version, err := get_minecraft_version(config["launcher_dir"], config["launcher"])
 	if err != nil {
 		return err
 	}
@@ -221,7 +254,7 @@ func install(pack string, nrc_mods []NoriskMod, repos map[string]string, wg1 *sy
 		return err
 	}
 	if len(mods) == 0 {
-		log.Fatalf("There are no NRC mods for %s in %s", mc_version, pack)
+		log.Fatalf("There are no NRC mods for %s in %s", mc_version, config["nrc-pack"])
 	}
 	installed_mods, err := get_installed_versions()
 	if err != nil {

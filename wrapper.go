@@ -33,8 +33,6 @@ func main(){
 			return
 		}
 
-		os.Mkdir("mods", os.ModePerm)
-
 		config := get_config()
 
 		pack, exists := versions.Packs[config["nrc-pack"]]
@@ -57,9 +55,9 @@ func main(){
 		token_out := make(chan string, 1)
 		wg.Add(3)
 
-		go get_token(config["prism_dir"], &wg, token_out)
+		go get_token(config, &wg, token_out)
 		go load_assets(assets, &wg)
-		go install(pack.Name, mods, versions.Repositories, &wg)
+		go install(config, mods, versions.Repositories, &wg)
 
 		wg.Wait()
 
