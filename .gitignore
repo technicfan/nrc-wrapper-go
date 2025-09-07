@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-nrc-prism-wrapper-go
+nrc-wrapper-go*
 
 # Test binary, built with `go test -c`
 *.test

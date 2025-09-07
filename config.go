@@ -26,13 +26,13 @@ func get_config() map[string]string {
 	switch config["launcher"] {
 	case "prism":
 		if value := os.Getenv("PRISM_DIR"); value != "" {
-			config["launcher_dir"] = filepath.Join(home, value)
+			config["launcher_dir"] = value
 		} else {
 			config["launcher_dir"] = filepath.Join(home, PRISM_DIR)
 		}
 	case "modrinth":
 		if value := os.Getenv("MODRINTH_DIR"); value != "" {
-			config["launcher_dir"] = filepath.Join(home, value)
+			config["launcher_dir"] = value
 		} else {
 			config["launcher_dir"] = filepath.Join(home, MODRINTH_DIR)
 		}

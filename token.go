@@ -131,7 +131,7 @@ func get_minecraft_data(path string, launcher string) (string, string, string, e
 		}
 		defer db.Close()
 
-		rows, err := db.Query("SELECT access_token,username,uuid FROM minecraft_users where active = 1")
+		rows, err := db.Query("SELECT access_token, username, uuid FROM minecraft_users where active = 1")
 		if err != nil {
 			return "", "", "", err
 		}
