@@ -9,7 +9,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
+	"unicode"
+
 	"slices"
 	"strings"
 	"sync"
@@ -72,11 +73,11 @@ func get_minecraft_version(path string, launcher string) (string, error) {
 	return "", errors.New("Minecraft version not found")
 }
 
-func download_jar_clean(url string, name string, version string, id string, old_file string, path string, wg *sync.WaitGroup, index chan <- map[string]string, limiter chan struct{}) {
+func download_jar_clean(url string, name string, version string, id string, old_file string, path string, wg *sync.WaitGroup, index chan<- map[string]string, limiter chan struct{}) {
 	defer wg.Done()
 
 	limiter <- struct{}{}
-	defer func() { <- limiter }()
+	defer func() { <-limiter }()
 
 	a, err := download_jar(url, name, path)
 	if err != nil {
@@ -151,28 +152,28 @@ func convert_to_index(mods []ModEntry) []map[string]string {
 		info["version"] = mod.Version
 		results = append(results, info)
 	}
-	
+
 	return results
 }
 
 func get_installed_versions(path string) (map[string]map[string]string, error) {
-    files, err := os.ReadDir(path)
-    if err != nil {
-        return nil, err
-    }
+	files, err := os.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
 	index := read_index()
 
 	hashes := make(map[string]map[string]string)
-    for _, f := range files {
-        if !f.IsDir() && (filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
+	for _, f := range files {
+		if !f.IsDir() && (filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
 			hash, err := calc_hash(filepath.Join(path, f.Name()))
 			if err == nil {
 				info := make(map[string]string)
 				info["filename"] = f.Name()
 				hashes[hash] = info
 			}
-        }
-    }
+		}
+	}
 
 	results := make(map[string]map[string]string)
 	for _, entry := range index {
@@ -267,7 +268,7 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 	}
 	mods_to_download, already_installed := remove_installed_mods(mods, installed_mods)
 
-	if len(mods_to_download) == 0 || mods_to_download[0].Id == "ukulib" {
+	if len(mods_to_download) == 0 {
 		return nil
 	}
 
@@ -283,6 +284,10 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 		if mod.SourceType == "modrinth" {
 			modrinth_lookup[mod.Id] = mod
 			modrinth_lookup[mod.ModrinthId] = mod
+			// ukulib workaround for non existant id
+			if mod.ModrinthId == "6fJ2UigN" {
+				modrinth_lookup["Y8uFrUil"] = mod
+			}
 			modrinth_mods = append(modrinth_mods, mod)
 		} else {
 			url, filename := build_maven_url(mod, repos)
@@ -302,21 +307,38 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 		close(results)
 	}()
 
-	reg := regexp.MustCompile(`(-|,).*$`)
-
 	for modrinth_versions := range results {
 		for _, modrinth_mod := range modrinth_versions {
 			mod := modrinth_lookup[modrinth_mod.Project_id]
-			if slices.Contains(modrinth_mod.Loaders, "fabric") && 
-				(slices.Contains(modrinth_mod.Versions, mc_version) || mod.Version == modrinth_mod.Id || mod.Id == "silk") && 
-				(reg.ReplaceAllString(mod.Version, "") == modrinth_mod.Version ||
-				mod.Version == modrinth_mod.Version || mod.Version == modrinth_mod.Id) {
+			version := mod.Version
+			var filter_version string
+			var filter_loader string
+			// wavey-capes workaround
+			if mod.Id == "wavey-capes" {
+				version = strings.Replace(mod.Version, "-", ",", 1)
+			}
+			parts := strings.Split(version, ",")
+			switch len(parts) {
+			case 2:
+				if unicode.IsDigit(rune(parts[1][0])) {
+					filter_version = parts[1]
+				} else {
+					filter_loader = parts[1]
+				}
+			case 3:
+				filter_version = parts[2]
+				filter_loader = parts[1]
+			}
+			if (filter_loader == "" || slices.Contains(modrinth_mod.Loaders, filter_loader)) &&
+				(filter_version == "" || slices.Contains(modrinth_mod.Versions, filter_version)) &&
+				(parts[0] == modrinth_mod.Version || mod.Version == modrinth_mod.Id) {
 				for _, file := range modrinth_mod.Files {
 					if file.Primary {
 						wg.Add(1)
 						go download_jar_clean(file.Url, file.Filename, mod.Version, mod.Id, mod.OldFile, config["mods-dir"], &wg, index, limiter)
 					}
 				}
+				break
 			}
 		}
 	}
