@@ -9,9 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"unicode"
 
-	"slices"
 	"strings"
 	"sync"
 
@@ -84,6 +82,7 @@ func download_jar_clean(url string, name string, version string, id string, old_
 		log.Fatal(err)
 	}
 	if a != old_file && a != "" && old_file != "" {
+		log.Printf("Removing old file %s", old_file)
 		os.Remove(filepath.Join(path, old_file))
 	}
 
@@ -205,6 +204,7 @@ func get_compatible_nrc_mods(mc_version string, nrc_mods []NoriskMod) ([]ModEntr
 					mod.Source["repositoryRef"],
 					mod.Source["groupId"],
 					mod.Source["projectId"],
+					mod.Source["projectSlug"],
 					mod.Source["artifactId"],
 				},
 			)
@@ -235,11 +235,22 @@ func remove_installed_mods(mods []ModEntry, installed_mods map[string]map[string
 }
 
 func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
-	group_path := strings.ReplaceAll(mod.GroupId, ".", "/")
-	filename := fmt.Sprintf("%s-%s.jar", mod.MavenId, mod.Version)
-	mod_path := fmt.Sprintf("%s/%s/%s/%s", group_path, mod.MavenId, mod.Version, filename)
+	if mod.SourceType == "modrinth" {
+		version := mod.Version
+		if !strings.Contains(mod.Version, "-") {
+			version = strings.Replace(mod.Version, ",", "-", 1)
+		}
+		filename := fmt.Sprintf("%s-%s.jar", mod.ProjectSlug, version)
+		mod_path := fmt.Sprintf("maven/modrinth/%s/%s/%s", mod.ProjectSlug, version, filename)
 
-	return repos[mod.RepositoryRef] + mod_path, filename
+		return repos[mod.SourceType] + mod_path, filename
+	} else {
+		group_path := strings.ReplaceAll(mod.GroupId, ".", "/")
+		filename := fmt.Sprintf("%s-%s.jar", mod.MavenId, mod.Version)
+		mod_path := fmt.Sprintf("%s/%s/%s/%s", group_path, mod.MavenId, mod.Version, filename)
+
+		return repos[mod.RepositoryRef] + mod_path, filename
+	}
 }
 
 func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inherited []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
@@ -274,79 +285,19 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 
 	log.Println("Installing missing mods")
 
-	modrinth_lookup := make(map[string]ModEntry)
 	limiter := make(chan struct{}, 10)
-	var modrinth_mods []ModEntry
 	var wg sync.WaitGroup
 
 	index := make(chan map[string]string, len(mods_to_download))
 	for _, mod := range mods_to_download {
-		if mod.SourceType == "modrinth" {
-			modrinth_lookup[mod.Id] = mod
-			modrinth_lookup[mod.ModrinthId] = mod
-			// ukulib workaround for non existant id
-			if mod.ModrinthId == "6fJ2UigN" {
-				modrinth_lookup["Y8uFrUil"] = mod
-			}
-			modrinth_mods = append(modrinth_mods, mod)
-		} else {
-			url, filename := build_maven_url(mod, repos)
-			wg.Add(1)
-			go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, config["mods-dir"], &wg, index, limiter)
-		}
-	}
-
-	results := make(chan []ModrinthMod, len(modrinth_mods))
-	for _, mod := range modrinth_mods {
+		url, filename := build_maven_url(mod, repos)
 		wg.Add(1)
-		go get_modrinth_versions(mod.Id, &wg, results)
+		go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, config["mods-dir"], &wg, index, limiter)
+
 	}
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	for modrinth_versions := range results {
-		for _, modrinth_mod := range modrinth_versions {
-			mod := modrinth_lookup[modrinth_mod.Project_id]
-			version := mod.Version
-			var filter_version string
-			var filter_loader string
-			// wavey-capes workaround
-			if mod.Id == "wavey-capes" {
-				version = strings.Replace(mod.Version, "-", ",", 1)
-			}
-			parts := strings.Split(version, ",")
-			switch len(parts) {
-			case 2:
-				if unicode.IsDigit(rune(parts[1][0])) {
-					filter_version = parts[1]
-				} else {
-					filter_loader = parts[1]
-				}
-			case 3:
-				filter_version = parts[2]
-				filter_loader = parts[1]
-			}
-			if (filter_loader == "" || slices.Contains(modrinth_mod.Loaders, filter_loader)) &&
-				(filter_version == "" || slices.Contains(modrinth_mod.Versions, filter_version)) &&
-				(parts[0] == modrinth_mod.Version || mod.Version == modrinth_mod.Id) {
-				for _, file := range modrinth_mod.Files {
-					if file.Primary {
-						wg.Add(1)
-						go download_jar_clean(file.Url, file.Filename, mod.Version, mod.Id, mod.OldFile, config["mods-dir"], &wg, index, limiter)
-					}
-				}
-				break
-			}
-		}
-	}
-
-	go func() {
-		wg.Wait()
-		close(index)
-	}()
+	wg.Wait()
+	close(index)
 
 	if len(index) > 0 {
 		existing_index := convert_to_index(already_installed)

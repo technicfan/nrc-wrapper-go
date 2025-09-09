@@ -30,6 +30,9 @@ func download_jar(url string, name string, path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Failed to download %s: %v", name, response.StatusCode)
+	}
 	defer response.Body.Close()
 
 	file, err := os.Create(filepath.Join(path, name))
@@ -64,6 +67,9 @@ func download_single_asset(pack string, path string, expected_hash string, wg *s
 	response, err := http.Get(fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path))
 	if err != nil {
 		log.Fatal(err)
+	}
+	if response.StatusCode != http.StatusOK {
+		log.Fatalf("Failed to download %s: %v", filepath.Base(path), response.StatusCode)
 	}
 	defer response.Body.Close()
 

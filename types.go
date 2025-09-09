@@ -137,5 +137,6 @@ type ModEntry struct {
 	RepositoryRef string
 	GroupId string
 	ModrinthId string
+	ProjectSlug string
 	MavenId string
 }
