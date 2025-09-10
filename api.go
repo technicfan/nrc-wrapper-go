@@ -25,7 +25,11 @@ func check_connection() bool {
 	return true
 }
 
-func download_jar(url string, name string, path string) (string, error) {
+func download_jar(
+	url string,
+	name string,
+	path string,
+) (string, error) {
 	response, err := http.Get(url)
 	if err != nil {
 		return "", err
@@ -56,7 +60,13 @@ func download_jar(url string, name string, path string) (string, error) {
 	return name, nil
 }
 
-func download_single_asset(pack string, path string, expected_hash string, wg *sync.WaitGroup, limiter chan struct{}) {
+func download_single_asset(
+	pack string,
+	path string,
+	expected_hash string,
+	wg *sync.WaitGroup,
+	limiter chan struct{},
+) {
 	defer wg.Done()
 
 	limiter <- struct{}{}
@@ -64,7 +74,9 @@ func download_single_asset(pack string, path string, expected_hash string, wg *s
 
 	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), os.ModePerm)
 
-	response, err := http.Get(fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path))
+	response, err := http.Get(
+		fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,7 +112,12 @@ func download_single_asset(pack string, path string, expected_hash string, wg *s
 	log.Printf("Downloaded %s/%s", pack, filepath.Base(path))
 }
 
-func get_asset_metadata(index int, pack string, wg *sync.WaitGroup, data chan <- map[int]map[string]map[string]string) {
+func get_asset_metadata(
+	index int,
+	pack string,
+	wg *sync.WaitGroup,
+	data chan <- map[int]map[string]map[string]string,
+) {
 	defer wg.Done()
 
 	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", NORISK_API_URL, pack))
@@ -125,9 +142,19 @@ func get_asset_metadata(index int, pack string, wg *sync.WaitGroup, data chan <-
 	data <- map[int]map[string]map[string]string{index: results}
 }
 
-func request_token(username string, server_id string, hwid string) (string, error) {
+func request_token(
+	username string,
+	server_id string,
+	hwid string,
+) (string, error) {
 	response, err := http.Post(
-		fmt.Sprintf("%s/launcher/auth/validate/v2?force=false&hwid=%s&username=%s&server_id=%s", NORISK_API_URL, hwid, username, server_id),
+		fmt.Sprintf(
+			"%s/launcher/auth/validate/v2?force=false&hwid=%s&username=%s&server_id=%s",
+			NORISK_API_URL,
+			hwid,
+			username,
+			server_id,
+		),
 		"application/json",
 		bytes.NewBuffer([]byte{}),
 	)
@@ -155,7 +182,11 @@ func request_token(username string, server_id string, hwid string) (string, erro
 }
 
 func request_server_id() (string, error) {
-	response, err := http.Post(fmt.Sprintf("%s/launcher/auth/request-server-id", NORISK_API_URL), "", bytes.NewBuffer([]byte("")))
+	response, err := http.Post(
+		fmt.Sprintf("%s/launcher/auth/request-server-id", NORISK_API_URL),
+		"",
+		bytes.NewBuffer([]byte("")),
+	)
 	if err != nil {
 		return "", err
 	}
@@ -169,7 +200,11 @@ func request_server_id() (string, error) {
 	return data.Id, nil
 }
 
-func join_server_session(token string, selected_profile string, server_id string) {
+func join_server_session(
+	token string,
+	selected_profile string,
+	server_id string,
+) {
 	params := make(map[string]string)
 	params["accessToken"] = token
 	params["selectedProfile"] = selected_profile
@@ -191,7 +226,9 @@ func join_server_session(token string, selected_profile string, server_id string
 }
 
 func get_norisk_versions() (Versions, error) {
-	response, err := http.Get(fmt.Sprintf("%s/launcher/modpacks", NORISK_API_URL))
+	response, err := http.Get(
+		fmt.Sprintf("%s/launcher/modpacks", NORISK_API_URL),
+	)
 	if err != nil {
 		return Versions{}, err
 	}
@@ -202,27 +239,4 @@ func get_norisk_versions() (Versions, error) {
 	}
 
 	return versions, nil
-}
-
-func get_modrinth_versions(project string, wg *sync.WaitGroup, results chan <- []ModrinthMod) {
-	defer wg.Done()
-	response, err := http.Get(fmt.Sprintf("%s/project/%s/version", MODRINTH_API_URL, project))
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-	defer response.Body.Close()
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var mod []ModrinthMod
-	if err := json.Unmarshal(body, &mod); err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	results <- mod
 }

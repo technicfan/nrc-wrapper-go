@@ -16,7 +16,10 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func get_minecraft_version(path string, launcher string) (string, error) {
+func get_minecraft_version(
+	path string,
+	launcher string,
+) (string, error) {
 	switch launcher {
 	case "prism":
 		file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
@@ -52,7 +55,12 @@ func get_minecraft_version(path string, launcher string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		rows, err := db.Query(fmt.Sprintf("SELECT game_version FROM profiles WHERE path = '%s'", filepath.Base(cwd)))
+		rows, err := db.Query(
+			fmt.Sprintf(
+				"SELECT game_version FROM profiles WHERE path = '%s'",
+				filepath.Base(cwd),
+			),
+		)
 		if err != nil {
 			return "", err
 		}
@@ -71,7 +79,17 @@ func get_minecraft_version(path string, launcher string) (string, error) {
 	return "", errors.New("Minecraft version not found")
 }
 
-func download_jar_clean(url string, name string, version string, id string, old_file string, path string, wg *sync.WaitGroup, index chan<- map[string]string, limiter chan struct{}) {
+func download_jar_clean(
+	url string,
+	name string,
+	version string,
+	id string,
+	old_file string,
+	path string,
+	wg *sync.WaitGroup,
+	index chan<- map[string]string,
+	limiter chan struct{},
+) {
 	defer wg.Done()
 
 	limiter <- struct{}{}
@@ -118,7 +136,9 @@ func read_index() []map[string]string {
 	return data
 }
 
-func write_index(data []map[string]string) error {
+func write_index(
+	data []map[string]string,
+) error {
 	var file *os.File
 	file, err := os.OpenFile(".nrc-index.json", os.O_TRUNC|os.O_RDWR, os.ModePerm)
 	if err != nil {
@@ -142,7 +162,9 @@ func write_index(data []map[string]string) error {
 	return nil
 }
 
-func convert_to_index(mods []ModEntry) []map[string]string {
+func convert_to_index(
+	mods []ModEntry,
+) []map[string]string {
 	var results []map[string]string
 	for _, mod := range mods {
 		info := make(map[string]string)
@@ -155,7 +177,9 @@ func convert_to_index(mods []ModEntry) []map[string]string {
 	return results
 }
 
-func get_installed_versions(path string) (map[string]map[string]string, error) {
+func get_installed_versions(
+	path string,
+) (map[string]map[string]string, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -164,7 +188,8 @@ func get_installed_versions(path string) (map[string]map[string]string, error) {
 
 	hashes := make(map[string]map[string]string)
 	for _, f := range files {
-		if !f.IsDir() && (filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
+		if !f.IsDir() &&
+			(filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
 			hash, err := calc_hash(filepath.Join(path, f.Name()))
 			if err == nil {
 				info := make(map[string]string)
@@ -188,7 +213,10 @@ func get_installed_versions(path string) (map[string]map[string]string, error) {
 	return results, nil
 }
 
-func get_compatible_nrc_mods(mc_version string, nrc_mods []NoriskMod) ([]ModEntry, error) {
+func get_compatible_nrc_mods(
+	mc_version string,
+	nrc_mods []NoriskMod,
+) ([]ModEntry, error) {
 	var mods []ModEntry
 	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
@@ -214,7 +242,10 @@ func get_compatible_nrc_mods(mc_version string, nrc_mods []NoriskMod) ([]ModEntr
 	return mods, nil
 }
 
-func remove_installed_mods(mods []ModEntry, installed_mods map[string]map[string]string) ([]ModEntry, []ModEntry) {
+func remove_installed_mods(
+	mods []ModEntry,
+	installed_mods map[string]map[string]string,
+) ([]ModEntry, []ModEntry) {
 	var result []ModEntry
 	var removed []ModEntry
 	for _, mod := range mods {
@@ -234,7 +265,10 @@ func remove_installed_mods(mods []ModEntry, installed_mods map[string]map[string
 	return result, removed
 }
 
-func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
+func build_maven_url(
+	mod ModEntry,
+	repos map[string]string,
+) (string, string) {
 	if mod.SourceType == "modrinth" {
 		version := mod.Version
 		if !strings.Contains(mod.Version, "-") {
@@ -253,7 +287,13 @@ func build_maven_url(mod ModEntry, repos map[string]string) (string, string) {
 	}
 }
 
-func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inherited []NoriskMod, repos map[string]string, wg1 *sync.WaitGroup) error {
+func install(
+	config map[string]string,
+	nrc_mods_main []NoriskMod,
+	nrc_mods_inherited []NoriskMod,
+	repos map[string]string,
+	wg1 *sync.WaitGroup,
+) error {
 	defer wg1.Done()
 	os.Mkdir(config["mods-dir"], os.ModePerm)
 
@@ -292,7 +332,17 @@ func install(config map[string]string, nrc_mods_main []NoriskMod, nrc_mods_inher
 	for _, mod := range mods_to_download {
 		url, filename := build_maven_url(mod, repos)
 		wg.Add(1)
-		go download_jar_clean(url, filename, mod.Version, mod.Id, mod.OldFile, config["mods-dir"], &wg, index, limiter)
+		go download_jar_clean(
+			url,
+			filename,
+			mod.Version,
+			mod.Id,
+			mod.OldFile,
+			config["mods-dir"],
+			&wg,
+			index,
+			limiter,
+		)
 
 	}
 

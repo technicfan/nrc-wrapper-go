@@ -18,7 +18,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func is_token_expired(token_string string) (bool, error) {
+func is_token_expired(
+	token_string string,
+) (bool, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	token, _, err := parser.ParseUnverified(token_string, jwt.MapClaims{})
 
@@ -36,7 +38,10 @@ func is_token_expired(token_string string) (bool, error) {
 	return false, errors.New("Invalid token")
 }
 
-func read_token_from_file(path string, uuid string) (string, error) {
+func read_token_from_file(
+	path string,
+	uuid string,
+) (string, error) {
 	file, err := os.Open(fmt.Sprintf("%s/norisk_data.json", path))
 	if err != nil {
 		return "", err
@@ -58,11 +63,17 @@ func read_token_from_file(path string, uuid string) (string, error) {
 	return "", errors.New("uuid not cached")
 }
 
-func write_token_to_file(path string, uuid string, token string) {
+func write_token_to_file(
+	path string,
+	uuid string,
+	token string,
+) {
 	var file *os.File
 	var err error
 	var data map[string]string
-	file, err = os.OpenFile(fmt.Sprintf("%s/norisk_data.json", path), os.O_TRUNC|os.O_RDWR, os.ModePerm)
+	file, err = os.OpenFile(
+		fmt.Sprintf("%s/norisk_data.json", path), os.O_TRUNC|os.O_RDWR, os.ModePerm,
+	)
 	if err != nil {
 		file, err = os.Create(fmt.Sprintf("%s/norisk_data.json", path))
 		if err != nil {
@@ -95,7 +106,10 @@ func write_token_to_file(path string, uuid string, token string) {
 	}
 }
 
-func get_minecraft_data(path string, launcher string) (string, string, string, error) {
+func get_minecraft_data(
+	path string,
+	launcher string,
+) (string, string, string, error) {
 	switch launcher {
 	case "prism":
 		file, err := os.Open(fmt.Sprintf("%s/accounts.json", path))
@@ -134,7 +148,9 @@ func get_minecraft_data(path string, launcher string) (string, string, string, e
 		}
 		defer db.Close()
 
-		rows, err := db.Query("SELECT access_token, username, uuid FROM minecraft_users where active = 1")
+		rows, err := db.Query(
+			"SELECT access_token, username, uuid FROM minecraft_users where active = 1",
+		)
 		if err != nil {
 			return "", "", "", err
 		}
@@ -153,7 +169,11 @@ func get_minecraft_data(path string, launcher string) (string, string, string, e
 	return "", "", "", errors.New("No launcher detected")
 }
 
-func get_token(config map[string]string, wg *sync.WaitGroup, out chan <- string) {
+func get_token(
+	config map[string]string,
+	wg *sync.WaitGroup,
+	out chan <- string,
+) {
 	defer wg.Done()
 
 	var err error
@@ -187,7 +207,11 @@ func get_token(config map[string]string, wg *sync.WaitGroup, out chan <- string)
 	host, _ := os.Hostname()
 	system_id := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
-	nrc_token, err = request_token(name, server_id, fmt.Sprintf("NRC%s", hex.EncodeToString(hash[:])))
+	nrc_token, err = request_token(
+		name,
+		server_id,
+		fmt.Sprintf("NRC%s", hex.EncodeToString(hash[:])),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
