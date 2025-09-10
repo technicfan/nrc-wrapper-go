@@ -16,8 +16,10 @@ func main(){
 	}
 
 	var token string
-	var mods_dir string
 	if launch { log.Println("Loading NoRiskClient...") }
+
+	config := get_config()
+	mods_dir := config["mods-dir"]
 
 	if check_connection() {
 		versions, err := get_norisk_versions()
@@ -32,9 +34,6 @@ func main(){
 			}
 			return
 		}
-
-		config := get_config()
-		mods_dir = config["mods-dir"]
 
 		pack, exists := versions.Packs[config["nrc-pack"]]
 		if !exists {
