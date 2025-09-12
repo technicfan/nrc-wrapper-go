@@ -4,6 +4,7 @@
 
 This was a small challenge for me.
 I wanted to write something in a language that was new for me and I decided for Go and to translate/rewrite [nrc-prism-wrapper](https://github.com/ThatCuteOne/nrc-prism-wrapper) in Go.
+It is still being maintained btw, so you might want to check it out too.
 
 ---
 
