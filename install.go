@@ -95,6 +95,9 @@ func download_jar_clean(
 	limiter <- struct{}{}
 	defer func() { <-limiter }()
 
+	if strings.HasSuffix(old_file, ".disabled") {
+		name = name + ".disabled"
+	}
 	a, err := download_jar(url, name, path)
 	if err != nil {
 		log.Fatal(err)
