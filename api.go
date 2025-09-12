@@ -231,7 +231,7 @@ func join_server_session(
 	if err != nil {
 		log.Fatal(err)
 	}
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode != http.StatusNoContent {
 		log.Fatalf("Status code %v", response.StatusCode)
 	}
 	defer response.Body.Close()
