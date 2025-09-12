@@ -11,32 +11,36 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 	"sync"
-	"time"
+	// "time"
 
-	"github.com/golang-jwt/jwt/v5"
+	// "github.com/golang-jwt/jwt/v5"
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func is_token_expired(
-	token_string string,
-) (bool, error) {
-	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	token, _, err := parser.ParseUnverified(token_string, jwt.MapClaims{})
+// this better in theory
+// but the backend doesn't work with logic sadly
 
-	if err != nil {
-		return false, err
-	}
-
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		exp := int64(claims["exp"].(float64))
-		current := time.Now().Unix()
-
-		return current > exp, nil
-	}
-
-	return false, errors.New("Invalid token")
-}
+// func is_token_expired(
+// 	token_string string,
+// ) (bool, error) {
+// 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+// 	token, _, err := parser.ParseUnverified(token_string, jwt.MapClaims{})
+//
+// 	if err != nil {
+// 		return false, err
+// 	}
+//
+// 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+// 		exp := int64(claims["exp"].(float64))
+// 		current := time.Now().Unix()
+//
+// 		return current > exp, nil
+// 	}
+//
+// 	return false, errors.New("Invalid token")
+// }
 
 func read_token_from_file(
 	path string,
@@ -182,6 +186,15 @@ func get_token(
 	if err != nil {
 		log.Fatal(err)
 	}
+	if !strings.Contains(uuid, "-") {
+		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
+			uuid[0:8],
+			uuid[8:12],
+			uuid[12:16],
+			uuid[16:20],
+			uuid[20:32],
+		)
+	}
 
 	if token == "offline" {
 		out <- token
@@ -190,7 +203,7 @@ func get_token(
 
 	nrc_token, err := read_token_from_file(config["launcher_dir"], uuid)
 	if err == nil {
-		if result, err := is_token_expired(nrc_token); !result && err == nil {
+		if result, err := is_token_expired_api(nrc_token, uuid); !result && err == nil {
 			log.Println("Stored token is valid")
 			out <- nrc_token
 			return

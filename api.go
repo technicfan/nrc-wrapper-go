@@ -240,3 +240,26 @@ func get_norisk_versions() (Versions, error) {
 
 	return versions, nil
 }
+
+func is_token_expired_api(
+	token string,
+	uuid string,
+) (bool, error) {
+	request, err := http.NewRequest(
+		http.MethodGet,
+		fmt.Sprintf("%s/cosmetics/cape/user/%s?uuid=%s", NORISK_API_URL, uuid, uuid),
+		nil,
+		)
+	if err != nil {
+		return true, err
+	}
+	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		return true, err
+	}
+
+	return response.StatusCode != http.StatusOK, nil
+}
