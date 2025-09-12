@@ -13,34 +13,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	// "time"
 
-	// "github.com/golang-jwt/jwt/v5"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-// this better in theory
-// but the backend doesn't work with logic sadly
-
-// func is_token_expired(
-// 	token_string string,
-// ) (bool, error) {
-// 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-// 	token, _, err := parser.ParseUnverified(token_string, jwt.MapClaims{})
-//
-// 	if err != nil {
-// 		return false, err
-// 	}
-//
-// 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-// 		exp := int64(claims["exp"].(float64))
-// 		current := time.Now().Unix()
-//
-// 		return current > exp, nil
-// 	}
-//
-// 	return false, errors.New("Invalid token")
-// }
 
 func read_token_from_file(
 	path string,
@@ -203,7 +178,7 @@ func get_token(
 
 	nrc_token, err := read_token_from_file(config["launcher_dir"], uuid)
 	if err == nil {
-		if result, err := is_token_expired_api(nrc_token, uuid); !result && err == nil {
+		if result, err := is_token_expired(nrc_token, uuid); !result && err == nil {
 			log.Println("Stored token is valid")
 			out <- nrc_token
 			return

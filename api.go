@@ -225,23 +225,7 @@ func join_server_session(
 	defer response.Body.Close()
 }
 
-func get_norisk_versions() (Versions, error) {
-	response, err := http.Get(
-		fmt.Sprintf("%s/launcher/modpacks", NORISK_API_URL),
-	)
-	if err != nil {
-		return Versions{}, err
-	}
-
-	var versions Versions
-	if err := json.NewDecoder(response.Body).Decode(&versions); err != nil {
-		return Versions{}, err
-	}
-
-	return versions, nil
-}
-
-func is_token_expired_api(
+func is_token_expired(
 	token string,
 	uuid string,
 ) (bool, error) {
@@ -262,4 +246,20 @@ func is_token_expired_api(
 	}
 
 	return response.StatusCode != http.StatusOK, nil
+}
+
+func get_norisk_versions() (Versions, error) {
+	response, err := http.Get(
+		fmt.Sprintf("%s/launcher/modpacks", NORISK_API_URL),
+	)
+	if err != nil {
+		return Versions{}, err
+	}
+
+	var versions Versions
+	if err := json.NewDecoder(response.Body).Decode(&versions); err != nil {
+		return Versions{}, err
+	}
+
+	return versions, nil
 }
