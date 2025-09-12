@@ -152,7 +152,7 @@ func request_token(
 ) (string, error) {
 	response, err := http.Post(
 		fmt.Sprintf(
-			"%s/launcher/auth/validate/v2?force=false&hwid=%s&username=%s&server_id=%s",
+			"%s/launcher/auth/validate/v2?force=true&hwid=%s&username=%s&server_id=%s",
 			NORISK_API_URL,
 			hwid,
 			username,
@@ -235,29 +235,6 @@ func join_server_session(
 		log.Fatalf("Status code %v", response.StatusCode)
 	}
 	defer response.Body.Close()
-}
-
-func is_token_expired(
-	token string,
-	uuid string,
-) (bool, error) {
-	request, err := http.NewRequest(
-		http.MethodGet,
-		fmt.Sprintf("%s/cosmetics/cape/user/%s?uuid=%s", NORISK_API_URL, uuid, uuid),
-		nil,
-		)
-	if err != nil {
-		return true, err
-	}
-	request.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	if err != nil {
-		return true, err
-	}
-
-	return response.StatusCode != http.StatusOK, nil
 }
 
 func get_norisk_versions() (Versions, error) {
