@@ -16,10 +16,14 @@ func main(){
 	}
 
 	var token string
-	if launch { log.Println("Loading NoRiskClient...") }
+	var mods_dir string
+	var config map[string]string
+	if launch {
+		log.Println("Loading NoRiskClient...")
 
-	config := get_config()
-	mods_dir := config["mods-dir"]
+		config = get_config()
+		mods_dir = config["mods-dir"]
+	}
 
 	if check_connection() {
 		versions, err := get_norisk_versions()
@@ -29,8 +33,8 @@ func main(){
 
 		if !launch {
 			fmt.Println("Available values for \"NRC_PACK\":")
-			for pack := range versions.Packs {
-				fmt.Printf("- %s\n", pack)
+			for value, pack := range versions.Packs {
+				fmt.Printf("- %s (%s)\n", value, pack.Desc)
 			}
 			return
 		}
@@ -62,6 +66,7 @@ func main(){
 		token = <- token_out
 	} else {
 		log.Println("No connection to the API")
+		if !launch { return }
 		log.Println("Launching without doing anything")
 		token = "offline"
 	}

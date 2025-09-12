@@ -100,8 +100,8 @@ func download_jar_clean(
 		log.Fatal(err)
 	}
 	if a != old_file && a != "" && old_file != "" {
-		log.Printf("Removing old file %s", old_file)
 		os.Remove(filepath.Join(path, old_file))
+		log.Printf("Removed old file %s", old_file)
 	}
 
 	result := make(map[string]string)
@@ -177,7 +177,7 @@ func convert_to_index(
 	return results
 }
 
-func get_installed_versions(
+func get_installed_mods(
 	path string,
 ) (map[string]map[string]string, error) {
 	files, err := os.ReadDir(path)
@@ -242,9 +242,10 @@ func get_compatible_nrc_mods(
 	return mods, nil
 }
 
-func remove_installed_mods(
+func get_missing_mods_clean(
 	mods []ModEntry,
 	installed_mods map[string]map[string]string,
+	path string,
 ) ([]ModEntry, []ModEntry) {
 	var result []ModEntry
 	var removed []ModEntry
@@ -257,9 +258,15 @@ func remove_installed_mods(
 				mod.Hash = installed_mods[mod.Id]["hash"]
 				removed = append(removed, mod)
 			}
+			delete(installed_mods, mod.Id)
 		} else {
 			result = append(result, mod)
 		}
+	}
+
+	for _, file := range installed_mods {
+		os.Remove(filepath.Join(path, file["filename"]))
+		log.Printf("Removed left over file %s", file["filename"])
 	}
 
 	return result, removed
@@ -313,11 +320,15 @@ func install(
 		return err
 	}
 	mods = append(mods, inherited_mods...)
-	installed_mods, err := get_installed_versions(config["mods-dir"])
+	installed_mods, err := get_installed_mods(config["mods-dir"])
 	if err != nil {
 		return err
 	}
-	mods_to_download, already_installed := remove_installed_mods(mods, installed_mods)
+	mods_to_download, already_installed := get_missing_mods_clean(
+		mods,
+		installed_mods,
+		config["mods-dir"],
+	)
 
 	if len(mods_to_download) == 0 {
 		return nil
