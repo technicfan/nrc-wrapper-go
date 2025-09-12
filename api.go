@@ -124,6 +124,9 @@ func get_asset_metadata(
 	if err != nil {
 		return
 	}
+	if response.StatusCode != http.StatusOK {
+		return
+	}
 	defer response.Body.Close()
 
 	var metadata Assets
@@ -158,6 +161,9 @@ func request_token(
 		"application/json",
 		bytes.NewBuffer([]byte{}),
 	)
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Status code %v", response.StatusCode)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -189,6 +195,9 @@ func request_server_id() (string, error) {
 	)
 	if err != nil {
 		return "", err
+	}
+	if response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("Status code %v", response.StatusCode)
 	}
 	defer response.Body.Close()
 
@@ -222,6 +231,9 @@ func join_server_session(
 	if err != nil {
 		log.Fatal(err)
 	}
+	if response.StatusCode != http.StatusOK {
+		log.Fatalf("Status code %v", response.StatusCode)
+	}
 	defer response.Body.Close()
 }
 
@@ -254,6 +266,9 @@ func get_norisk_versions() (Versions, error) {
 	)
 	if err != nil {
 		return Versions{}, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return Versions{}, fmt.Errorf("Status code %v", response.StatusCode)
 	}
 
 	var versions Versions
