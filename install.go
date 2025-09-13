@@ -118,25 +118,25 @@ func download_jar_clean(
 	index <- result
 }
 
-func read_index() ([]map[string]string, error) {
+func read_index() []map[string]string {
 	file, err := os.Open(".nrc-index.json")
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
 	byte_data, err := io.ReadAll(file)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 	defer file.Close()
 
 	var data []map[string]string
 	err = json.Unmarshal(byte_data, &data)
 	if err != nil {
-		return nil, err
+		return nil
 	}
 
-	return data, nil
+	return data
 }
 
 func write_index(
@@ -187,10 +187,7 @@ func get_installed_mods(
 	if err != nil {
 		return nil, err
 	}
-	index, err := read_index()
-	if err != nil {
-		return nil, err
-	}
+	index := read_index()
 
 	hashes := make(map[string]map[string]string)
 	for _, f := range files {
