@@ -28,7 +28,7 @@ func main(){
 	if check_connection() {
 		versions, err := get_norisk_versions()
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to get nrc packs: %s", err.Error())
 		}
 
 		if !launch {
@@ -81,6 +81,6 @@ func main(){
 
 	err := Exec(command, args)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Command failed with: %s", err.Error())
 	}
 }

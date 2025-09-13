@@ -55,7 +55,7 @@ func verify_asset(
 func load_assets(
 	packs []string,
 	wg1 *sync.WaitGroup,
-) error {
+) {
 	defer wg1.Done()
 	var wg sync.WaitGroup
 	data := make(chan map[int]map[string]map[string]string, len(packs))
@@ -109,6 +109,4 @@ func load_assets(
 	}
 
 	wg.Wait()
-
-	return nil
 }

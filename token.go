@@ -68,7 +68,7 @@ func write_token_to_file(
 	path string,
 	uuid string,
 	token string,
-) {
+) error {
 	var file *os.File
 	var err error
 	var data map[string]string
@@ -78,12 +78,12 @@ func write_token_to_file(
 	if err != nil {
 		file, err = os.Create(fmt.Sprintf("%s/norisk_data.json", path))
 		if err != nil {
-			return
+			return err
 		}
 	} else {
 		byte_data, err := io.ReadAll(file)
 		if err != nil {
-			return
+			return err
 		}
 
 		json.Unmarshal(byte_data, &data)
@@ -98,13 +98,15 @@ func write_token_to_file(
 
 	json_string, err := json.MarshalIndent(data, "", "    ")
 	if err != nil {
-		return
+		return err
 	}
 
 	_, err = file.WriteString(string(json_string))
 	if err != nil {
-		log.Fatal("failed to write data")
+		return err
 	}
+
+	return nil
 }
 
 func get_minecraft_data(
@@ -181,7 +183,7 @@ func get_token(
 	var token, name, uuid string
 	token, name, uuid, err = get_minecraft_data(config["launcher_dir"], config["launcher"])
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to get Minecraft data: %s", err.Error())
 	}
 	if !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
@@ -210,7 +212,7 @@ func get_token(
 	log.Println("Requesting new token")
 	server_id, err := request_server_id()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to get nrc server id: %s", err.Error())
 	}
 	join_server_session(token, uuid, server_id)
 
@@ -223,9 +225,12 @@ func get_token(
 		fmt.Sprintf("NRC%s", hex.EncodeToString(hash[:])),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to get new nrc token: %s", err.Error())
 	}
 
-	write_token_to_file(config["launcher_dir"], uuid, nrc_token)
+	err = write_token_to_file(config["launcher_dir"], uuid, nrc_token)
+	if err != nil {
+		log.Printf("Failed to write token to file: %s", err.Error())
+	}
 	out <- nrc_token
 }

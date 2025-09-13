@@ -17,8 +17,8 @@ import (
 )
 
 func check_connection() bool {
-	_, err := http.Get(strings.ReplaceAll(NORISK_API_URL, "/api/v1", ""))
-	if err != nil {
+	response, err := http.Get(strings.ReplaceAll(NORISK_API_URL, "/api/v1", ""))
+	if err != nil || response.StatusCode != http.StatusOK {
 		return false
 	}
 
@@ -35,7 +35,7 @@ func download_jar(
 		return "", err
 	}
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Failed to download %s: %v", name, response.StatusCode)
+		return "", fmt.Errorf("HTTP %v", response.StatusCode)
 	}
 	defer response.Body.Close()
 
@@ -47,7 +47,7 @@ func download_jar(
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
+		return "", err
 	}
 
 	_, err = file.Write(body)
@@ -78,21 +78,21 @@ func download_single_asset(
 		fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
 	}
 	if response.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to download %s: %v", filepath.Base(path), response.StatusCode)
+		log.Fatalf("Failed to download %s: HTTP %v", filepath.Base(path), response.StatusCode)
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
 	}
 
 	hash := md5.New()
 	if _, err := hash.Write(body); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
 	}
 
 	if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
@@ -101,12 +101,12 @@ func download_single_asset(
 
 	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
 	}
 	defer file.Close()
 
 	if _, err := file.Write(body); err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
 	}
 
 	log.Printf("Downloaded %s/%s", pack, filepath.Base(path))
@@ -162,7 +162,7 @@ func request_token(
 		bytes.NewBuffer([]byte{}),
 	)
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Status code %v", response.StatusCode)
+		return "", fmt.Errorf("HTTP %v", response.StatusCode)
 	}
 	if err != nil {
 		return "", err
@@ -171,7 +171,7 @@ func request_token(
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	var data map[string]string
@@ -197,7 +197,7 @@ func request_server_id() (string, error) {
 		return "", err
 	}
 	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("Status code %v", response.StatusCode)
+		return "", fmt.Errorf("HTTP %v", response.StatusCode)
 	}
 	defer response.Body.Close()
 
@@ -220,7 +220,7 @@ func join_server_session(
 	params["serverId"] = server_id
 	params_str, err := json.Marshal(params)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to join server session: %s", err.Error())
 	}
 
 	response, err := http.Post(
@@ -229,10 +229,10 @@ func join_server_session(
 		bytes.NewBuffer(params_str),
 	)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to join server session: %s", err.Error())
 	}
 	if response.StatusCode != http.StatusNoContent {
-		log.Fatalf("Status code %v", response.StatusCode)
+		log.Fatalf("Failed to join server session: HTTP %v", response.StatusCode)
 	}
 	defer response.Body.Close()
 }
@@ -245,7 +245,7 @@ func get_norisk_versions() (Versions, error) {
 		return Versions{}, err
 	}
 	if response.StatusCode != http.StatusOK {
-		return Versions{}, fmt.Errorf("Status code %v", response.StatusCode)
+		return Versions{}, fmt.Errorf("HTTP %v", response.StatusCode)
 	}
 
 	var versions Versions

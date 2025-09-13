@@ -100,7 +100,7 @@ func download_jar_clean(
 	}
 	a, err := download_jar(url, name, path)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to download %s: %s", name, err.Error())
 	}
 	if a != old_file && a != "" && old_file != "" {
 		os.Remove(filepath.Join(path, old_file))
@@ -118,25 +118,25 @@ func download_jar_clean(
 	index <- result
 }
 
-func read_index() []map[string]string {
+func read_index() ([]map[string]string, error) {
 	file, err := os.Open(".nrc-index.json")
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	byte_data, err := io.ReadAll(file)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer file.Close()
 
 	var data []map[string]string
 	err = json.Unmarshal(byte_data, &data)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
-	return data
+	return data, nil
 }
 
 func write_index(
@@ -187,7 +187,10 @@ func get_installed_mods(
 	if err != nil {
 		return nil, err
 	}
-	index := read_index()
+	index, err := read_index()
+	if err != nil {
+		return nil, err
+	}
 
 	hashes := make(map[string]map[string]string)
 	for _, f := range files {
@@ -303,29 +306,29 @@ func install(
 	nrc_mods_inherited []NoriskMod,
 	repos map[string]string,
 	wg1 *sync.WaitGroup,
-) error {
+) {
 	defer wg1.Done()
 	os.Mkdir(config["mods-dir"], os.ModePerm)
 
 	mc_version, err := get_minecraft_version(config["launcher_dir"], config["launcher"])
 	if err != nil {
-		return err
+		log.Fatalf("Failed to get Minecraft version: %s", err.Error())
 	}
 	mods, err := get_compatible_nrc_mods(mc_version, nrc_mods_main)
 	if err != nil {
-		return err
+		log.Fatalf("Failed to get nrc mods: %s", err.Error())
 	}
 	if len(mods) == 0 {
 		log.Fatalf("There are no NRC mods for %s in %s", mc_version, config["nrc-pack"])
 	}
 	inherited_mods, err := get_compatible_nrc_mods(mc_version, nrc_mods_inherited)
 	if err != nil {
-		return err
+		log.Fatalf("Failed to get nrc mods: %s", err.Error())
 	}
 	mods = append(mods, inherited_mods...)
 	installed_mods, err := get_installed_mods(config["mods-dir"])
 	if err != nil {
-		return err
+		log.Fatalf("Failed to get installed mods: %s", err.Error())
 	}
 	mods_to_download, already_installed := get_missing_mods_clean(
 		mods,
@@ -334,7 +337,7 @@ func install(
 	)
 
 	if len(mods_to_download) == 0 {
-		return nil
+		return
 	}
 
 	log.Println("Installing missing mods")
@@ -370,9 +373,7 @@ func install(
 		}
 		err = write_index(existing_index)
 		if err != nil {
-			return err
+			log.Fatalf("Failed to write mod metadata: %s", err.Error())
 		}
 	}
-
-	return nil
 }
