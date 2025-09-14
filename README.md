@@ -4,11 +4,11 @@
 
 This was a small challenge for me.
 I wanted to write something in a language that was new for me and I decided for Go and to translate/rewrite [nrc-prism-wrapper](https://github.com/ThatCuteOne/nrc-prism-wrapper) in Go.
-It is still being maintained btw, so you might want to check it out too.
+[ThatCuteOne](https://github.com/ThatCuteOne) is still maintaining their project btw, so you might want to check it out too.
 
 ---
 
-Now it can run through Prism Launcher and Modrinth Launcher on Windows and Linux! (idk about mac)
+It can run through Prism Launcher and Modrinth Launcher on Windows and Linux! (idk about mac)
 Once again most algorithms are **NOT** my own but those by [ThatCuteOne](https://github.com/ThatCuteOne), but everything after v1.0 and [`types.go`](./types.go) is my work.
 
 ---
@@ -59,7 +59,7 @@ go build -ldflags -H=windowsgui -o nrc-wrapper-go.exe
 
 in the git repository.
 
-The binary that you'll have now has to be added as the wrapper command of a Minecraft 1.21-1.21.8 Fabric instance in a supported Launcher.<br>
+The binary that you'll have now has to be added as the wrapper command of a Minecraft 1.21/1/4/5/7/8 Fabric instance in a supported Launcher.<br>
 Just launch and enjoy.
 
 ---
@@ -67,5 +67,6 @@ Just launch and enjoy.
 Things to keep in mind:
 
 - this is no official project supported by NoRiskClient
-- first launch takes longer and maybe needs to be restarted some times (idk why)
+    - there should be nothing worry about though
+- first launch takes longer as it needs to download everything
 - on Windows there is no way to replace the current process, so minecraft will just continue running if you terminate the instance from your launcher
