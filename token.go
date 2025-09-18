@@ -174,6 +174,7 @@ func get_minecraft_data(
 
 func get_token(
 	config map[string]string,
+	offline bool,
 	wg *sync.WaitGroup,
 	out chan <- string,
 ) {
@@ -203,10 +204,15 @@ func get_token(
 	nrc_token, err := read_token_from_file(config["launcher_dir"], uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
-			log.Println("Stored token is valid")
+			if !offline { log.Println("Stored token is valid") }
 			out <- nrc_token
 			return
 		}
+	}
+
+	if offline {
+		out <- "offline"
+		return
 	}
 
 	log.Println("Requesting new token")

@@ -18,6 +18,8 @@ func main(){
 	var token string
 	var mods_dir string
 	var config map[string]string
+	var wg sync.WaitGroup
+	token_out := make(chan string, 1)
 	if launch {
 		log.Println("Loading NoRiskClient...")
 
@@ -53,11 +55,9 @@ func main(){
 		}
 		assets = append(assets, pack.Assets...)
 
-		var wg sync.WaitGroup
-		token_out := make(chan string, 1)
 		wg.Add(3)
 
-		go get_token(config, &wg, token_out)
+		go get_token(config, false, &wg, token_out)
 		go load_assets(assets, &wg)
 		go install(config, pack.Mods, mods, versions.Repositories, &wg)
 
@@ -67,8 +67,11 @@ func main(){
 	} else {
 		log.Println("No connection to the API")
 		if !launch { return }
+		wg.Add(1)
 		log.Println("Launching without doing anything")
-		token = "offline"
+		go get_token(config, true, &wg, token_out)
+		wg.Wait()
+		token = <- token_out
 	}
 
     command := os.Args[1]
