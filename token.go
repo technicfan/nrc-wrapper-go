@@ -223,12 +223,12 @@ func get_token(
 	join_server_session(token, uuid, server_id)
 
 	host, _ := os.Hostname()
-	system_id := fmt.Sprintf("%s-%s-%s", runtime.GOOS, runtime.GOARCH, host)
+	system_id := fmt.Sprintf("%s-%s-%s-%s", config["launcher"], runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
 	nrc_token, err = request_token(
 		name,
 		server_id,
-		fmt.Sprintf("NRC%s", hex.EncodeToString(hash[:])),
+		hex.EncodeToString(hash[:]),
 	)
 	if err != nil {
 		log.Fatalf("Failed to get new nrc token: %s", err.Error())
