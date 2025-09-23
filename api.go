@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -39,16 +40,40 @@ func download_jar(
 	}
 	defer response.Body.Close()
 
-	file, err := os.Create(filepath.Join(path, name))
-	if err != nil  {
+	hash_response, err := http.Get(fmt.Sprintf("%s.sha1", url))
+	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	if hash_response.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP %v (sha1)", hash_response.StatusCode)
+	}
+	defer hash_response.Body.Close()
+
+	hash_body, err := io.ReadAll(hash_response.Body)
+	if err != nil {
+		return "", err
+	}
+	expected_hash := string(hash_body)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}
+
+	hash := sha1.New()
+	if _, err := hash.Write(body); err != nil {
+		return "", err
+	}
+
+	if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
+		return "", errors.New("wrong hash")
+	}
+
+	file, err := os.Create(filepath.Join(path, name))
+	if err != nil  {
+		return "", err
+	}
+	defer file.Close()
 
 	_, err = file.Write(body)
 	if err != nil {
