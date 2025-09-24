@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"sync"
 )
 
@@ -50,7 +51,10 @@ func main(){
 		for _, inherited_pack := range pack.Inherits {
 			mods = append(mods, versions.Packs[inherited_pack].Mods...)
 			for _, asset_pack := range versions.Packs[inherited_pack].Assets {
-				assets = append(assets, asset_pack)
+				if !slices.Contains(assets, asset_pack) &&
+					!slices.Contains(pack.Assets, asset_pack) {
+					assets = append(assets, asset_pack)
+				}
 			}
 		}
 		assets = append(assets, pack.Assets...)
