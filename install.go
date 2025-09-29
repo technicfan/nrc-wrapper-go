@@ -100,7 +100,8 @@ func download_jar_clean(
 	}
 	a, err := download_jar(url, name, path)
 	if err != nil {
-		log.Fatalf("Failed to download %s: %s", name, err.Error())
+		log.Printf("Failed to download %s: %s", name, err.Error())
+		return
 	}
 	if a != old_file && a != "" && old_file != "" {
 		os.Remove(filepath.Join(path, old_file))

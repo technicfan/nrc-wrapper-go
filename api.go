@@ -103,10 +103,12 @@ func download_single_asset(
 		fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path),
 	)
 	if err != nil {
-		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
+		log.Printf("Failed to download %s: %s", filepath.Base(path), err.Error())
+		return
 	}
 	if response.StatusCode != http.StatusOK {
-		log.Fatalf("Failed to download %s: HTTP %v", filepath.Base(path), response.StatusCode)
+		log.Printf("Failed to download %s: HTTP %v", filepath.Base(path), response.StatusCode)
+		return
 	}
 	defer response.Body.Close()
 
