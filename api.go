@@ -32,6 +32,7 @@ func download_jar(
 	path string,
 ) (string, error) {
 	response, err := http.Get(url)
+	log.Print(url)
 	if err != nil {
 		return "", err
 	}

@@ -223,13 +223,23 @@ func get_compatible_nrc_mods(
 	var mods []ModEntry
 	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
+			var filename string
+			if mod.Compatibility[mc_version]["fabric"]["source"] != nil {
+				source := mod.Compatibility[mc_version]["fabric"]["source"].(map[string]any)
+				for k, v := range source {
+					mod.Source[k] = v.(string)
+				}
+			}
+			if mod.Compatibility[mc_version]["fabric"]["filename"] != nil {
+				filename = mod.Compatibility[mc_version]["fabric"]["filename"].(string)
+			}
 			mods = append(
 				mods,
 				ModEntry{
 					"",
-					mod.Compatibility[mc_version]["fabric"]["identifier"],
+					mod.Compatibility[mc_version]["fabric"]["identifier"].(string),
 					mod.Id,
-					"",
+					filename,
 					"",
 					mod.Source["type"],
 					mod.Source["repositoryRef"],

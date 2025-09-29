@@ -51,7 +51,7 @@ type NoriskMod struct {
 	Id string `json:"id"`
 	Name string `json:"displayName"`
 	Source map[string]string `json:"source"`
-	Compatibility map[string]map[string]map[string]string `json:"compatibility"`
+	Compatibility map[string]map[string]map[string]any `json:"compatibility"`
 }
 
 type Loader struct {
