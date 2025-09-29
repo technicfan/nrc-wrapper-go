@@ -355,7 +355,13 @@ func install(
 
 	index := make(chan map[string]string, len(mods_to_download))
 	for _, mod := range mods_to_download {
-		url, filename := build_maven_url(mod, repos)
+		var url, filename string
+		if mod.SourceType == "url" {
+			url = mod.Version
+			filename = mod.Filename
+		} else {
+			url, filename = build_maven_url(mod, repos)
+		}
 		wg.Add(1)
 		go download_jar_clean(
 			url,
