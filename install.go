@@ -86,6 +86,7 @@ func download_jar_clean(
 	id string,
 	old_file string,
 	path string,
+	error_on_fail bool,
 	wg *sync.WaitGroup,
 	index chan<- map[string]string,
 	limiter chan struct{},
@@ -100,8 +101,10 @@ func download_jar_clean(
 	}
 	a, err := download_jar(url, name, path)
 	if err != nil {
+		if error_on_fail {
+			log.Fatalf("Failed to download %s: %s", name, err.Error())
+		}
 		log.Printf("Failed to download %s: %s", name, err.Error())
-		return
 	}
 	if a != old_file && a != "" && old_file != "" {
 		os.Remove(filepath.Join(path, old_file))
@@ -370,6 +373,7 @@ func install(
 			mod.Id,
 			mod.OldFile,
 			config["mods-dir"],
+			config["error-on-failed-download"] == "",
 			&wg,
 			index,
 			limiter,

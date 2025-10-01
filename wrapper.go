@@ -62,7 +62,7 @@ func main(){
 		wg.Add(3)
 
 		go get_token(config, false, &wg, token_out)
-		go load_assets(assets, &wg)
+		go load_assets(assets, config["error-on-failed-download"] == "", &wg)
 		go install(config, pack.Mods, mods, versions.Repositories, &wg)
 
 		wg.Wait()

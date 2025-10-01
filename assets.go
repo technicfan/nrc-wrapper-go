@@ -8,6 +8,7 @@ import (
 	"log"
 	"maps"
 	"os"
+	"path/filepath"
 	"sync"
 )
 
@@ -52,8 +53,31 @@ func verify_asset(
 	results <- data
 }
 
+func download_asset(
+	asset map[string]string,
+	error_on_fail bool,
+	wg *sync.WaitGroup,
+	limiter chan struct{},
+) {
+	defer wg.Done()
+
+	limiter <- struct{}{}
+	defer func() { <- limiter }()
+
+	err := download_single_asset(asset["pack"], asset["path"], asset["hash"])
+	if err != nil {
+		if error_on_fail {
+			log.Fatalf("Failed to download %s: %s", filepath.Base(asset["path"]), err.Error())
+		}
+		log.Printf("Failed to download %s: %s", filepath.Base(asset["path"]), err.Error())
+	}
+
+	log.Printf("Downloaded %s/%s", asset["pack"], filepath.Base(asset["path"]))
+}
+
 func load_assets(
 	packs []string,
+	error_on_fail bool,
 	wg1 *sync.WaitGroup,
 ) {
 	defer wg1.Done()
@@ -78,28 +102,27 @@ func load_assets(
 		maps.Copy(merged, final_data[i])
 	}
 
-	results := make(chan map[string]string, len(merged))
+	missing_assets := make(chan map[string]string, len(merged))
 	for i, v := range merged {
 		wg.Add(1)
-		go verify_asset(i, v, &wg, results)
+		go verify_asset(i, v, &wg, missing_assets)
 	}
 
 	go func() {
 		wg.Wait()
-		close(results)
+		close(missing_assets)
 	}()
 
-	if len(results) != 0 {
+	if len(missing_assets) != 0 {
 		log.Println("Downloading missing assets")
 	}
 
 	limiter := make(chan struct{}, 20)
-	for result := range results {
+	for asset := range missing_assets {
 		wg.Add(1)
-		go download_single_asset(
-			result["pack"],
-			result["path"],
-			result["hash"],
+		go download_asset(
+			asset,
+			error_on_fail,
 			&wg,
 			limiter,
 		)

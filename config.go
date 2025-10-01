@@ -52,5 +52,7 @@ func get_config() map[string]string {
 		config["nrc-pack"] = "norisk-prod"
 	}
 
+	config["error-on-failed-download"] = os.Getenv("NO_ERROR_ON_FAILED_DOWNLOAD")
+
 	return config
 }

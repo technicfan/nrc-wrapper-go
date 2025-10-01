@@ -89,54 +89,45 @@ func download_single_asset(
 	pack string,
 	path string,
 	expected_hash string,
-	wg *sync.WaitGroup,
-	limiter chan struct{},
-) {
-	defer wg.Done()
-
-	limiter <- struct{}{}
-	defer func() { <- limiter }()
-
+) error {
 	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), os.ModePerm)
 
 	response, err := http.Get(
 		fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path),
 	)
 	if err != nil {
-		log.Printf("Failed to download %s: %s", filepath.Base(path), err.Error())
-		return
+		return err
 	}
 	if response.StatusCode != http.StatusOK {
-		log.Printf("Failed to download %s: HTTP %v", filepath.Base(path), response.StatusCode)
-		return
+		return fmt.Errorf("HTTP %v", response.StatusCode)
 	}
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
+		return err
 	}
 
 	hash := md5.New()
 	if _, err := hash.Write(body); err != nil {
-		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
+		return err
 	}
 
 	if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
-		log.Fatalf("%s/%s has wrong hash", pack, filepath.Base(path))
+		return errors.New("Wrong hash")
 	}
 
 	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
 	if err != nil {
-		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
+		return err
 	}
 	defer file.Close()
 
 	if _, err := file.Write(body); err != nil {
-		log.Fatalf("Failed to download %s: %s", filepath.Base(path), err.Error())
+		return err
 	}
 
-	log.Printf("Downloaded %s/%s", pack, filepath.Base(path))
+	return nil
 }
 
 func get_asset_metadata(
