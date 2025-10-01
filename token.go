@@ -133,7 +133,7 @@ func get_minecraft_data(
 		}
 
 		for _, v := range data.Accounts {
-			if v.Active != nil && *v.Active {
+			if v.Active != nil && v.Active.(bool) {
 				if v.Type == "Offline" {
 					return "offline", v.Profile.Name, v.Profile.Id, nil
 				} else {

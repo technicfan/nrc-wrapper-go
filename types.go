@@ -1,30 +1,18 @@
 package main
 
 type Profile struct {
-	Cape string `json:"cape"`
-	Capes any `json:"capes"`
 	Id string `json:"id"`
 	Name string `json:"name"`
-	Skin any `json:"skin"`
 }
 
 type Ygg struct {
-	Extra any `json:"extra"`
-	Exp int `json:"exp"`
-	Iat int `json:"iat"`
 	Token string `json:"token"`
 }
 
 type Account struct {
-	Active *bool `json:"active"`
-	Entitlement any `json:"entitlement"`
-	Msa any `json:"msa"`
-	MsaClientId string `json:"msa-client-id"`
+	Active any `json:"active"`
 	Profile Profile `json:"profile"`
 	Type string `json:"type"`
-	Utoken any `json:"utoken"`
-	XrpMain any `json:"xrp-main"`
-	XrpMc any `json:"xrp-mc"`
 	Ygg Ygg `json:"ygg"`
 }
 
@@ -44,7 +32,6 @@ type Assets struct {
 
 type ServerId struct {
 	Id string `json:"serverId"`
-	Duration int `json:"expiresIn"`
 }
 
 type NoriskMod struct {
@@ -54,22 +41,13 @@ type NoriskMod struct {
 	Compatibility map[string]map[string]map[string]any `json:"compatibility"`
 }
 
-type Loader struct {
-	Default map[string]map[string]string `json:"default"`
-	Minecraft any `json:"byMinecraft"`
-}
-
 type Pack struct {
 	Name string `json:"displayName"`
 	Desc string `json:"description"`
 	Inherits []string `json:"inheritsFrom"`
-	Exclude []string `json:"excludeMods"`
+	Exclude []any `json:"excludeMods"`
 	Mods []NoriskMod `json:"mods"`
 	Assets []string `json:"assets"`
-	Experimental bool `json:"isExperimental"`
-	Auto_update bool `json:"autoUpdate"`
-	Loader Loader `json:"loaderPolicy"`
-	StartupHelper any `json:"startupHelper"`
 }
 
 type Versions struct {
@@ -77,54 +55,13 @@ type Versions struct {
 	Repositories map[string]string `json:"repositories"`
 }
 
-type ModFile struct {
-	Hashes map[string]string `json:"hashes"`
-	Url string `json:"url"`
-	Filename string `json:"filename"`
-	Primary bool `json:"primary"`
-	Size int `json:"size"`
-	File_type any `json:"file_type"`
-}
-
-type ModrinthMod struct {
-	Versions []string `json:"game_versions"`
-	Loaders []string `json:"loaders"`
-	Id string `json:"id"`
-	Project_id string `json:"project_id"`
-	Author_id string `json:"author_id"`
-	Featured bool `json:"featured"`
-	Name string `json:"name"`
-	Version string `json:"version_number"`
-	Changelog string `json:"changelog"`
-	Changelog_url any `json:"changelog_url"`
-	Date string `json:"date_published"`
-	Downloads int `json:"downloads"`
-	Version_type string `json:"version_type"`
-	Status string `json:"status"`
-	Requested_status any `json:"requested_status"`
-	Files []ModFile `json:"files"`
-	Dependencies any `json:"dependencies"`
-}
-
-type Software struct {
+type Components struct {
 	CName string `json:"cachedName"`
-	CVersion any `json:"cachedVersion"`
-	CVolatile any `json:"cachedVolatile"`
-	Dependency any `json:"dependencyOnly"`
-	Uid any `json:"uid"`
 	Version string `json:"version"`
-	Important any `json:"important"`
-	CRequires any `json:"cachedRequires"`
 }
 
 type PrismInstance struct {
-	Components []Software `json:"components"`
-}
-
-type VerifiedAsset struct {
-	Result bool
-	Path string
-	Asset map[string]string
+	Components []Components `json:"components"`
 }
 
 type ModEntry struct {

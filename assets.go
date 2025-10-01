@@ -39,17 +39,17 @@ func verify_asset(
 	path string,
 	data map[string]string,
 	wg *sync.WaitGroup,
-	results chan <- VerifiedAsset,
+	results chan<- map[string]string,
 ) {
 	defer wg.Done()
 
 	if hash, err := calc_hash(fmt.Sprintf("NoRiskClient/assets/%s", path));
 		err == nil && hash == data["hash"] {
-		results <- VerifiedAsset{true, "", nil}
 		return
 	}
 
-	results <- VerifiedAsset{false, path, data}
+	data["path"] = path
+	results <- data
 }
 
 func load_assets(
@@ -78,7 +78,7 @@ func load_assets(
 		maps.Copy(merged, final_data[i])
 	}
 
-	results := make(chan VerifiedAsset, len(merged))
+	results := make(chan map[string]string, len(merged))
 	for i, v := range merged {
 		wg.Add(1)
 		go verify_asset(i, v, &wg, results)
@@ -89,23 +89,20 @@ func load_assets(
 		close(results)
 	}()
 
-	downloading := false
+	if len(results) != 0 {
+		log.Println("Downloading missing assets")
+	}
+
 	limiter := make(chan struct{}, 20)
 	for result := range results {
-		if !result.Result {
-			if !downloading {
-				log.Println("Downloading missing assets")
-				downloading = true
-			}
-			wg.Add(1)
-			go download_single_asset(
-				result.Asset["pack"],
-				result.Path,
-				result.Asset["hash"],
-				&wg,
-				limiter,
-			)
-		}
+		wg.Add(1)
+		go download_single_asset(
+			result["pack"],
+			result["path"],
+			result["hash"],
+			&wg,
+			limiter,
+		)
 	}
 
 	wg.Wait()
