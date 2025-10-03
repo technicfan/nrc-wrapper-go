@@ -336,7 +336,15 @@ func install(
 	if err != nil {
 		log.Fatalf("Failed to get nrc mods: %s", err.Error())
 	}
-	mods = append(mods, inherited_mods...)
+	var ids []string
+	for _, mod := range mods {
+		ids = append(ids, mod.Id)
+	}
+	for _, mod := range inherited_mods {
+		if !slices.Contains(ids, mod.Id) {
+			mods = append(mods, mod)
+		}
+	}
 	installed_mods, err := get_installed_mods(config["mods-dir"])
 	if err != nil {
 		log.Fatalf("Failed to get installed mods: %s", err.Error())
