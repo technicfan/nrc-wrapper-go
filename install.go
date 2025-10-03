@@ -82,6 +82,7 @@ func get_minecraft_version(
 
 func download_jar_clean(
 	url string,
+	alt_url string,
 	name string,
 	version string,
 	id string,
@@ -101,6 +102,9 @@ func download_jar_clean(
 		name = name + ".disabled"
 	}
 	a, err := download_jar(url, name, path)
+	if alt_url != "" && err != nil && err.Error() == "HTTP 404" {
+		a, err = download_jar(alt_url, name, path)
+	}
 	if err != nil {
 		if error_on_fail {
 			log.Fatalf("Failed to download %s: %s", name, err.Error())
@@ -293,23 +297,29 @@ func get_missing_mods_clean(
 func build_maven_url(
 	mod ModEntry,
 	repos map[string]string,
-) (string, string) {
+) (string, string, string) {
+	var url, alt_url string
 	if mod.SourceType == "modrinth" {
 		version := mod.Version
 		if !strings.Contains(mod.Version, "-") {
 			version = strings.Replace(mod.Version, ",", "-", 1)
 		}
-		filename := fmt.Sprintf("%s-%s.jar", mod.ProjectSlug, version)
-		mod_path := fmt.Sprintf("maven/modrinth/%s/%s/%s", mod.ProjectSlug, version, filename)
-
-		return repos[mod.SourceType] + mod_path, filename
+		filename := fmt.Sprintf("%s-%s.jar", mod.ModrinthId, version)
+		url = fmt.Sprintf(
+			"%smaven/modrinth/%s/%s/%s",
+			repos[mod.SourceType], mod.ModrinthId, version, filename,
+		)
+		alt_url = strings.ReplaceAll(url, mod.ModrinthId, mod.ProjectSlug)
 	} else {
 		group_path := strings.ReplaceAll(mod.GroupId, ".", "/")
 		filename := fmt.Sprintf("%s-%s.jar", mod.MavenId, mod.Version)
-		mod_path := fmt.Sprintf("%s/%s/%s/%s", group_path, mod.MavenId, mod.Version, filename)
-
-		return repos[mod.RepositoryRef] + mod_path, filename
+		url = fmt.Sprintf(
+			"%s%s/%s/%s/%s",
+			repos[mod.RepositoryRef], group_path, mod.MavenId, mod.Version, filename,
+		)
 	}
+
+	return url, alt_url, fmt.Sprintf("%s-%s.jar", mod.Id, mod.Version)
 }
 
 func install(
@@ -367,16 +377,17 @@ func install(
 
 	index := make(chan map[string]string, len(mods_to_download))
 	for _, mod := range mods_to_download {
-		var url, filename string
+		var url, alt_url, filename string
 		if mod.SourceType == "url" {
 			url = mod.Version
 			filename = mod.Filename
 		} else {
-			url, filename = build_maven_url(mod, repos)
+			url, alt_url, filename = build_maven_url(mod, repos)
 		}
 		wg.Add(1)
 		go download_jar_clean(
 			url,
+			alt_url,
 			filename,
 			mod.Version,
 			mod.Id,
