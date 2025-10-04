@@ -2,19 +2,20 @@
 
 ---
 
-This was a small challenge for me.
-I wanted to write something in a language that was new for me and I decided for Go and to translate/rewrite [nrc-prism-wrapper](https://github.com/ThatCuteOne/nrc-prism-wrapper) in Go.
+This was a small challenge for me.<br>
+I wanted to write something in a language that was new for me and I decided for Go and to translate/rewrite [nrc-prism-wrapper](https://github.com/ThatCuteOne/nrc-prism-wrapper) in Go.<br>
 [ThatCuteOne](https://github.com/ThatCuteOne) is still maintaining their project btw, so you might want to check it out too.
 
 ---
 
-It can run through Prism Launcher and Modrinth Launcher on Windows and Linux! (idk about mac)
+It can run through Prism Launcher and Modrinth Launcher on Windows and Linux! (idk about mac)<br>
 Once again most algorithms are **NOT** my own but those by [ThatCuteOne](https://github.com/ThatCuteOne), but everything after v1.0 and [`types.go`](./types.go) is my work.
 
 ---
 
-It installs the mods in a seperate directory from all your other mods to prevent the launcher messing with them.
-If you used the wrapper before this change, you should probably delete the nrc mods from your regular mods folder (don't know whether it matters that much though).
+It installs the mods in a seperate directory from all your other mods to prevent the launcher messing with them (only supported with fabric).<br>
+If you used the wrapper before this change, you should probably delete the nrc mods from your regular mods folder (don't know whether it matters that much though).<br>
+It also checks if the correct loader and loader versions are installed to run the selected nrc modpack.
 
 ---
 
@@ -67,7 +68,7 @@ Just launch and enjoy.
 
 Things to keep in mind:
 
-- this is no official project supported by NoRiskClient
-    - there should be nothing worry about though
+- this is not official and not affiliated with NoRiskClient
+    - if issues occur first look if this project is the cause
 - first launch takes longer as it needs to download everything
 - on Windows there is no way to replace the current process, so minecraft will just continue running if you terminate the instance from your launcher
