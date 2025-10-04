@@ -394,6 +394,7 @@ func install(
 			mod.OldFile,
 			config["mods-dir"],
 			config["error-on-failed-download"] == "",
+			mod.SourceType != "url",
 			&wg,
 			index,
 			limiter,

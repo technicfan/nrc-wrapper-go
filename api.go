@@ -30,6 +30,7 @@ func download_jar(
 	url string,
 	name string,
 	path string,
+	check_hash bool,
 ) (string, error) {
 	response, err := http.Get(url)
 	if err != nil {
@@ -40,33 +41,38 @@ func download_jar(
 	}
 	defer response.Body.Close()
 
-	hash_response, err := http.Get(fmt.Sprintf("%s.sha1", url))
-	if err != nil {
-		return "", err
-	}
-	if hash_response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %v (sha1)", hash_response.StatusCode)
-	}
-	defer hash_response.Body.Close()
+	var expected_hash string
+	if check_hash {
+		hash_response, err := http.Get(fmt.Sprintf("%s.sha1", url))
+		if err != nil {
+			return "", err
+		}
+		if hash_response.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("HTTP %v (sha1)", hash_response.StatusCode)
+		}
+		defer hash_response.Body.Close()
 
-	hash_body, err := io.ReadAll(hash_response.Body)
-	if err != nil {
-		return "", err
+		hash_body, err := io.ReadAll(hash_response.Body)
+		if err != nil {
+			return "", err
+		}
+		expected_hash = string(hash_body)
 	}
-	expected_hash := string(hash_body)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}
 
-	hash := sha1.New()
-	if _, err := hash.Write(body); err != nil {
-		return "", err
-	}
+	if expected_hash != "" {
+		hash := sha1.New()
+		if _, err := hash.Write(body); err != nil {
+			return "", err
+		}
 
-	if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
-		return "", errors.New("wrong hash")
+		if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
+			return "", errors.New("wrong hash")
+		}
 	}
 
 	file, err := os.Create(filepath.Join(path, name))
