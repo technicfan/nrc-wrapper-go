@@ -41,6 +41,10 @@ type NoriskMod struct {
 	Compatibility map[string]map[string]map[string]any `json:"compatibility"`
 }
 
+type Loader struct {
+	Version string `json:"version"`
+}
+
 type Pack struct {
 	Name string `json:"displayName"`
 	Desc string `json:"description"`
@@ -48,6 +52,7 @@ type Pack struct {
 	Exclude []any `json:"excludeMods"`
 	Mods []NoriskMod `json:"mods"`
 	Assets []string `json:"assets"`
+	Loader map[string]map[string]Loader `json:"loaderPolicy"`
 }
 
 type Versions struct {
@@ -55,13 +60,13 @@ type Versions struct {
 	Repositories map[string]string `json:"repositories"`
 }
 
-type Components struct {
-	CName string `json:"cachedName"`
+type Component struct {
+	Uid string `json:"uid"`
 	Version string `json:"version"`
 }
 
 type PrismInstance struct {
-	Components []Components `json:"components"`
+	Components []Component `json:"components"`
 }
 
 type ModEntry struct {

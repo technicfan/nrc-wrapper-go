@@ -1,9 +1,7 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -13,72 +11,7 @@ import (
 
 	"strings"
 	"sync"
-
-	_ "github.com/mattn/go-sqlite3"
 )
-
-func get_minecraft_version(
-	path string,
-	launcher string,
-) (string, error) {
-	switch launcher {
-	case "prism":
-		file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
-		if err != nil {
-			return "", err
-		}
-		content, err := io.ReadAll(file)
-		if err != nil {
-			return "", err
-		}
-		defer file.Close()
-
-		var data PrismInstance
-		err = json.Unmarshal(content, &data)
-		if err != nil {
-			return "", err
-		}
-
-		for _, entry := range data.Components {
-			if entry.CName == "Minecraft" {
-				return entry.Version, nil
-			}
-		}
-
-	case "modrinth":
-		db, err := sql.Open("sqlite3", fmt.Sprintf("%s/app.db", path))
-		if err != nil {
-			return "", err
-		}
-		defer db.Close()
-
-		cwd, err := os.Getwd()
-		if err != nil {
-			return "", err
-		}
-		rows, err := db.Query(
-			fmt.Sprintf(
-				"SELECT game_version FROM profiles WHERE path = '%s'",
-				filepath.Base(cwd),
-			),
-		)
-		if err != nil {
-			return "", err
-		}
-		defer rows.Close()
-
-		var version string
-		for rows.Next() {
-			err = rows.Scan(&version)
-			if err != nil {
-				return "", err
-			}
-		}
-		return version, nil
-	}
-
-	return "", errors.New("Minecraft version not found")
-}
 
 func download_jar_clean(
 	url string,
@@ -89,6 +22,7 @@ func download_jar_clean(
 	old_file string,
 	path string,
 	error_on_fail bool,
+	check_hash bool,
 	wg *sync.WaitGroup,
 	index chan<- map[string]string,
 	limiter chan struct{},
@@ -101,9 +35,9 @@ func download_jar_clean(
 	if strings.HasSuffix(old_file, ".disabled") {
 		name = name + ".disabled"
 	}
-	a, err := download_jar(url, name, path)
+	a, err := download_jar(url, name, path, check_hash)
 	if alt_url != "" && err != nil && err.Error() == "HTTP 404" {
-		a, err = download_jar(alt_url, name, path)
+		a, err = download_jar(alt_url, name, path, check_hash)
 	}
 	if err != nil {
 		if error_on_fail {
@@ -227,26 +161,27 @@ func get_installed_mods(
 
 func get_compatible_nrc_mods(
 	mc_version string,
+	loader string,
 	nrc_mods []NoriskMod,
 ) ([]ModEntry, error) {
 	var mods []ModEntry
 	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
 			var filename string
-			if mod.Compatibility[mc_version]["fabric"]["source"] != nil {
-				source := mod.Compatibility[mc_version]["fabric"]["source"].(map[string]any)
+			if mod.Compatibility[mc_version][loader]["source"] != nil {
+				source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
 				for k, v := range source {
 					mod.Source[k] = v.(string)
 				}
 			}
-			if mod.Compatibility[mc_version]["fabric"]["filename"] != nil {
-				filename = mod.Compatibility[mc_version]["fabric"]["filename"].(string)
+			if mod.Compatibility[mc_version][loader]["filename"] != nil {
+				filename = mod.Compatibility[mc_version][loader]["filename"].(string)
 			}
 			mods = append(
 				mods,
 				ModEntry{
 					"",
-					mod.Compatibility[mc_version]["fabric"]["identifier"].(string),
+					mod.Compatibility[mc_version][loader]["identifier"].(string),
 					mod.Id,
 					filename,
 					"",
@@ -332,18 +267,18 @@ func install(
 	defer wg1.Done()
 	os.Mkdir(config["mods-dir"], os.ModePerm)
 
-	mc_version, err := get_minecraft_version(config["launcher_dir"], config["launcher"])
-	if err != nil {
-		log.Fatalf("Failed to get Minecraft version: %s", err.Error())
-	}
-	mods, err := get_compatible_nrc_mods(mc_version, nrc_mods_main)
+	mods, err := get_compatible_nrc_mods(config["mc-version"], config["loader"], nrc_mods_main)
 	if err != nil {
 		log.Fatalf("Failed to get nrc mods: %s", err.Error())
 	}
 	if len(mods) == 0 {
-		log.Fatalf("There are no NRC mods for %s in %s", mc_version, config["nrc-pack"])
+		log.Fatalf("There are no NRC mods for %s in %s", config["mc-version"], config["nrc-pack"])
 	}
-	inherited_mods, err := get_compatible_nrc_mods(mc_version, nrc_mods_inherited)
+	inherited_mods, err := get_compatible_nrc_mods(
+		config["mc-version"],
+		config["loader"],
+		nrc_mods_inherited,
+	)
 	if err != nil {
 		log.Fatalf("Failed to get nrc mods: %s", err.Error())
 	}

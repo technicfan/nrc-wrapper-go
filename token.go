@@ -182,7 +182,7 @@ func get_token(
 
 	var err error
 	var token, name, uuid string
-	token, name, uuid, err = get_minecraft_data(config["launcher_dir"], config["launcher"])
+	token, name, uuid, err = get_minecraft_data(config["launcher-dir"], config["launcher"])
 	if err != nil {
 		log.Fatalf("Failed to get Minecraft data: %s", err.Error())
 	}
@@ -201,7 +201,7 @@ func get_token(
 		return
 	}
 
-	nrc_token, err := read_token_from_file(config["launcher_dir"], uuid)
+	nrc_token, err := read_token_from_file(config["launcher-dir"], uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			if !offline { log.Println("Stored token is valid") }
@@ -234,7 +234,7 @@ func get_token(
 		log.Fatalf("Failed to get new nrc token: %s", err.Error())
 	}
 
-	err = write_token_to_file(config["launcher_dir"], uuid, nrc_token)
+	err = write_token_to_file(config["launcher-dir"], uuid, nrc_token)
 	if err != nil {
 		log.Printf("Failed to write token to file: %s", err.Error())
 	}

@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strings"
 	"sync"
 )
 
@@ -45,6 +46,21 @@ func main(){
 		pack, exists := versions.Packs[config["nrc-pack"]]
 		if !exists {
 			log.Fatalf("%s is not a valid NRC pack", config["nrc-pack"])
+		}
+		if loader, exists := pack.Loader["default"][config["loader"]]; exists {
+			if config["loader-version"] < loader.Version {
+				log.Fatalf("Please update %s to version %s", config["loader"], loader.Version)
+			}
+		} else {
+			var loaders []string
+			for name, loader := range pack.Loader["default"] {
+				loaders = append(loaders, fmt.Sprintf("%s %s", name, loader.Version))
+			}
+			log.Fatalf(
+				"%s requires one of the following modloaders: %s",
+				config["nrc-pack"],
+				strings.Join(loaders, ", "),
+			)
 		}
 		var mods []NoriskMod
 		var assets []string
