@@ -72,9 +72,7 @@ func write_token_to_file(
 	var file *os.File
 	var err error
 	var data map[string]string
-	file, err = os.OpenFile(
-		fmt.Sprintf("%s/norisk_data.json", path), os.O_TRUNC|os.O_RDWR, os.ModePerm,
-	)
+	file, err = os.Open(fmt.Sprintf("%s/norisk_data.json", path))
 	if err != nil {
 		file, err = os.Create(fmt.Sprintf("%s/norisk_data.json", path))
 		if err != nil {
@@ -100,6 +98,14 @@ func write_token_to_file(
 	if err != nil {
 		return err
 	}
+
+	file, err = os.OpenFile(
+		fmt.Sprintf("%s/norisk_data.json", path), os.O_RDWR|os.O_TRUNC, os.ModePerm,
+	)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
 	_, err = file.WriteString(string(json_string))
 	if err != nil {
