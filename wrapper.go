@@ -36,27 +36,36 @@ func main(){
 		}
 
 		if !launch {
-			fmt.Println("Available values for \"NRC_PACK\":")
+			fmt.Println("Available NRC packs:")
 			for value, pack := range versions.Packs {
 				var mc_versions []string
 				mods, _, loaders := get_pack_data(pack, versions.Packs)
-				for _, mod := range append(pack.Mods, mods...) {
+				for _, mod := range pack.Mods {
 					for version := range mod.Compatibility {
-						if !slices.Contains(mc_versions, version) {
+						if !slices.Contains(mc_versions, version) && version != "1.8.9" {
 							mc_versions = append(mc_versions, version)
 						}
 					}
 				}
-				var loaders_compiled []string
+				slices.Sort(mc_versions)
+				var loaders_string string
+				var loaders_list []string
 				for loader, version := range loaders {
-					loaders_compiled = append(
-						loaders_compiled, fmt.Sprintf("%s %s", loader, version),
+					loaders_list = append(
+						loaders_list, fmt.Sprintf("%s %s", loader, version),
 					)
 				}
-				slices.Sort(mc_versions)
-				fmt.Printf("- %s (%s)\n", value, pack.Desc)
+				if len(loaders_list) > 0 {
+					loaders_string = strings.Join(loaders_list, ", ")
+				} else {
+					loaders_string = "unknown"
+				}
+				fmt.Printf("- %s\n", pack.Name)
+				fmt.Printf("  NRC_PACK: %s\n", value)
+				fmt.Printf("  Description: %s\n", pack.Desc)
 				fmt.Printf("  Compatible versions: %s\n", strings.Join(mc_versions, ", "))
-				fmt.Printf("  Mod loaders: %s\n", strings.Join(loaders_compiled, ", "))
+				fmt.Printf("  Mod loaders: %s\n", loaders_string)
+				fmt.Printf("  Mods: %v\n", len(append(pack.Mods, mods...)))
 			}
 			return
 		}
@@ -67,20 +76,22 @@ func main(){
 		}
 		mods, assets, loaders := get_pack_data(pack, versions.Packs)
 
-		if version, exists := loaders[config["loader"]]; exists {
-			if config["loader-version"] < version {
-				log.Fatalf("Please update %s to version %s", config["loader"], version)
+		if len(loaders) > 0 {
+			if version, exists := loaders[config["loader"]]; exists {
+				if config["loader-version"] < version {
+					log.Fatalf("Please update %s to version %s", config["loader"], version)
+				}
+			} else {
+				var loaders []string
+				for loader, version := range pack.Loader["default"] {
+					loaders = append(loaders, fmt.Sprintf("%s %s", loader, version))
+				}
+				log.Fatalf(
+					"%s requires one of the following modloaders: %s",
+					config["nrc-pack"],
+					strings.Join(loaders, ", "),
+				)
 			}
-		} else {
-			var loaders []string
-			for loader, version := range pack.Loader["default"] {
-				loaders = append(loaders, fmt.Sprintf("%s %s", loader, version))
-			}
-			log.Fatalf(
-				"%s requires one of the following modloaders: %s",
-				config["nrc-pack"],
-				strings.Join(loaders, ", "),
-			)
 		}
 
 		wg.Add(3)
