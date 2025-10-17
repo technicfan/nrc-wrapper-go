@@ -32,6 +32,11 @@ The wrapper can be configured through environment variables
 |        `MODRINTH_DIR`         |                       The data directory of Modrinth Launcher in case it's not the default location                        |
 | `NO_ERROR_ON_FAILED_DOWNLOAD` |                              Set it to anything to stop crashing if a file fails downloading                               |
 
+**Info:**
+
+The `--packs` flag only works on Linux as on Windows an app is either CLI or GUI. I chose GUI because otherwise when starting Minecraft with the wrapper, a CMD window would always appear.<br>
+If you are okay with this behaviour and want the `--packs` flag on Windows, remove the `-ldflags -H=windowsgui` from the build command.
+
 ---
 
 To build it yourself simply install Go and run
