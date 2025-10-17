@@ -38,7 +38,25 @@ func main(){
 		if !launch {
 			fmt.Println("Available values for \"NRC_PACK\":")
 			for value, pack := range versions.Packs {
+				var mc_versions []string
+				mods, _, loaders := get_pack_data(pack, versions.Packs)
+				for _, mod := range append(pack.Mods, mods...) {
+					for version := range mod.Compatibility {
+						if !slices.Contains(mc_versions, version) {
+							mc_versions = append(mc_versions, version)
+						}
+					}
+				}
+				var loaders_compiled []string
+				for loader, version := range loaders {
+					loaders_compiled = append(
+						loaders_compiled, fmt.Sprintf("%s %s", loader, version),
+					)
+				}
+				slices.Sort(mc_versions)
 				fmt.Printf("- %s (%s)\n", value, pack.Desc)
+				fmt.Printf("  Compatible versions: %s\n", strings.Join(mc_versions, ", "))
+				fmt.Printf("  Mod loaders: %s\n", strings.Join(loaders_compiled, ", "))
 			}
 			return
 		}
@@ -47,14 +65,16 @@ func main(){
 		if !exists {
 			log.Fatalf("%s is not a valid NRC pack", config["nrc-pack"])
 		}
-		if loader, exists := pack.Loader["default"][config["loader"]]; exists {
-			if config["loader-version"] < loader.Version {
-				log.Fatalf("Please update %s to version %s", config["loader"], loader.Version)
+		mods, assets, loaders := get_pack_data(pack, versions.Packs)
+
+		if version, exists := loaders[config["loader"]]; exists {
+			if config["loader-version"] < version {
+				log.Fatalf("Please update %s to version %s", config["loader"], version)
 			}
 		} else {
 			var loaders []string
-			for name, loader := range pack.Loader["default"] {
-				loaders = append(loaders, fmt.Sprintf("%s %s", name, loader.Version))
+			for loader, version := range pack.Loader["default"] {
+				loaders = append(loaders, fmt.Sprintf("%s %s", loader, version))
 			}
 			log.Fatalf(
 				"%s requires one of the following modloaders: %s",
@@ -62,18 +82,6 @@ func main(){
 				strings.Join(loaders, ", "),
 			)
 		}
-		var mods []NoriskMod
-		var assets []string
-		for _, inherited_pack := range pack.Inherits {
-			mods = append(mods, versions.Packs[inherited_pack].Mods...)
-			for _, asset_pack := range versions.Packs[inherited_pack].Assets {
-				if !slices.Contains(assets, asset_pack) &&
-					!slices.Contains(pack.Assets, asset_pack) {
-					assets = append(assets, asset_pack)
-				}
-			}
-		}
-		assets = append(assets, pack.Assets...)
 
 		wg.Add(3)
 
