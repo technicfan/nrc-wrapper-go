@@ -35,7 +35,7 @@ The wrapper can be configured through environment variables
 **Info:**
 
 The `--packs` flag only works on Linux as on Windows an app is either CLI or GUI. I chose GUI because otherwise when starting Minecraft with the wrapper, a CMD window would always appear.<br>
-If you are okay with this behaviour and want the `--packs` flag on Windows, remove the `-ldflags -H=windowsgui` from the build command.
+If you are okay with this behaviour and want the `--packs` flag on Windows, remove `-ldflags -H=windowsgui` from the build command.
 
 ---
 
