@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -75,8 +76,9 @@ func print_packs(
 	packs map[string]Pack,
 ) {
 	fmt.Println("Available NRC packs:")
-	for value, pack := range packs {
+	for _, key := range slices.Sorted(maps.Keys(packs)) {
 		var mc_versions []string
+		pack := packs[key]
 		mods, _, loaders := get_pack_data(pack, packs)
 		for _, mod := range pack.Mods {
 			for version := range mod.Compatibility {
@@ -99,7 +101,7 @@ func print_packs(
 			loaders_string = "unknown"
 		}
 		fmt.Printf("- %s\n", pack.Name)
-		fmt.Printf("  NRC_PACK: %s\n", value)
+		fmt.Printf("  NRC_PACK: %s\n", key)
 		fmt.Printf("  Description: %s\n", pack.Desc)
 		fmt.Printf("  Compatible versions: %s\n", strings.Join(mc_versions, ", "))
 		fmt.Printf("  Mod loaders: %s\n", loaders_string)
