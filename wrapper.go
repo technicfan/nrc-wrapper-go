@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"strings"
 	"sync"
 )
@@ -29,44 +28,10 @@ func main(){
 		mods_dir = config["mods-dir"]
 	}
 
-	if check_connection() {
-		versions, err := get_norisk_versions()
-		if err != nil {
-			log.Fatalf("Failed to get nrc packs: %s", err.Error())
-		}
-
+	versions, err := get_norisk_versions()
+	if err == nil {
 		if !launch {
-			fmt.Println("Available NRC packs:")
-			for value, pack := range versions.Packs {
-				var mc_versions []string
-				mods, _, loaders := get_pack_data(pack, versions.Packs)
-				for _, mod := range pack.Mods {
-					for version := range mod.Compatibility {
-						if !slices.Contains(mc_versions, version) && version != "1.8.9" {
-							mc_versions = append(mc_versions, version)
-						}
-					}
-				}
-				slices.Sort(mc_versions)
-				var loaders_string string
-				var loaders_list []string
-				for loader, version := range loaders {
-					loaders_list = append(
-						loaders_list, fmt.Sprintf("%s %s", loader, version),
-					)
-				}
-				if len(loaders_list) > 0 {
-					loaders_string = strings.Join(loaders_list, ", ")
-				} else {
-					loaders_string = "unknown"
-				}
-				fmt.Printf("- %s\n", pack.Name)
-				fmt.Printf("  NRC_PACK: %s\n", value)
-				fmt.Printf("  Description: %s\n", pack.Desc)
-				fmt.Printf("  Compatible versions: %s\n", strings.Join(mc_versions, ", "))
-				fmt.Printf("  Mod loaders: %s\n", loaders_string)
-				fmt.Printf("  Mods: %v\n", len(append(pack.Mods, mods...)))
-			}
+			print_packs(versions.Packs)
 			return
 		}
 
@@ -121,7 +86,7 @@ func main(){
 		}, os.Args[2:]...
 	)
 
-	err := Exec(command, args)
+	err = Exec(command, args)
 	if err != nil {
 		log.Fatalf("Command failed with: %s", err.Error())
 	}
