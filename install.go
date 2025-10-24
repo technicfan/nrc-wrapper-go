@@ -40,10 +40,7 @@ func download_jar_clean(
 		a, err = download_jar(alt_url, name, path, check_hash)
 	}
 	if err != nil {
-		if error_on_fail {
-			log.Fatalf("Failed to download %s: %s", name, err.Error())
-		}
-		log.Printf("Failed to download %s: %s", name, err.Error())
+		notify(fmt.Sprintf("Failed to download %s: %s", name, err.Error()), error_on_fail)
 	}
 	if a != old_file && a != "" && old_file != "" {
 		os.Remove(filepath.Join(path, old_file))
@@ -269,10 +266,17 @@ func install(
 
 	mods, err := get_compatible_nrc_mods(config["mc-version"], config["loader"], nrc_mods_main)
 	if err != nil {
-		log.Fatalf("Failed to get nrc mods: %s", err.Error())
+		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true)
 	}
 	if len(mods) == 0 {
-		log.Fatalf("There are no NRC mods for %s in %s", config["mc-version"], config["nrc-pack"])
+		notify(
+			fmt.Sprintf(
+				"There are no NRC mods for %s in %s",
+				config["mc-version"],
+				config["nrc-pack"],
+			),
+			true,
+		)
 	}
 	inherited_mods, err := get_compatible_nrc_mods(
 		config["mc-version"],
@@ -280,7 +284,7 @@ func install(
 		nrc_mods_inherited,
 	)
 	if err != nil {
-		log.Fatalf("Failed to get nrc mods: %s", err.Error())
+		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true)
 	}
 	var ids []string
 	for _, mod := range mods {
@@ -293,7 +297,7 @@ func install(
 	}
 	installed_mods, err := get_installed_mods(config["mods-dir"])
 	if err != nil {
-		log.Fatalf("Failed to get installed mods: %s", err.Error())
+		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true)
 	}
 	mods_to_download, already_installed := get_missing_mods_clean(
 		mods,
@@ -347,7 +351,7 @@ func install(
 		}
 		err = write_index(existing_index)
 		if err != nil {
-			log.Fatalf("Failed to write mod metadata: %s", err.Error())
+			notify(fmt.Sprintf("Failed to write mod metadata: %s", err.Error()), true)
 		}
 	}
 }

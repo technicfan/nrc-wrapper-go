@@ -228,14 +228,14 @@ func join_server_session(
 	token string,
 	selected_profile string,
 	server_id string,
-) {
+) (error) {
 	params := make(map[string]string)
 	params["accessToken"] = token
 	params["selectedProfile"] = selected_profile
 	params["serverId"] = server_id
 	params_str, err := json.Marshal(params)
 	if err != nil {
-		log.Fatalf("Failed to join server session: %s", err.Error())
+		return err
 	}
 
 	response, err := http.Post(
@@ -244,12 +244,14 @@ func join_server_session(
 		bytes.NewBuffer(params_str),
 	)
 	if err != nil {
-		log.Fatalf("Failed to join server session: %s", err.Error())
+		return err
 	}
 	if response.StatusCode != http.StatusNoContent {
-		log.Fatalf("Failed to join server session: HTTP %v", response.StatusCode)
+		return fmt.Errorf("HTTP %v", response.StatusCode)
 	}
 	defer response.Body.Close()
+
+	return nil
 }
 
 func get_norisk_versions() (Versions, error) {

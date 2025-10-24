@@ -37,24 +37,30 @@ func main(){
 
 		pack, exists := versions.Packs[config["nrc-pack"]]
 		if !exists {
-			log.Fatalf("%s is not a valid NRC pack", config["nrc-pack"])
+			notify(fmt.Sprintf("%s is not a valid NRC pack", config["nrc-pack"]), true)
 		}
 		mods, assets, loaders := get_pack_data(pack, versions.Packs)
 
 		if len(loaders) > 0 {
 			if version, exists := loaders[config["loader"]]; exists {
 				if config["loader-version"] < version {
-					log.Fatalf("Please update %s to version %s", config["loader"], version)
+					notify(
+						fmt.Sprintf("Please update %s to version %s", config["loader"], version),
+						true,
+					)
 				}
 			} else {
 				var loaders []string
 				for loader, version := range pack.Loader["default"] {
 					loaders = append(loaders, fmt.Sprintf("%s %s", loader, version))
 				}
-				log.Fatalf(
-					"%s requires one of the following modloaders: %s",
-					config["nrc-pack"],
-					strings.Join(loaders, ", "),
+				notify(
+					fmt.Sprintf(
+						"%s requires one of the following modloaders: %s",
+						config["nrc-pack"],
+						strings.Join(loaders, ", "),
+					),
+					true,
 				)
 			}
 		}
@@ -69,10 +75,12 @@ func main(){
 
 		token = <- token_out
 	} else {
-		log.Println("No connection to the API")
-		if !launch { return }
+		if !launch {
+			log.Println("No connection to the API")
+			return
+		}
 		wg.Add(1)
-		log.Println("Launching without doing anything")
+		notify("No connection to the API\nLaunching without doing anything", false)
 		go get_token(config, true, &wg, token_out)
 		wg.Wait()
 		token = <- token_out
@@ -88,6 +96,6 @@ func main(){
 
 	err = Exec(command, args)
 	if err != nil {
-		log.Fatalf("Command failed with: %s", err.Error())
+		notify(fmt.Sprintf("Command failed with: %s", err.Error()), true)
 	}
 }

@@ -190,7 +190,7 @@ func get_token(
 	var token, name, uuid string
 	token, name, uuid, err = get_minecraft_data(config["launcher-dir"], config["launcher"])
 	if err != nil {
-		log.Fatalf("Failed to get Minecraft data: %s", err.Error())
+		notify(fmt.Sprintf("Failed to get Minecraft data: %s", err.Error()), true)
 	}
 	if !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
@@ -224,9 +224,12 @@ func get_token(
 	log.Println("Requesting new token")
 	server_id, err := request_server_id()
 	if err != nil {
-		log.Fatalf("Failed to get nrc server id: %s", err.Error())
+		notify(fmt.Sprintf("Failed to get nrc server id: %s", err.Error()), true)
 	}
-	join_server_session(token, uuid, server_id)
+	err = join_server_session(token, uuid, server_id)
+	if err != nil {
+		notify(fmt.Sprintf("Failed to join server session: %s", err.Error()), true)
+	}
 
 	host, _ := os.Hostname()
 	system_id := fmt.Sprintf("%s-%s-%s-%s", config["launcher"], runtime.GOOS, runtime.GOARCH, host)
@@ -237,12 +240,12 @@ func get_token(
 		hex.EncodeToString(hash[:]),
 	)
 	if err != nil {
-		log.Fatalf("Failed to get new nrc token: %s", err.Error())
+		notify(fmt.Sprintf("Failed to get new nrc token: %s", err.Error()), true)
 	}
 
 	err = write_token_to_file(config["launcher-dir"], uuid, nrc_token)
 	if err != nil {
-		log.Printf("Failed to write token to file: %s", err.Error())
+		notify(fmt.Sprintf("Failed to write token to file: %s", err.Error()), true)
 	}
 	out <- nrc_token
 }

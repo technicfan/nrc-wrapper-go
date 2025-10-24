@@ -122,7 +122,7 @@ func get_config() map[string]string {
 			config["launcher-dir"] = filepath.Join(home, MODRINTH_DIR)
 		}
 	default:
-		log.Fatal("No valid launcher detected or set manually")
+		notify("No valid launcher detected or set manually", true)
 	}
 
 	if value := os.Getenv("NRC_PACK"); value != "" {
@@ -133,7 +133,7 @@ func get_config() map[string]string {
 
 	v, l, lv, err := get_minecraft_details(config["launcher-dir"], config["launcher"])
 	if err != nil {
-		log.Fatalf("Failed to get Minecraft details: %s", err.Error())
+		notify(fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()), true)
 	}
 	config["mc-version"], config["loader"], config["loader-version"] = v, l, lv
 

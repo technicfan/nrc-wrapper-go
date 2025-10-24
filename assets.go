@@ -66,10 +66,10 @@ func download_asset(
 
 	err := download_single_asset(asset["pack"], asset["path"], asset["hash"])
 	if err != nil {
-		if error_on_fail {
-			log.Fatalf("Failed to download %s: %s", filepath.Base(asset["path"]), err.Error())
-		}
-		log.Printf("Failed to download %s: %s", filepath.Base(asset["path"]), err.Error())
+		notify(
+			fmt.Sprintf("Failed to download %s: %s", filepath.Base(asset["path"]), err.Error()),
+			error_on_fail,
+		)
 	}
 
 	log.Printf("Downloaded %s/%s", asset["pack"], filepath.Base(asset["path"]))
