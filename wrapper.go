@@ -23,7 +23,6 @@ func main(){
 	token_out := make(chan string, 1)
 	if launch {
 		log.Println("Loading NoRiskClient...")
-
 		config = get_config()
 	}
 

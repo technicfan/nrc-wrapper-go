@@ -108,7 +108,7 @@ func get_config() Config {
 		config.Launcher = "modrinth"
 	}
 
-	config.Notify = os.Getenv("NOTIFY") == ""
+	config.Notify = os.Getenv("NO_NOTIFY") == ""
 
 	switch config.Launcher {
 	case "prism":

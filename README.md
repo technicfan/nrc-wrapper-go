@@ -14,8 +14,7 @@ Once again most algorithms are **NOT** my own but those by [ThatCuteOne](https:/
 ---
 
 It installs the mods in a seperate directory from all your other mods to prevent the launcher messing with them (only supported with fabric).<br>
-If you used the wrapper before this change, you should probably delete the nrc mods from your regular mods folder (don't know whether it matters that much though).<br>
-It also checks if the correct loader and loader versions are installed to run the selected nrc modpack.
+It also checks if the correct loader and loader version is installed to run the selected nrc modpack.
 
 ---
 
@@ -26,16 +25,17 @@ The wrapper can be configured through environment variables
 |           Variable            |                                                        Description                                                         |
 | :---------------------------: | :------------------------------------------------------------------------------------------------------------------------: |
 |          `NRC_PACK`           | This lets you choose, which nrc modpack to use; You can see available option when using the `--packs` flag in the terminal |
-|        `NRC_MODS_DIR`         |        This lets you change the directory the wrapper installs the nrc mods in (the default is `mods/NoRiskClient`)        |
+|         `NRC_MOD_DIR`         |        This lets you change the directory the wrapper installs the nrc mods in (the default is `mods/NoRiskClient`)        |
 |          `LAUNCHER`           | The wrapper generally detects the launcher by itself, but in case it doesn't you have the option for `prism` or `modrinth` |
 |          `PRISM_DIR`          |                         The data directory of Prism Launcher in case it's not the default location                         |
 |        `MODRINTH_DIR`         |                       The data directory of Modrinth Launcher in case it's not the default location                        |
 | `NO_ERROR_ON_FAILED_DOWNLOAD` |                              Set it to anything to stop crashing if a file fails downloading                               |
+|          `NO_NOTIFY`          |                                        Set it to anything to disable notifications                                         |
 
 **Info:**
 
-The `--packs` flag only works on Linux as on Windows an app is either CLI or GUI. I chose GUI because otherwise when starting Minecraft with the wrapper, a CMD window would always appear.<br>
-If you are okay with this behaviour and want the `--packs` flag on Windows, remove `-ldflags -H=windowsgui` from the build command.
+~~The `--packs` flag only works on Linux as on Windows an app is either CLI or GUI. I chose GUI because otherwise when starting Minecraft with the wrapper, a CMD window would always appear.~~<br>
+Managed to fix this with a weird solution (I don't know much about Windows).
 
 ---
 
@@ -66,7 +66,7 @@ go build -ldflags -H=windowsgui -o nrc-wrapper-go.exe
 
 in the git repository.
 
-The binary that you'll have now has to be added as the wrapper command of a Minecraft 1.21/1/4/5/7/8 Fabric instance in a supported Launcher.<br>
+The binary that you'll have now has to be added as the wrapper command of a supported Minecraft (check `--packs` for a list) instance in a supported Launcher.<br>
 Just launch and enjoy.
 
 ---
@@ -76,4 +76,5 @@ Things to keep in mind:
 - this is not official and not affiliated with NoRiskClient
     - if issues occur first look if this project is the cause
 - first launch takes longer as it needs to download everything
-- on Windows there is no way to replace the current process, so minecraft will just continue running if you terminate the instance from your launcher
+- ~~on Windows there is no way to replace the current process, so minecraft will just continue running if you terminate the instance from your launcher~~
+    - managed to fix it with winjobs using a 5yo go package (i don't really know, what this is though :))
