@@ -18,15 +18,13 @@ func main(){
 	}
 
 	var token string
-	var mods_dir string
-	var config map[string]string
+	var config Config
 	var wg sync.WaitGroup
 	token_out := make(chan string, 1)
 	if launch {
 		log.Println("Loading NoRiskClient...")
 
 		config = get_config()
-		mods_dir = config["mods-dir"]
 	}
 
 	versions, err := get_norisk_versions()
@@ -36,18 +34,19 @@ func main(){
 			return
 		}
 
-		pack, exists := versions.Packs[config["nrc-pack"]]
+		pack, exists := versions.Packs[config.NrcPack]
 		if !exists {
-			notify(fmt.Sprintf("%s is not a valid NRC pack", config["nrc-pack"]), true)
+			notify(fmt.Sprintf("%s is not a valid NRC pack", config.NrcPack), true, config.Notify)
 		}
 		mods, assets, loaders := get_pack_data(pack, versions.Packs)
 
 		if len(loaders) > 0 {
-			if version, exists := loaders[config["loader"]]; exists {
-				if config["loader-version"] < version {
+			if version, exists := loaders[config.Loader]; exists {
+				if config.LoaderVersion < version {
 					notify(
-						fmt.Sprintf("Please update %s to version %s", config["loader"], version),
+						fmt.Sprintf("Please update %s to version %s", config.Loader, version),
 						true,
+						config.Notify,
 					)
 				}
 			} else {
@@ -58,10 +57,11 @@ func main(){
 				notify(
 					fmt.Sprintf(
 						"%s requires one of the following modloaders: %s",
-						config["nrc-pack"],
+						config.NrcPack,
 						strings.Join(loaders, ", "),
 					),
 					true,
+					config.Notify,
 				)
 			}
 		}
@@ -69,7 +69,7 @@ func main(){
 		wg.Add(3)
 
 		go get_token(config, false, &wg, token_out)
-		go load_assets(assets, config["error-on-failed-download"] == "", &wg)
+		go load_assets(assets, config, &wg)
 		go install(config, pack.Mods, mods, versions.Repositories, &wg)
 
 		wg.Wait()
@@ -81,7 +81,7 @@ func main(){
 			return
 		}
 		wg.Add(1)
-		notify("No connection to the API\nLaunching without doing anything", false)
+		notify("No connection to the API\nLaunching without doing anything", false, config.Notify)
 		go get_token(config, true, &wg, token_out)
 		wg.Wait()
 		token = <- token_out
@@ -91,12 +91,12 @@ func main(){
     args := append(
 		[]string{
 			command, fmt.Sprintf("-Dnorisk.token=%s", token),
-			fmt.Sprintf("-Dfabric.addMods=%s", mods_dir),
+			fmt.Sprintf("-Dfabric.addMods=%s", config.ModDir),
 		}, os.Args[2:]...
 	)
 
 	err = Exec(command, args)
 	if err != nil {
-		notify(fmt.Sprintf("Command failed with: %s", err.Error()), true)
+		notify(fmt.Sprintf("Command failed with: %s", err.Error()), true, config.Notify)
 	}
 }

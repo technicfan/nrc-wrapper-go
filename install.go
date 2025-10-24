@@ -22,6 +22,7 @@ func download_jar_clean(
 	old_file string,
 	path string,
 	error_on_fail bool,
+	do_notify bool,
 	check_hash bool,
 	wg *sync.WaitGroup,
 	index chan<- map[string]string,
@@ -40,7 +41,11 @@ func download_jar_clean(
 		a, err = download_jar(alt_url, name, path, check_hash)
 	}
 	if err != nil {
-		notify(fmt.Sprintf("Failed to download %s: %s", name, err.Error()), error_on_fail)
+		notify(
+			fmt.Sprintf("Failed to download %s: %s", name, err.Error()),
+			error_on_fail,
+			do_notify,
+		)
 	}
 	if a != old_file && a != "" && old_file != "" {
 		os.Remove(filepath.Join(path, old_file))
@@ -255,36 +260,37 @@ func build_maven_url(
 }
 
 func install(
-	config map[string]string,
+	config Config,
 	nrc_mods_main []NoriskMod,
 	nrc_mods_inherited []NoriskMod,
 	repos map[string]string,
 	wg1 *sync.WaitGroup,
 ) {
 	defer wg1.Done()
-	os.Mkdir(config["mods-dir"], os.ModePerm)
+	os.Mkdir(config.ModDir, os.ModePerm)
 
-	mods, err := get_compatible_nrc_mods(config["mc-version"], config["loader"], nrc_mods_main)
+	mods, err := get_compatible_nrc_mods(config.McVersion, config.Loader, nrc_mods_main)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true, config.Notify)
 	}
 	if len(mods) == 0 {
 		notify(
 			fmt.Sprintf(
 				"There are no NRC mods for %s in %s",
-				config["mc-version"],
-				config["nrc-pack"],
+				config.McVersion,
+				config.NrcPack,
 			),
 			true,
+			config.Notify,
 		)
 	}
 	inherited_mods, err := get_compatible_nrc_mods(
-		config["mc-version"],
-		config["loader"],
+		config.McVersion,
+		config.Loader,
 		nrc_mods_inherited,
 	)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true, config.Notify)
 	}
 	var ids []string
 	for _, mod := range mods {
@@ -295,14 +301,14 @@ func install(
 			mods = append(mods, mod)
 		}
 	}
-	installed_mods, err := get_installed_mods(config["mods-dir"])
+	installed_mods, err := get_installed_mods(config.ModDir)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
 	}
 	mods_to_download, already_installed := get_missing_mods_clean(
 		mods,
 		installed_mods,
-		config["mods-dir"],
+		config.ModDir,
 	)
 
 	if len(mods_to_download) == 0 {
@@ -331,8 +337,9 @@ func install(
 			mod.Version,
 			mod.Id,
 			mod.OldFile,
-			config["mods-dir"],
-			config["error-on-failed-download"] == "",
+			config.ModDir,
+			config.ErrorOnFailedDownload,
+			config.Notify,
 			mod.SourceType != "url",
 			&wg,
 			index,
@@ -351,7 +358,11 @@ func install(
 		}
 		err = write_index(existing_index)
 		if err != nil {
-			notify(fmt.Sprintf("Failed to write mod metadata: %s", err.Error()), true)
+			notify(
+				fmt.Sprintf("Failed to write mod metadata: %s", err.Error()),
+				true,
+				config.Notify,
+			)
 		}
 	}
 }

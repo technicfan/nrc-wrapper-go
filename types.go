@@ -1,5 +1,17 @@
 package main
 
+type Config struct {
+	Launcher string
+	LauncherDir string
+	NrcPack string
+	McVersion string
+	Loader string
+	LoaderVersion string
+	ModDir string
+	ErrorOnFailedDownload bool
+	Notify bool
+}
+
 type Profile struct {
 	Id string `json:"id"`
 	Name string `json:"name"`

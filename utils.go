@@ -115,18 +115,23 @@ func print_packs(
 func notify(
 	msg string,
 	error bool,
+	notify bool,
 ) {
 	beeep.AppName = "nrc-wrapper-go"
 	if error {
-		err := beeep.Notify("Error", msg, "")
-		if err != nil {
-			log.Fatalf("Notify failed: %s", err.Error())
+		if notify {
+			err := beeep.Notify("Error", msg, "")
+			if err != nil {
+				log.Fatalf("Notify failed: %s", err.Error())
+			}
 		}
 		log.Fatal(msg)
 	} else {
-		err := beeep.Notify("Info", msg, "")
-		if err != nil {
-			log.Fatalf("Notify failed: %s", err.Error())
+		if notify {
+			err := beeep.Notify("Info", msg, "")
+			if err != nil {
+				log.Fatalf("Notify failed: %s", err.Error())
+			}
 		}
 		log.Println(msg)
 	}

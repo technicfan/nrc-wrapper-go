@@ -92,60 +92,66 @@ func get_minecraft_details(
 	return version, loader, loader_version, nil
 }
 
-func get_config() map[string]string {
-	config := make(map[string]string)
+func get_config() Config {
+	var config Config
 	usr, _ := user.Current()
 	home := usr.HomeDir
 
 	if value := os.Getenv("LAUNCHER"); value != "" {
 		log.Printf("Set %s manually", value)
-		config["launcher"] = value
+		config.Launcher = value
 	} else if _, err := os.Open("../mmc-pack.json"); err == nil {
 		log.Println("Detected Prism Launcher")
-		config["launcher"] = "prism"
+		config.Launcher = "prism"
 	} else if _, err := os.Open("../../app.db"); err == nil {
 		log.Println("Detected Modrinth Launcher")
-		config["launcher"] = "modrinth"
+		config.Launcher = "modrinth"
 	}
 
-	switch config["launcher"] {
+	config.Notify = os.Getenv("NOTIFY") == ""
+
+	switch config.Launcher {
 	case "prism":
 		if value := os.Getenv("PRISM_DIR"); value != "" {
-			config["launcher-dir"] = value
+			config.LauncherDir = value
 		} else {
-			config["launcher-dir"] = filepath.Join(home, PRISM_DIR)
+			config.LauncherDir = filepath.Join(home, PRISM_DIR)
 		}
 	case "modrinth":
 		if value := os.Getenv("MODRINTH_DIR"); value != "" {
-			config["launcher-dir"] = value
+			config.LauncherDir = value
 		} else {
-			config["launcher-dir"] = filepath.Join(home, MODRINTH_DIR)
+			config.LauncherDir = filepath.Join(home, MODRINTH_DIR)
 		}
 	default:
-		notify("No valid launcher detected or set manually", true)
+		notify("No valid launcher detected or set manually", true, config.Notify)
 	}
 
 	if value := os.Getenv("NRC_PACK"); value != "" {
-		config["nrc-pack"] = value
+		config.NrcPack = value
 	} else {
-		config["nrc-pack"] = "norisk-prod"
+		config.NrcPack = "norisk-prod"
 	}
 
-	v, l, lv, err := get_minecraft_details(config["launcher-dir"], config["launcher"])
+	v, l, lv, err := get_minecraft_details(config.LauncherDir, config.Launcher)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()), true)
+		notify(
+			fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()),
+			true,
+			config.Notify,
+		)
 	}
-	config["mc-version"], config["loader"], config["loader-version"] = v, l, lv
+	config.McVersion, config.Loader, config.LoaderVersion = v, l, lv
 
-	if value := os.Getenv("NRC_MODS_DIR"); value != "" {
-		config["mods-dir"] = value
-	} else if config["loader"] == "fabric" {
-		config["mods-dir"] = "mods/NoRiskClient"
+	if value := os.Getenv("NRC_MOD_DIR"); value != "" {
+		config.ModDir = value
+	} else if config.Loader == "fabric" {
+		config.ModDir = "mods/NoRiskClient"
 	} else {
-		config["mods-dir"] = "mods"
+		config.ModDir = "mods"
 	}
 
-	config["error-on-failed-download"] = os.Getenv("NO_ERROR_ON_FAILED_DOWNLOAD")
+	config.ErrorOnFailedDownload = os.Getenv("NO_ERROR_ON_FAILED_DOWNLOAD") == ""
 
 	return config
 }

@@ -56,6 +56,7 @@ func verify_asset(
 func download_asset(
 	asset map[string]string,
 	error_on_fail bool,
+	do_notify bool,
 	wg *sync.WaitGroup,
 	limiter chan struct{},
 ) {
@@ -69,6 +70,7 @@ func download_asset(
 		notify(
 			fmt.Sprintf("Failed to download %s: %s", filepath.Base(asset["path"]), err.Error()),
 			error_on_fail,
+			do_notify,
 		)
 	}
 
@@ -77,7 +79,7 @@ func download_asset(
 
 func load_assets(
 	packs []string,
-	error_on_fail bool,
+	config Config,
 	wg1 *sync.WaitGroup,
 ) {
 	defer wg1.Done()
@@ -122,7 +124,8 @@ func load_assets(
 		wg.Add(1)
 		go download_asset(
 			asset,
-			error_on_fail,
+			config.ErrorOnFailedDownload,
+			config.Notify,
 			&wg,
 			limiter,
 		)

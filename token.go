@@ -179,7 +179,7 @@ func get_minecraft_data(
 }
 
 func get_token(
-	config map[string]string,
+	config Config,
 	offline bool,
 	wg *sync.WaitGroup,
 	out chan <- string,
@@ -188,9 +188,9 @@ func get_token(
 
 	var err error
 	var token, name, uuid string
-	token, name, uuid, err = get_minecraft_data(config["launcher-dir"], config["launcher"])
+	token, name, uuid, err = get_minecraft_data(config.LauncherDir, config.Launcher)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get Minecraft data: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to get Minecraft data: %s", err.Error()), true, config.Notify)
 	}
 	if !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
@@ -207,7 +207,7 @@ func get_token(
 		return
 	}
 
-	nrc_token, err := read_token_from_file(config["launcher-dir"], uuid)
+	nrc_token, err := read_token_from_file(config.LauncherDir, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			if !offline { log.Println("Stored token is valid") }
@@ -224,15 +224,15 @@ func get_token(
 	log.Println("Requesting new token")
 	server_id, err := request_server_id()
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get nrc server id: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to get nrc server id: %s", err.Error()), true, config.Notify)
 	}
 	err = join_server_session(token, uuid, server_id)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to join server session: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to join server session: %s", err.Error()), true, config.Notify)
 	}
 
 	host, _ := os.Hostname()
-	system_id := fmt.Sprintf("%s-%s-%s-%s", config["launcher"], runtime.GOOS, runtime.GOARCH, host)
+	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Launcher, runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
 	nrc_token, err = request_token(
 		name,
@@ -240,12 +240,12 @@ func get_token(
 		hex.EncodeToString(hash[:]),
 	)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get new nrc token: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to get new nrc token: %s", err.Error()), true, config.Notify)
 	}
 
-	err = write_token_to_file(config["launcher-dir"], uuid, nrc_token)
+	err = write_token_to_file(config.LauncherDir, uuid, nrc_token)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to write token to file: %s", err.Error()), true)
+		notify(fmt.Sprintf("Failed to write token to file: %s", err.Error()), true, config.Notify)
 	}
 	out <- nrc_token
 }
