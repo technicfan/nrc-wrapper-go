@@ -12,6 +12,7 @@ func main(){
 	launch := true
 	if len(os.Args) == 2 && os.Args[1] == "--packs" {
 		launch = false
+		cli()
 	} else if len(os.Args) < 3 {
 		log.Fatal("You need to use it as the wrapper command")
 	}
