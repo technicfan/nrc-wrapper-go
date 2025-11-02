@@ -81,6 +81,7 @@ func print_packs(
 	fmt.Println("Available NRC packs:")
 	for _, key := range slices.Sorted(maps.Keys(packs)) {
 		var mc_versions []string
+		var mod_count int
 		pack := packs[key]
 		mods, _, loaders := get_pack_data(pack, packs)
 		for _, mod := range pack.Mods {
@@ -88,6 +89,17 @@ func print_packs(
 				if !slices.Contains(mc_versions, version) && version != "1.8.9" {
 					mc_versions = append(mc_versions, version)
 				}
+			}
+		}
+		for _, mod := range append(pack.Mods, mods...) {
+			new := false
+			for version := range mod.Compatibility {
+				if version != "1.8.9" {
+					new = true
+				}
+			}
+			if new {
+				mod_count++
 			}
 		}
 		slices.SortFunc(mc_versions, cmp_mc_versions)
@@ -108,7 +120,7 @@ func print_packs(
 		fmt.Printf("  Description: %s\n", pack.Desc)
 		fmt.Printf("  Compatible versions: %s\n", strings.Join(mc_versions, ", "))
 		fmt.Printf("  Mod loaders: %s\n", loaders_string)
-		fmt.Printf("  Mods: %v\n", len(append(pack.Mods, mods...)))
+		fmt.Printf("  Mods: %v\n", mod_count)
 	}
 }
 
