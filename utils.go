@@ -86,19 +86,19 @@ func print_packs(
 		mods, _, loaders := get_pack_data(pack, packs)
 		for _, mod := range pack.Mods {
 			for version := range mod.Compatibility {
-				if !slices.Contains(mc_versions, version) && version != "1.8.9" {
+				if !slices.Contains(mc_versions, version) && cmp_mc_versions("1.21", version) < 1 {
 					mc_versions = append(mc_versions, version)
 				}
 			}
 		}
 		for _, mod := range append(pack.Mods, mods...) {
-			new := false
+			count := false
 			for version := range mod.Compatibility {
-				if version != "1.8.9" {
-					new = true
+				if cmp_mc_versions("1.21", version) < 1 {
+					count = true
 				}
 			}
-			if new {
+			if count {
 				mod_count++
 			}
 		}
