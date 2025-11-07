@@ -82,7 +82,7 @@ func download_jar(
 	return name, nil
 }
 
-func download_single_asset(
+func download_asset(
 	pack string,
 	path string,
 	expected_hash string,
@@ -127,7 +127,7 @@ func download_single_asset(
 	return nil
 }
 
-func get_asset_metadata(
+func get_asset_metadata_async(
 	index int,
 	pack string,
 	wg *sync.WaitGroup,

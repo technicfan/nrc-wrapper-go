@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-func download_jar_clean(
+func download_jar_async(
 	url string,
 	alt_url string,
 	name string,
@@ -110,21 +110,6 @@ func write_index(
 	return nil
 }
 
-func convert_to_index(
-	mods []ModEntry,
-) []map[string]string {
-	var results []map[string]string
-	for _, mod := range mods {
-		info := make(map[string]string)
-		info["id"] = mod.Id
-		info["hash"] = mod.Hash
-		info["version"] = mod.Version
-		results = append(results, info)
-	}
-
-	return results
-}
-
 func get_installed_mods(
 	path string,
 ) (map[string]map[string]string, error) {
@@ -161,47 +146,7 @@ func get_installed_mods(
 	return results, nil
 }
 
-func get_compatible_nrc_mods(
-	mc_version string,
-	loader string,
-	nrc_mods []NoriskMod,
-) ([]ModEntry, error) {
-	var mods []ModEntry
-	for _, mod := range nrc_mods {
-		if _, exists := mod.Compatibility[mc_version]; exists {
-			var filename string
-			if mod.Compatibility[mc_version][loader]["source"] != nil {
-				source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
-				for k, v := range source {
-					mod.Source[k] = v.(string)
-				}
-			}
-			if mod.Compatibility[mc_version][loader]["filename"] != nil {
-				filename = mod.Compatibility[mc_version][loader]["filename"].(string)
-			}
-			mods = append(
-				mods,
-				ModEntry{
-					"",
-					mod.Compatibility[mc_version][loader]["identifier"].(string),
-					mod.Id,
-					filename,
-					"",
-					mod.Source["type"],
-					mod.Source["repositoryRef"],
-					mod.Source["groupId"],
-					mod.Source["projectId"],
-					mod.Source["projectSlug"],
-					mod.Source["artifactId"],
-				},
-			)
-		}
-	}
-
-	return mods, nil
-}
-
-func get_missing_mods_clean(
+func get_missing_mods(
 	mods []ModEntry,
 	installed_mods map[string]map[string]string,
 	path string,
@@ -231,35 +176,7 @@ func get_missing_mods_clean(
 	return result, removed
 }
 
-func build_maven_url(
-	mod ModEntry,
-	repos map[string]string,
-) (string, string, string) {
-	var url, alt_url string
-	if mod.SourceType == "modrinth" {
-		version := mod.Version
-		if !strings.Contains(mod.Version, "-") {
-			version = strings.Replace(mod.Version, ",", "-", 1)
-		}
-		filename := fmt.Sprintf("%s-%s.jar", mod.ModrinthId, version)
-		url = fmt.Sprintf(
-			"%smaven/modrinth/%s/%s/%s",
-			repos[mod.SourceType], mod.ModrinthId, version, filename,
-		)
-		alt_url = strings.ReplaceAll(url, mod.ModrinthId, mod.ProjectSlug)
-	} else {
-		group_path := strings.ReplaceAll(mod.GroupId, ".", "/")
-		filename := fmt.Sprintf("%s-%s.jar", mod.MavenId, mod.Version)
-		url = fmt.Sprintf(
-			"%s%s/%s/%s/%s",
-			repos[mod.RepositoryRef], group_path, mod.MavenId, mod.Version, filename,
-		)
-	}
-
-	return url, alt_url, fmt.Sprintf("%s-%s.jar", mod.Id, mod.Version)
-}
-
-func install(
+func download_mods_async(
 	config Config,
 	nrc_mods_main []NoriskMod,
 	nrc_mods_inherited []NoriskMod,
@@ -305,7 +222,7 @@ func install(
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
 	}
-	mods_to_download, already_installed := get_missing_mods_clean(
+	mods_to_download, already_installed := get_missing_mods(
 		mods,
 		installed_mods,
 		config.ModDir,
@@ -315,7 +232,7 @@ func install(
 		return
 	}
 
-	log.Println("Installing missing mods")
+	log.Println("Installing missing/updated mods")
 
 	limiter := make(chan struct{}, 10)
 	var wg sync.WaitGroup
@@ -330,7 +247,7 @@ func install(
 			url, alt_url, filename = build_maven_url(mod, repos)
 		}
 		wg.Add(1)
-		go download_jar_clean(
+		go download_jar_async(
 			url,
 			alt_url,
 			filename,

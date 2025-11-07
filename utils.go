@@ -1,15 +1,43 @@
 package main
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"log"
 	"maps"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/gen2brain/beeep"
 )
+
+func calc_hash(
+	path string,
+) (string, error) {
+	var file, err = os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return "", err
+	}
+
+	var hash = md5.New()
+	_, err = hash.Write(data)
+	if err != nil {
+		return "", err
+	}
+
+	var bytesHash = hash.Sum(nil)
+	return hex.EncodeToString(bytesHash[:]), nil
+}
 
 func get_pack_data(
 	pack Pack,
@@ -33,6 +61,89 @@ func get_pack_data(
 	assets = append(assets, pack.Assets...)
 
 	return mods, assets, loaders
+}
+
+func build_maven_url(
+	mod ModEntry,
+	repos map[string]string,
+) (string, string, string) {
+	var url, alt_url string
+	if mod.SourceType == "modrinth" {
+		version := mod.Version
+		if !strings.Contains(mod.Version, "-") {
+			version = strings.Replace(mod.Version, ",", "-", 1)
+		}
+		filename := fmt.Sprintf("%s-%s.jar", mod.ModrinthId, version)
+		url = fmt.Sprintf(
+			"%smaven/modrinth/%s/%s/%s",
+			repos[mod.SourceType], mod.ModrinthId, version, filename,
+		)
+		alt_url = strings.ReplaceAll(url, mod.ModrinthId, mod.ProjectSlug)
+	} else {
+		group_path := strings.ReplaceAll(mod.GroupId, ".", "/")
+		filename := fmt.Sprintf("%s-%s.jar", mod.MavenId, mod.Version)
+		url = fmt.Sprintf(
+			"%s%s/%s/%s/%s",
+			repos[mod.RepositoryRef], group_path, mod.MavenId, mod.Version, filename,
+		)
+	}
+
+	return url, alt_url, fmt.Sprintf("%s-%s.jar", mod.Id, mod.Version)
+}
+
+func get_compatible_nrc_mods(
+	mc_version string,
+	loader string,
+	nrc_mods []NoriskMod,
+) ([]ModEntry, error) {
+	var mods []ModEntry
+	for _, mod := range nrc_mods {
+		if _, exists := mod.Compatibility[mc_version]; exists {
+			var filename string
+			if mod.Compatibility[mc_version][loader]["source"] != nil {
+				source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
+				for k, v := range source {
+					mod.Source[k] = v.(string)
+				}
+			}
+			if mod.Compatibility[mc_version][loader]["filename"] != nil {
+				filename = mod.Compatibility[mc_version][loader]["filename"].(string)
+			}
+			mods = append(
+				mods,
+				ModEntry{
+					"",
+					mod.Compatibility[mc_version][loader]["identifier"].(string),
+					mod.Id,
+					filename,
+					"",
+					mod.Source["type"],
+					mod.Source["repositoryRef"],
+					mod.Source["groupId"],
+					mod.Source["projectId"],
+					mod.Source["projectSlug"],
+					mod.Source["artifactId"],
+				},
+			)
+		}
+	}
+
+	return mods, nil
+}
+
+func convert_to_index(
+	mods []ModEntry,
+) []map[string]string {
+	var results []map[string]string
+	for _, mod := range mods {
+		info := make(map[string]string)
+		info["id"] = mod.Id
+		info["hash"] = mod.Hash
+		info["version"] = mod.Version
+		results = append(results, info)
+	}
+
+	return results
 }
 
 func cmp_mc_versions(

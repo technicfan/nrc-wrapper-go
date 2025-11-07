@@ -67,9 +67,9 @@ func main(){
 
 		wg.Add(3)
 
-		go get_token(config, false, &wg, token_out)
-		go load_assets(assets, config, &wg)
-		go install(config, pack.Mods, mods, versions.Repositories, &wg)
+		go get_token_async(config, false, &wg, token_out)
+		go download_assets_async(assets, config, &wg)
+		go download_mods_async(config, pack.Mods, mods, versions.Repositories, &wg)
 
 		wg.Wait()
 
@@ -81,7 +81,7 @@ func main(){
 		}
 		wg.Add(1)
 		notify("No connection to the API\nLaunching without doing anything", false, config.Notify)
-		go get_token(config, true, &wg, token_out)
+		go get_token_async(config, true, &wg, token_out)
 		wg.Wait()
 		token = <- token_out
 	}

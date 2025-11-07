@@ -1,42 +1,14 @@
 package main
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"log"
 	"maps"
-	"os"
 	"path/filepath"
 	"sync"
 )
 
-func calc_hash(
-	path string,
-) (string, error) {
-	var file, err = os.Open(path)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	data, err := io.ReadAll(file)
-	if err != nil {
-		return "", err
-	}
-
-	var hash = md5.New()
-	_, err = hash.Write(data)
-	if err != nil {
-		return "", err
-	}
-
-	var bytesHash = hash.Sum(nil)
-	return hex.EncodeToString(bytesHash[:]), nil
-}
-
-func verify_asset(
+func verify_asset_async(
 	path string,
 	data map[string]string,
 	wg *sync.WaitGroup,
@@ -53,7 +25,7 @@ func verify_asset(
 	results <- data
 }
 
-func download_asset(
+func download_asset_async(
 	asset map[string]string,
 	error_on_fail bool,
 	do_notify bool,
@@ -65,7 +37,7 @@ func download_asset(
 	limiter <- struct{}{}
 	defer func() { <- limiter }()
 
-	err := download_single_asset(asset["pack"], asset["path"], asset["hash"])
+	err := download_asset(asset["pack"], asset["path"], asset["hash"])
 	if err != nil {
 		notify(
 			fmt.Sprintf("Failed to download %s: %s", filepath.Base(asset["path"]), err.Error()),
@@ -77,7 +49,7 @@ func download_asset(
 	log.Printf("Downloaded %s/%s", asset["pack"], filepath.Base(asset["path"]))
 }
 
-func load_assets(
+func download_assets_async(
 	packs []string,
 	config Config,
 	wg1 *sync.WaitGroup,
@@ -87,7 +59,7 @@ func load_assets(
 	data := make(chan map[int]map[string]map[string]string, len(packs))
 	for i, pack := range packs {
 		wg.Add(1)
-		go get_asset_metadata(i, pack, &wg, data)
+		go get_asset_metadata_async(i, pack, &wg, data)
 	}
 
 	go func() {
@@ -107,7 +79,7 @@ func load_assets(
 	missing_assets := make(chan map[string]string, len(merged))
 	for i, v := range merged {
 		wg.Add(1)
-		go verify_asset(i, v, &wg, missing_assets)
+		go verify_asset_async(i, v, &wg, missing_assets)
 	}
 
 	go func() {
@@ -116,13 +88,13 @@ func load_assets(
 	}()
 
 	if len(missing_assets) != 0 {
-		log.Println("Downloading missing assets")
+		log.Println("Downloading missing/updated assets")
 	}
 
 	limiter := make(chan struct{}, 20)
 	for asset := range missing_assets {
 		wg.Add(1)
-		go download_asset(
+		go download_asset_async(
 			asset,
 			config.ErrorOnFailedDownload,
 			config.Notify,

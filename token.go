@@ -178,7 +178,7 @@ func get_minecraft_data(
 	return "", "", "", errors.New("No launcher detected")
 }
 
-func get_token(
+func get_token_async(
 	config Config,
 	offline bool,
 	wg *sync.WaitGroup,
