@@ -96,6 +96,33 @@ func get_config() Config {
 	var config Config
 	usr, _ := user.Current()
 	home := usr.HomeDir
+	data_home := os.Getenv("XDG_DATA_HOME")
+
+	switch os.Getenv("NOTIFY") {
+	case "true", "True", "1":
+		config.Notify = true
+	case "false", "False", "0":
+		config.Notify = false
+	default:
+		config.Notify = config.Launcher == "modrinth"
+	}
+
+	if data_home == "" {
+		if os.Getenv("container") == "flatpak" {
+			app_id := os.Getenv("FLATPAK_ID")
+			if app_id != "" {
+				data_home = filepath.Join(home, ".var/app", app_id, "data")
+			} else {
+				notify(
+					"Flatpak ID not set - you have to manually set the launcher directory",
+					true,
+					config.Notify,
+				)
+			}
+		} else {
+			data_home = filepath.Join(home, DATA_HOME)
+		}
+	}
 
 	if value := os.Getenv("LAUNCHER"); value != "" {
 		log.Printf("Set %s manually", value)
@@ -108,27 +135,18 @@ func get_config() Config {
 		config.Launcher = "modrinth"
 	}
 
-	switch (os.Getenv("NOTIFY")) {
-	case "true", "True", "1":
-		config.Notify = true			
-	case "false", "False", "0":
-		config.Notify = false
-	default:
-		config.Notify = config.Launcher == "modrinth"
-	}
-
 	switch config.Launcher {
 	case "prism":
 		if value := os.Getenv("PRISM_DIR"); value != "" {
 			config.LauncherDir = value
 		} else {
-			config.LauncherDir = filepath.Join(home, PRISM_DIR)
+			config.LauncherDir = filepath.Join(data_home, "PrismLauncher")
 		}
 	case "modrinth":
 		if value := os.Getenv("MODRINTH_DIR"); value != "" {
 			config.LauncherDir = value
 		} else {
-			config.LauncherDir = filepath.Join(home, MODRINTH_DIR)
+			config.LauncherDir = filepath.Join(data_home, "ModrinthApp")
 		}
 	default:
 		notify("No valid launcher detected or set manually", true, config.Notify)

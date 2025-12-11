@@ -76,5 +76,6 @@ Things to keep in mind:
 - this is not official and not affiliated with NoRiskClient
     - if issues occur first look if this project is the cause
 - first launch takes longer as it needs to download everything
+- when running in Flatpak, you'll need to place the wrapper in a directory the app has full access to
 - ~~on Windows there is no way to replace the current process, so minecraft will just continue running if you terminate the instance from your launcher~~
     - managed to fix it with winjobs using a 5yo go package (i don't really know, what this is though :))

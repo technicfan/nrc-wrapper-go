@@ -6,13 +6,12 @@ import (
 	"os"
 	"os/exec"
 
-	"golang.org/x/sys/windows"
 	"github.com/kolesnikovae/go-winjob"
+	"golang.org/x/sys/windows"
 )
 
 const (
-	PRISM_DIR    = "AppData/Roaming/PrismLauncher"
-	MODRINTH_DIR = "AppData/Roaming/ModrinthApp"
+	DATA_HOME = "AppData/Roaming"
 )
 
 func cli() {

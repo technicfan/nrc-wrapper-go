@@ -3,13 +3,12 @@
 package main
 
 import (
-	"os"
 	"golang.org/x/sys/unix"
+	"os"
 )
 
 const (
-	PRISM_DIR = ".local/share/PrismLauncher"
-	MODRINTH_DIR = ".local/share/ModrinthApp"
+	DATA_HOME = ".local/share"
 )
 
 func cli() {}

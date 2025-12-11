@@ -232,7 +232,7 @@ func get_token_async(
 	}
 
 	host, _ := os.Hostname()
-	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Launcher, runtime.GOOS, runtime.GOARCH, host)
+	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Launcher + "-" + os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
 	nrc_token, err = request_token(
 		name,
