@@ -98,6 +98,17 @@ func get_config() Config {
 	home := usr.HomeDir
 	data_home := os.Getenv("XDG_DATA_HOME")
 
+	if value := os.Getenv("LAUNCHER"); value != "" {
+		log.Printf("Set %s manually", value)
+		config.Launcher = value
+	} else if _, err := os.Open("../mmc-pack.json"); err == nil {
+		log.Println("Detected Prism Launcher")
+		config.Launcher = "prism"
+	} else if _, err := os.Open("../../app.db"); err == nil {
+		log.Println("Detected Modrinth Launcher")
+		config.Launcher = "modrinth"
+	}
+
 	switch os.Getenv("NOTIFY") {
 	case "true", "True", "1":
 		config.Notify = true
@@ -122,17 +133,6 @@ func get_config() Config {
 		} else {
 			data_home = filepath.Join(home, DATA_HOME)
 		}
-	}
-
-	if value := os.Getenv("LAUNCHER"); value != "" {
-		log.Printf("Set %s manually", value)
-		config.Launcher = value
-	} else if _, err := os.Open("../mmc-pack.json"); err == nil {
-		log.Println("Detected Prism Launcher")
-		config.Launcher = "prism"
-	} else if _, err := os.Open("../../app.db"); err == nil {
-		log.Println("Detected Modrinth Launcher")
-		config.Launcher = "modrinth"
 	}
 
 	switch config.Launcher {
