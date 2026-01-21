@@ -174,7 +174,7 @@ func get_token_async(
 		notify(fmt.Sprintf("Failed to get new nrc token: %s", err.Error()), true, config.Notify)
 	}
 
-	err = write_token_to_file(config.LauncherDir, config.Minecraft.Username, nrc_token)
+	err = write_token_to_file(config.LauncherDir, uuid, nrc_token)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to write token to file: %s", err.Error()), true, config.Notify)
 	}
