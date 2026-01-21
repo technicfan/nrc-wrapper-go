@@ -44,6 +44,7 @@ func download_asset_async(
 			error_on_fail,
 			do_notify,
 		)
+		return
 	}
 
 	log.Printf("Downloaded %s/%s", asset["pack"], filepath.Base(asset["path"]))

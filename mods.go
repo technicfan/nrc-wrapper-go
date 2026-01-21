@@ -46,6 +46,7 @@ func download_jar_async(
 			error_on_fail,
 			do_notify,
 		)
+		return
 	}
 	if a != old_file && a != "" && old_file != "" {
 		os.Remove(filepath.Join(path, old_file))
