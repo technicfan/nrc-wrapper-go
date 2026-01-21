@@ -122,11 +122,8 @@ func get_token_async(
 ) {
 	defer wg.Done()
 
-	var err error
-	if err != nil {
-		notify(fmt.Sprintf("Failed to get Minecraft data: %s", err.Error()), true, config.Notify)
-	}
-	if uuid := config.Minecraft.Uuid; !strings.Contains(uuid, "-") {
+	uuid := config.Minecraft.Uuid
+	if !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
 			uuid[0:8],
 			uuid[8:12],
@@ -141,7 +138,7 @@ func get_token_async(
 		return
 	}
 
-	nrc_token, err := read_token_from_file(config.LauncherDir, config.Minecraft.Uuid)
+	nrc_token, err := read_token_from_file(config.LauncherDir, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			if !offline { log.Println("Stored token is valid") }
@@ -160,7 +157,7 @@ func get_token_async(
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get nrc server id: %s", err.Error()), true, config.Notify)
 	}
-	err = join_server_session(config.Minecraft.Token, config.Minecraft.Uuid, server_id)
+	err = join_server_session(config.Minecraft.Token, uuid, server_id)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to join server session: %s", err.Error()), true, config.Notify)
 	}
