@@ -1,11 +1,8 @@
 package main
 
 import (
-	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/user"
@@ -17,79 +14,15 @@ import (
 func get_minecraft_details(
 	path string,
 	launcher string,
-) (string, string, string, error) {
-	var version, loader, loader_version string
-
+) (Minecraft, error) {
 	switch launcher {
 	case "prism":
-		file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
-		if err != nil {
-			return "", "", "", err
-		}
-		content, err := io.ReadAll(file)
-		if err != nil {
-			return "", "", "", err
-		}
-		defer file.Close()
-
-		var data PrismInstance
-		err = json.Unmarshal(content, &data)
-		if err != nil {
-			return "", "", "", err
-		}
-
-		for _, entry := range data.Components {
-			switch entry.Uid {
-			case "net.minecraft":
-				version = entry.Version
-			case "net.fabricmc.fabric-loader":
-				loader = "fabric"
-				loader_version = entry.Version
-			case "org.quiltmc.quilt-loader":
-				loader = "quilt"
-				loader_version = entry.Version
-			case "net.minecraftforge":
-				loader = "forge"
-				loader_version = entry.Version
-			case "net.neoforged":
-				loader = "neoforge"
-				loader_version = entry.Version
-			}
-		}
-
+		return get_prism_details(path)
 	case "modrinth":
-		db, err := sql.Open("sqlite3", fmt.Sprintf("%s/app.db", path))
-		if err != nil {
-			return "", "", "", err
-		}
-		defer db.Close()
-
-		cwd, err := os.Getwd()
-		if err != nil {
-			return "", "", "", err
-		}
-		rows, err := db.Query(
-			fmt.Sprintf(
-				"SELECT game_version, mod_loader, mod_loader_version FROM profiles WHERE path = '%s'",
-				filepath.Base(cwd),
-			),
-		)
-		if err != nil {
-			return "", "", "", err
-		}
-		defer rows.Close()
-
-		for rows.Next() {
-			err = rows.Scan(&version, &loader, &loader_version)
-			if err != nil {
-				return "", "", "", err
-			}
-		}
+		return get_modrinth_details(path)
 	default:
-		return "", "", "", errors.New("Minecraft details not found")
+		return Minecraft{}, errors.New("Minecraft details not found")
 	}
-
-	return version, loader, loader_version, nil
 }
 
 func get_config() Config {
@@ -158,7 +91,7 @@ func get_config() Config {
 		config.NrcPack = "norisk-prod"
 	}
 
-	v, l, lv, err := get_minecraft_details(config.LauncherDir, config.Launcher)
+	minecraft, err := get_minecraft_details(config.LauncherDir, config.Launcher)
 	if err != nil {
 		notify(
 			fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()),
@@ -166,11 +99,11 @@ func get_config() Config {
 			config.Notify,
 		)
 	}
-	config.McVersion, config.Loader, config.LoaderVersion = v, l, lv
+	config.Minecraft = minecraft
 
 	if value := os.Getenv("NRC_MOD_DIR"); value != "" {
 		config.ModDir = value
-	} else if config.Loader == "fabric" {
+	} else if config.Minecraft.Loader == "fabric" {
 		config.ModDir = "mods/NoRiskClient"
 	} else {
 		config.ModDir = "mods"

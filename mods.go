@@ -186,7 +186,11 @@ func download_mods_async(
 	defer wg1.Done()
 	os.Mkdir(config.ModDir, os.ModePerm)
 
-	mods, err := get_compatible_nrc_mods(config.McVersion, config.Loader, nrc_mods_main)
+	mods, err := get_compatible_nrc_mods(
+		config.Minecraft.Version,
+		config.Minecraft.Loader,
+		nrc_mods_main,
+	)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true, config.Notify)
 	}
@@ -194,7 +198,7 @@ func download_mods_async(
 		notify(
 			fmt.Sprintf(
 				"There are no NRC mods for %s in %s",
-				config.McVersion,
+				config.Minecraft.Version,
 				config.NrcPack,
 			),
 			true,
@@ -202,8 +206,8 @@ func download_mods_async(
 		)
 	}
 	inherited_mods, err := get_compatible_nrc_mods(
-		config.McVersion,
-		config.Loader,
+		config.Minecraft.Version,
+		config.Minecraft.Loader,
 		nrc_mods_inherited,
 	)
 	if err != nil {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -115,69 +114,6 @@ func write_token_to_file(
 	return nil
 }
 
-func get_minecraft_data(
-	path string,
-	launcher string,
-) (string, string, string, error) {
-	switch launcher {
-	case "prism":
-		file, err := os.Open(fmt.Sprintf("%s/accounts.json", path))
-		if err != nil {
-			return "", "", "", err
-		}
-		defer file.Close()
-
-		byte_data, err := io.ReadAll(file)
-		if err != nil {
-			return "", "", "", err
-		}
-
-		var data PrismData
-		err = json.Unmarshal(byte_data, &data)
-		if err != nil {
-			return "", "", "", err
-		}
-
-		for _, v := range data.Accounts {
-			if v.Active != nil && v.Active.(bool) {
-				if v.Type == "Offline" {
-					return "offline", v.Profile.Name, v.Profile.Id, nil
-				} else {
-					return v.Ygg.Token, v.Profile.Name, v.Profile.Id, nil
-				}
-			}
-		}
-
-		return "", "", "", errors.New("No active account found")
-
-	case "modrinth":
-		db, err := sql.Open("sqlite3", fmt.Sprintf("%s/app.db", path))
-		if err != nil {
-			return "", "", "", err
-		}
-		defer db.Close()
-
-		rows, err := db.Query(
-			"SELECT access_token, username, uuid FROM minecraft_users where active = 1",
-		)
-		if err != nil {
-			return "", "", "", err
-		}
-		defer rows.Close()
-
-		var token, username, uuid string
-		for rows.Next() {
-			err = rows.Scan(&token, &username, &uuid)
-			if err != nil {
-				return "", "", "", err
-			}
-		}
-		return token, username, uuid, nil
-	}
-
-	return "", "", "", errors.New("No launcher detected")
-}
-
 func get_token_async(
 	config Config,
 	offline bool,
@@ -187,12 +123,10 @@ func get_token_async(
 	defer wg.Done()
 
 	var err error
-	var token, name, uuid string
-	token, name, uuid, err = get_minecraft_data(config.LauncherDir, config.Launcher)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get Minecraft data: %s", err.Error()), true, config.Notify)
 	}
-	if !strings.Contains(uuid, "-") {
+	if uuid := config.Minecraft.Uuid; !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
 			uuid[0:8],
 			uuid[8:12],
@@ -202,12 +136,12 @@ func get_token_async(
 		)
 	}
 
-	if token == "offline" {
-		out <- token
+	if config.Minecraft.Token == "offline" {
+		out <- config.Minecraft.Token
 		return
 	}
 
-	nrc_token, err := read_token_from_file(config.LauncherDir, uuid)
+	nrc_token, err := read_token_from_file(config.LauncherDir, config.Minecraft.Uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			if !offline { log.Println("Stored token is valid") }
@@ -226,7 +160,7 @@ func get_token_async(
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get nrc server id: %s", err.Error()), true, config.Notify)
 	}
-	err = join_server_session(token, uuid, server_id)
+	err = join_server_session(config.Minecraft.Token, config.Minecraft.Uuid, server_id)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to join server session: %s", err.Error()), true, config.Notify)
 	}
@@ -235,7 +169,7 @@ func get_token_async(
 	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Launcher + "-" + os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
 	nrc_token, err = request_token(
-		name,
+		config.Minecraft.Username,
 		server_id,
 		hex.EncodeToString(hash[:]),
 	)
@@ -243,7 +177,7 @@ func get_token_async(
 		notify(fmt.Sprintf("Failed to get new nrc token: %s", err.Error()), true, config.Notify)
 	}
 
-	err = write_token_to_file(config.LauncherDir, uuid, nrc_token)
+	err = write_token_to_file(config.LauncherDir, config.Minecraft.Username, nrc_token)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to write token to file: %s", err.Error()), true, config.Notify)
 	}

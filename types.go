@@ -4,9 +4,7 @@ type Config struct {
 	Launcher string
 	LauncherDir string
 	NrcPack string
-	McVersion string
-	Loader string
-	LoaderVersion string
+	Minecraft Minecraft
 	ModDir string
 	ErrorOnFailedDownload bool
 	Notify bool
@@ -93,4 +91,14 @@ type ModEntry struct {
 	ModrinthId string
 	ProjectSlug string
 	MavenId string
+}
+
+type Minecraft struct {
+	Profile string
+	Version string
+	Loader string
+	LoaderVersion string
+	Username string
+	Uuid string
+	Token string
 }

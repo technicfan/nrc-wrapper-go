@@ -90,7 +90,7 @@ func download_asset(
 	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), os.ModePerm)
 
 	response, err := http.Get(
-		fmt.Sprintf("https://cdn.norisk.gg/assets/%s/assets/%s", pack, path),
+		fmt.Sprintf("%s/%s/assets/%s", NORISK_ASSETS_URL, pack, path),
 	)
 	if err != nil {
 		return err

@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-func main(){
+func main() {
 	launch := true
 	if len(os.Args) == 2 && os.Args[1] == "--packs" {
 		launch = false
@@ -40,10 +40,14 @@ func main(){
 		mods, assets, loaders := get_pack_data(pack, versions.Packs)
 
 		if len(loaders) > 0 {
-			if version, exists := loaders[config.Loader]; exists {
-				if config.LoaderVersion < version {
+			if version, exists := loaders[config.Minecraft.Loader]; exists {
+				if config.Minecraft.LoaderVersion < version {
 					notify(
-						fmt.Sprintf("Please update %s to version %s", config.Loader, version),
+						fmt.Sprintf(
+							"Please update %s to version %s",
+							config.Minecraft.Loader,
+							version,
+						),
 						true,
 						config.Notify,
 					)
@@ -73,7 +77,7 @@ func main(){
 
 		wg.Wait()
 
-		token = <- token_out
+		token = <-token_out
 	} else {
 		if !launch {
 			log.Println("No connection to the API")
@@ -83,15 +87,16 @@ func main(){
 		notify("No connection to the API\nLaunching without doing anything", false, config.Notify)
 		go get_token_async(config, true, &wg, token_out)
 		wg.Wait()
-		token = <- token_out
+		token = <-token_out
 	}
 
-    command := os.Args[1]
-    args := append(
+	command := os.Args[1]
+	args := append(
 		[]string{
 			command, fmt.Sprintf("-Dnorisk.token=%s", token),
+			fmt.Sprintf("-Dnorisk.profile.name=%s", config.Minecraft.Profile),
 			fmt.Sprintf("-Dfabric.addMods=%s", config.ModDir),
-		}, os.Args[2:]...
+		}, os.Args[2:]...,
 	)
 
 	err = Exec(command, args)
