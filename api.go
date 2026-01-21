@@ -111,7 +111,7 @@ func download_asset(
 	}
 
 	if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
-		return errors.New("Wrong hash")
+		return errors.New("wrong hash")
 	}
 
 	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
