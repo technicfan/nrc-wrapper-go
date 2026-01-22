@@ -20,7 +20,6 @@ func main() {
 	var token string
 	var config Config
 	var wg sync.WaitGroup
-	token_out := make(chan string, 1)
 	if launch {
 		log.Println("Loading NoRiskClient...")
 		config = get_config()
@@ -69,25 +68,24 @@ func main() {
 			}
 		}
 
-		wg.Add(3)
+		wg.Add(2)
 
-		go get_token_async(config, false, &wg, token_out)
 		go download_assets_async(assets, config, &wg)
 		go download_mods_async(config, pack.Mods, mods, versions.Repositories, &wg)
+		token, err = get_token(config, false)
 
 		wg.Wait()
-
-		token = <-token_out
 	} else {
 		if !launch {
 			log.Println("No connection to the API")
 			return
 		}
-		wg.Add(1)
 		notify("No connection to the API\nLaunching without doing anything", false, config.Notify)
-		go get_token_async(config, true, &wg, token_out)
-		wg.Wait()
-		token = <-token_out
+		token, err = get_token(config, true)
+	}
+
+	if err != nil {
+		notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, config.Notify)
 	}
 
 	command := os.Args[1]
