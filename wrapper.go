@@ -28,7 +28,7 @@ func main() {
 	versions, err := get_norisk_versions()
 	if err == nil {
 		if !launch {
-			print_packs(versions.Packs)
+			versions.Packs.print_packs()
 			return
 		}
 
@@ -36,7 +36,7 @@ func main() {
 		if !exists {
 			notify(fmt.Sprintf("%s is not a valid NRC pack", config.NrcPack), true, config.Notify)
 		}
-		mods, assets, loaders := get_pack_data(pack, versions.Packs)
+		mods, assets, loaders := pack.get_details(versions.Packs)
 
 		if len(loaders) > 0 {
 			if version, exists := loaders[config.Minecraft.Loader]; exists {

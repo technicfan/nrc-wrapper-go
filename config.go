@@ -11,6 +11,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+type Config struct {
+	Launcher              string
+	LauncherDir           string
+	NrcPack               string
+	Minecraft             Minecraft
+	ModDir                string
+	ErrorOnFailedDownload bool
+	Notify                bool
+}
+
 func get_minecraft_details(
 	path string,
 	launcher string,

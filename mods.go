@@ -13,6 +13,53 @@ import (
 	"sync"
 )
 
+type Index []map[string]string
+
+func read_index() Index {
+	file, err := os.Open(".nrc-index.json")
+	if err != nil {
+		return nil
+	}
+
+	byte_data, err := io.ReadAll(file)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+
+	var data Index
+	err = json.Unmarshal(byte_data, &data)
+	if err != nil {
+		return nil
+	}
+
+	return data
+}
+
+func (data *Index) write() error {
+	var file *os.File
+	file, err := os.OpenFile(".nrc-index.json", os.O_TRUNC|os.O_RDWR, os.ModePerm)
+	if err != nil {
+		file, err = os.Create(".nrc-index.json")
+		if err != nil {
+			return err
+		}
+	}
+	defer file.Close()
+
+	json_string, err := json.MarshalIndent(data, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	_, err = file.WriteString(string(json_string))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func download_jar_async(
 	url string,
 	alt_url string,
@@ -64,53 +111,6 @@ func download_jar_async(
 	index <- result
 }
 
-func read_index() []map[string]string {
-	file, err := os.Open(".nrc-index.json")
-	if err != nil {
-		return nil
-	}
-
-	byte_data, err := io.ReadAll(file)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-
-	var data []map[string]string
-	err = json.Unmarshal(byte_data, &data)
-	if err != nil {
-		return nil
-	}
-
-	return data
-}
-
-func write_index(
-	data []map[string]string,
-) error {
-	var file *os.File
-	file, err := os.OpenFile(".nrc-index.json", os.O_TRUNC|os.O_RDWR, os.ModePerm)
-	if err != nil {
-		file, err = os.Create(".nrc-index.json")
-		if err != nil {
-			return err
-		}
-	}
-	defer file.Close()
-
-	json_string, err := json.MarshalIndent(data, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	_, err = file.WriteString(string(json_string))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func get_installed_mods(
 	path string,
 ) (map[string]map[string]string, error) {
@@ -147,50 +147,19 @@ func get_installed_mods(
 	return results, nil
 }
 
-func get_missing_mods(
-	mods []ModEntry,
-	installed_mods map[string]map[string]string,
-	path string,
-) ([]ModEntry, []ModEntry) {
-	var result []ModEntry
-	var removed []ModEntry
-	for _, mod := range mods {
-		if _, exists := installed_mods[mod.Id]; exists {
-			if mod.Version != installed_mods[mod.Id]["version"] {
-				mod.OldFile = installed_mods[mod.Id]["filename"]
-				result = append(result, mod)
-			} else {
-				mod.Hash = installed_mods[mod.Id]["hash"]
-				removed = append(removed, mod)
-			}
-			delete(installed_mods, mod.Id)
-		} else {
-			result = append(result, mod)
-		}
-	}
-
-	for _, file := range installed_mods {
-		os.Remove(filepath.Join(path, file["filename"]))
-		log.Printf("Removed left over file %s", file["filename"])
-	}
-
-	return result, removed
-}
-
 func download_mods_async(
 	config Config,
-	nrc_mods_main []NoriskMod,
-	nrc_mods_inherited []NoriskMod,
+	nrc_mods_main NoriskMods,
+	nrc_mods_inherited NoriskMods,
 	repos map[string]string,
 	wg1 *sync.WaitGroup,
 ) {
 	defer wg1.Done()
 	os.Mkdir(config.ModDir, os.ModePerm)
 
-	mods, err := get_compatible_nrc_mods(
+	mods, err := nrc_mods_main.get_compatible_mods(
 		config.Minecraft.Version,
 		config.Minecraft.Loader,
-		nrc_mods_main,
 	)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true, config.Notify)
@@ -206,10 +175,9 @@ func download_mods_async(
 			config.Notify,
 		)
 	}
-	inherited_mods, err := get_compatible_nrc_mods(
+	inherited_mods, err := nrc_mods_inherited.get_compatible_mods(
 		config.Minecraft.Version,
 		config.Minecraft.Loader,
-		nrc_mods_inherited,
 	)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true, config.Notify)
@@ -227,8 +195,7 @@ func download_mods_async(
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
 	}
-	mods_to_download, already_installed := get_missing_mods(
-		mods,
+	mods_to_download, already_installed := mods.get_missing_mods(
 		installed_mods,
 		config.ModDir,
 	)
@@ -249,7 +216,7 @@ func download_mods_async(
 			url = mod.Version
 			filename = mod.Filename
 		} else {
-			url, alt_url, filename = build_maven_url(mod, repos)
+			url, alt_url, filename = mod.build_maven_url(repos)
 		}
 		wg.Add(1)
 		go download_jar_async(
@@ -274,11 +241,11 @@ func download_mods_async(
 	close(index)
 
 	if len(index) > 0 {
-		existing_index := convert_to_index(already_installed)
+		existing_index := already_installed.convert_to_index()
 		for entry := range index {
 			existing_index = append(existing_index, entry)
 		}
-		err = write_index(existing_index)
+		err = existing_index.write()
 		if err != nil {
 			notify(
 				fmt.Sprintf("Failed to write mod metadata: %s", err.Error()),

@@ -12,39 +12,58 @@ import (
 	"regexp"
 )
 
-func get_prism_details(
-	path string,
-) (Minecraft, error) {
-	var profile, version, loader, loader_version, token string
+type Minecraft struct {
+	Profile       string
+	Version       string
+	Loader        string
+	LoaderVersion string
+	Username      string
+	Uuid          string
+	Token         string
+}
 
-	file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
-	if err != nil {
-		return Minecraft{}, err
-	}
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return Minecraft{}, err
-	}
-	defer file.Close()
+// Prism Launcher
 
-	var instance PrismInstance
-	err = json.Unmarshal(content, &instance)
-	if err != nil {
-		return Minecraft{}, err
-	}
+type PrismData struct {
+	Accounts []struct {
+		Active  any `json:"active"`
+		Profile struct {
+			Id   string `json:"id"`
+			Name string `json:"name"`
+		} `json:"profile"`
+		Type string `json:"type"`
+		Ygg  struct {
+			Token string `json:"token"`
+		} `json:"ygg"`
+	} `json:"accounts"`
+	FormatVersion int `json:"formatVersion"`
+}
 
-	file, err = os.OpenFile("../instance.cfg", os.O_RDONLY, os.ModePerm)
-	if err != nil {
-		return Minecraft{}, err
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		if match, _ := regexp.MatchString("^name=.*", scanner.Text()); match {
-			profile = regexp.MustCompile("^name=").ReplaceAllString(scanner.Text(), "")
+func (data *PrismData) get_active() (string, string, string, error) {
+	var token string
+	for _, v := range data.Accounts {
+		if v.Active != nil && v.Active.(bool) {
+			if v.Type == "Offline" {
+				token = "offline"
+			} else {
+				token = v.Ygg.Token
+			}
+			return token, v.Profile.Name, v.Profile.Id, nil
 		}
 	}
 
+	return "", "", "", errors.New("No active account found")
+}
+
+type PrismInstance struct {
+	Components []struct {
+		Uid     string `json:"uid"`
+		Version string `json:"version"`
+	} `json:"components"`
+}
+
+func (instance *PrismInstance) get_details() (string, string, string) {
+	var version, loader, loader_version string
 	for _, entry := range instance.Components {
 		switch entry.Uid {
 		case "net.minecraft":
@@ -61,6 +80,42 @@ func get_prism_details(
 		case "net.neoforged":
 			loader = "neoforge"
 			loader_version = entry.Version
+		}
+	}
+	return version, loader, loader_version
+}
+
+func get_prism_details(
+	path string,
+) (Minecraft, error) {
+	var profile, version, loader, loader_version, token, username, uuid string
+
+	file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		return Minecraft{}, err
+	}
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return Minecraft{}, err
+	}
+	defer file.Close()
+
+	var instance PrismInstance
+	err = json.Unmarshal(content, &instance)
+	if err != nil {
+		return Minecraft{}, err
+	}
+	version, loader, loader_version = instance.get_details()
+
+	file, err = os.OpenFile("../instance.cfg", os.O_RDONLY, os.ModePerm)
+	if err != nil {
+		return Minecraft{}, err
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if match, _ := regexp.MatchString("^name=.*", scanner.Text()); match {
+			profile = regexp.MustCompile("^name=").ReplaceAllString(scanner.Text(), "")
 		}
 	}
 
@@ -80,28 +135,23 @@ func get_prism_details(
 	if err != nil {
 		return Minecraft{}, err
 	}
-
-	for _, v := range data.Accounts {
-		if v.Active != nil && v.Active.(bool) {
-			if v.Type == "Offline" {
-				token = "offline"
-			} else {
-				token = v.Ygg.Token
-			}
-			return Minecraft{
-				profile,
-				version,
-				loader,
-				loader_version,
-				v.Profile.Name,
-				v.Profile.Id,
-				token,
-			}, nil
-		}
+	token, username, uuid, err = data.get_active()
+	if err != nil {
+		return Minecraft{}, err
 	}
 
-	return Minecraft{}, errors.New("No active account found")
+	return Minecraft{
+		profile,
+		version,
+		loader,
+		loader_version,
+		username,
+		uuid,
+		token,
+	}, nil
 }
+
+// Modrinth App
 
 func get_modrinth_details(
 	path string,

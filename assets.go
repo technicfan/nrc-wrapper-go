@@ -35,7 +35,7 @@ func download_asset_async(
 	defer wg.Done()
 
 	limiter <- struct{}{}
-	defer func() { <- limiter }()
+	defer func() { <-limiter }()
 
 	err := download_asset(asset["pack"], asset["path"], asset["hash"])
 	if err != nil {

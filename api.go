@@ -16,6 +16,16 @@ import (
 	"sync"
 )
 
+type Assets struct {
+	Objects map[string]struct {
+		Hash string `json:"hash"`
+		Size int    `json:"size"`
+	} `json:"objects"`
+}
+
+type ServerId struct {
+	Id string `json:"serverId"`
+}
 
 func download_jar(
 	url string,
@@ -67,7 +77,7 @@ func download_jar(
 	}
 
 	file, err := os.Create(filepath.Join(path, name))
-	if err != nil  {
+	if err != nil {
 		return "", err
 	}
 	defer file.Close()
@@ -131,7 +141,7 @@ func get_asset_metadata_async(
 	index int,
 	pack string,
 	wg *sync.WaitGroup,
-	data chan <- map[int]map[string]map[string]string,
+	data chan<- map[int]map[string]map[string]string,
 ) {
 	defer wg.Done()
 
@@ -228,7 +238,7 @@ func join_server_session(
 	token string,
 	selected_profile string,
 	server_id string,
-) (error) {
+) error {
 	params := make(map[string]string)
 	params["accessToken"] = token
 	params["selectedProfile"] = selected_profile
