@@ -266,9 +266,11 @@ func join_server_session(
 }
 
 func get_norisk_versions() (Versions, error) {
-	response, err := http.Get(
-		fmt.Sprintf("%s/launcher/modpacks", NORISK_API_URL),
-	)
+	url := fmt.Sprintf("%s/launcher/modpacks", NORISK_API_URL)
+	if NORISK_API_URL == NORISK_API_STAGING_URL {
+		url += "-v3"
+	}
+	response, err := http.Get(url)
 	if err != nil {
 		return Versions{}, err
 	}

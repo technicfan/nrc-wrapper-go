@@ -25,6 +25,10 @@ func main() {
 		config = get_config()
 	}
 
+	if os.Getenv("STAGING") != "" {
+		NORISK_API_URL = NORISK_API_STAGING_URL
+	}
+
 	versions, err := get_norisk_versions()
 	if err == nil {
 		if !launch {

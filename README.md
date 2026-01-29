@@ -30,6 +30,7 @@ The wrapper can be configured through environment variables
 |              `PRISM_DIR`              |                         The data directory of Prism Launcher in case it's not the default location                         |
 |            `MODRINTH_DIR`             |                       The data directory of Modrinth Launcher in case it's not the default location                        |
 |               `NOTIFY`                |      Set it to `true\|True\|1` or `false\|False\|0` to enable/disable notifications (enabled by default for modrinth)      |
+|               `STAGING`               |                                      Lets you use the staging branch of NoRiskClient                                       |
 | `NO_ERROR_ON_FAILED_DOWNLOAD`/`NEOFD` |                              Set it to anything to stop crashing if a file fails downloading                               |
 
 **Info:**
