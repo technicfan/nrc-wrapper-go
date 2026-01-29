@@ -119,7 +119,7 @@ func get_config() Config {
 		config.ModDir = "mods"
 	}
 
-	config.ErrorOnFailedDownload = os.Getenv("NO_ERROR_ON_FAILED_DOWNLOAD") == ""
+	config.ErrorOnFailedDownload = os.Getenv("NO_ERROR_ON_FAILED_DOWNLOAD") == "" && os.Getenv("NEOFD") == ""
 
 	return config
 }

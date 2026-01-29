@@ -49,15 +49,16 @@ func download_jar(
 			return "", err
 		}
 		if hash_response.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("HTTP %v (sha1)", hash_response.StatusCode)
-		}
-		defer hash_response.Body.Close()
+			log.Printf("Maven does not provide a sha1 hash for %s", name)
+		} else {
+			defer hash_response.Body.Close()
 
-		hash_body, err := io.ReadAll(hash_response.Body)
-		if err != nil {
-			return "", err
+			hash_body, err := io.ReadAll(hash_response.Body)
+			if err != nil {
+				return "", err
+			}
+			expected_hash = string(hash_body)
 		}
-		expected_hash = string(hash_body)
 	}
 
 	body, err := io.ReadAll(response.Body)

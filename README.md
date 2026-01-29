@@ -22,15 +22,15 @@ It also checks if the correct loader and loader version is installed to run the 
 
 The wrapper can be configured through environment variables
 
-|           Variable            |                                                        Description                                                         |
-| :---------------------------: | :------------------------------------------------------------------------------------------------------------------------: |
-|          `NRC_PACK`           | This lets you choose, which nrc modpack to use; You can see available option when using the `--packs` flag in the terminal |
-|         `NRC_MOD_DIR`         |        This lets you change the directory the wrapper installs the nrc mods in (the default is `mods/NoRiskClient`)        |
-|          `LAUNCHER`           | The wrapper generally detects the launcher by itself, but in case it doesn't you have the option for `prism` or `modrinth` |
-|          `PRISM_DIR`          |                         The data directory of Prism Launcher in case it's not the default location                         |
-|        `MODRINTH_DIR`         |                       The data directory of Modrinth Launcher in case it's not the default location                        |
-|           `NOTIFY`            |      Set it to `true\|True\|1` or `false\|False\|0` to enable/disable notifications (enabled by default for modrinth)      |
-| `NO_ERROR_ON_FAILED_DOWNLOAD` |                              Set it to anything to stop crashing if a file fails downloading                               |
+|               Variable                |                                                        Description                                                         |
+| :-----------------------------------: | :------------------------------------------------------------------------------------------------------------------------: |
+|              `NRC_PACK`               | This lets you choose, which nrc modpack to use; You can see available option when using the `--packs` flag in the terminal |
+|             `NRC_MOD_DIR`             |        This lets you change the directory the wrapper installs the nrc mods in (the default is `mods/NoRiskClient`)        |
+|              `LAUNCHER`               | The wrapper generally detects the launcher by itself, but in case it doesn't you have the option for `prism` or `modrinth` |
+|              `PRISM_DIR`              |                         The data directory of Prism Launcher in case it's not the default location                         |
+|            `MODRINTH_DIR`             |                       The data directory of Modrinth Launcher in case it's not the default location                        |
+|               `NOTIFY`                |      Set it to `true\|True\|1` or `false\|False\|0` to enable/disable notifications (enabled by default for modrinth)      |
+| `NO_ERROR_ON_FAILED_DOWNLOAD`/`NEOFD` |                              Set it to anything to stop crashing if a file fails downloading                               |
 
 **Info:**
 
