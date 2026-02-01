@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,17 +64,9 @@ func (cfg *Cfg) write(
 	return nil
 }
 
-func (instance *Instance) update() error {
+func (instance *Instance) update(ex string) error {
 	if instance.Config != instance.NewConfig {
 		if instance.Config.Nrc != instance.NewConfig.Nrc {
-			ex, err := os.Executable()
-			if err != nil {
-				return err
-			}
-			ex, err = filepath.EvalSymlinks(ex)
-			if err != nil {
-				return err
-			}
 			instance.Config.Nrc = instance.NewConfig.Nrc
 			if instance.Config.Nrc {
 				if instance.Config.Command == "" {
@@ -88,12 +79,12 @@ func (instance *Instance) update() error {
 					cmd.Run()
 				}
 			} else {
-				if instance.Config.Command == ex || instance.Config.Command == "nrc-wrapper-go" {
+				if instance.Config.Command == ex || instance.Config.Command == filepath.Base(ex) {
 					instance.Config.Command = ""
 				} else {
-					cmd := "nrc-wrapper-go"
-					if strings.Contains(instance.Config.Command, ex) {
-						cmd = ex
+					cmd := ex
+					if !strings.Contains(instance.Config.Command, ex) {
+						cmd = filepath.Base(ex)
 					}
 					instance.Config.Command = strings.TrimSpace(strings.ReplaceAll(instance.Config.Command, cmd, ""))
 				}
@@ -157,7 +148,7 @@ func (instance *Instance) update() error {
 		if err != nil {
 			return err
 		}
-		instance.Config = instance.NewConfig
+		instance.NewConfig = instance.Config
 	}
 	return nil
 }
@@ -166,6 +157,9 @@ func update_prism_instance(
 	instance *Instance,
 ) error {
 	instance.Cfg["General"]["WrapperCommand"] = instance.Config.Command
+	if instance.Config.Nrc {
+		instance.Cfg["General"]["OverrideEnv"] = "true"
+	}
 	raw_env, err := json.Marshal(instance.Env)
 	if err != nil {
 		return err
@@ -208,11 +202,26 @@ func get_prism_instance_dir(
 	return filepath.Join(path, "instances"), nil
 }
 
+func get_instances(
+	path string,
+	flatpak string,
+	versions []string,
+	loaders []string,
+	ex string,
+) ([]Instance, error) {
+	if strings.Contains(path, "ModrinthApp") {
+		return get_modrinth_instances(path, flatpak, versions, loaders, ex)
+	} else {
+		return get_prism_instances(path, flatpak, versions, loaders, ex)
+	}
+}
+
 func get_prism_instances(
 	path string,
 	flatpak string,
 	versions []string,
 	loaders []string,
+	ex string,
 ) ([]Instance, error) {
 	var instances []Instance
 
@@ -239,32 +248,34 @@ func get_prism_instances(
 			name := config["General"]["name"]
 			env := strings.Trim(strings.ReplaceAll(config["General"]["Env"], `\"`, `"`), `"`)
 			var vars map[string]string
-			err = json.Unmarshal([]byte(env), &vars)
-			if err != nil {
-				continue
+			if config["General"]["OverrideEnv"] == "true" {
+				err = json.Unmarshal([]byte(env), &vars)
+				if err != nil {
+					continue
+				}
+			} else {
+				vars = make(map[string]string)
 			}
 			var staging, notify, neofd bool
 			var mod_path string
 			pack := "norisk-prod"
-			nrc := strings.Contains(wrapper, "nrc-wrapper-go")
-			if nrc {
-				if v, e := vars["NRC_PACK"]; e {
-					pack = v
-				}
-				if v, e := vars["NRC_MOD_DIR"]; e {
-					mod_path = v
-				}
-				if v, e := vars["NOTIFY"]; e {
-					notify = !(v == "False" || v == "false" || v == "0")
-				}
-				if v, e := vars["STAGING"]; e && v != "" {
-					staging = true
-				}
-				v, e := vars["NEOFD"]
-				v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
-				if (e && v != "") || (e2 && v2 != "") {
-					neofd = true
-				}
+			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
+			if v, e := vars["NRC_PACK"]; e {
+				pack = v
+			}
+			if v, e := vars["NRC_MOD_DIR"]; e {
+				mod_path = v
+			}
+			if v, e := vars["NOTIFY"]; e {
+				notify = !(v == "False" || v == "false" || v == "0")
+			}
+			if v, e := vars["STAGING"]; e && v != "" {
+				staging = true
+			}
+			v, e := vars["NEOFD"]
+			v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
+			if (e && v != "") || (e2 && v2 != "") {
+				neofd = true
 			}
 			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, staging, neofd}
 			instances = append(instances, Instance{
@@ -281,6 +292,7 @@ func get_modrinth_instances(
 	flatpak string,
 	versions []string,
 	loaders []string,
+	ex string,
 ) ([]Instance, error) {
 	var instances []Instance
 
@@ -301,13 +313,17 @@ func get_modrinth_instances(
 	for rows.Next() {
 		var env []byte
 		var name, version, loader, loader_version, instance_path, wrapper string
-		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper, &env)
+		var wrapper_ptr *string
+		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper_ptr, &env)
 		if err == nil && slices.Contains(versions, version) && slices.Contains(loaders, loader) {
 			var staging, neofd bool
 			var mod_path string
 			pack := "norisk-prod"
 			notify := true
-			nrc := strings.Contains(wrapper, "nrc-wrapper-go")
+			if wrapper_ptr != nil {
+				wrapper = *wrapper_ptr
+			}
+			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
 			var data [][]string
 			err := json.Unmarshal(env, &data)
 			if err != nil {
@@ -317,24 +333,22 @@ func get_modrinth_instances(
 			for _, line := range data {
 				vars[line[0]] = line[1]
 			}
-			if nrc {
-				if v, e := vars["NRC_PACK"]; e {
-					pack = v
-				}
-				if v, e := vars["NRC_MOD_DIR"]; e {
-					mod_path = v
-				}
-				if v, e := vars["NOTIFY"]; e {
-					notify = !(v == "False" || v == "false" || v == "0")
-				}
-				if v, e := vars["STAGING"]; e && v != "" {
-					staging = true
-				}
-				v, e := vars["NEOFD"]
-				v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
-				if (e && v != "") || (e2 && v2 != "") {
-					neofd = true
-				}
+			if v, e := vars["NRC_PACK"]; e {
+				pack = v
+			}
+			if v, e := vars["NRC_MOD_DIR"]; e {
+				mod_path = v
+			}
+			if v, e := vars["NOTIFY"]; e {
+				notify = !(v == "False" || v == "false" || v == "0")
+			}
+			if v, e := vars["STAGING"]; e && v != "" {
+				staging = true
+			}
+			v, e := vars["NEOFD"]
+			v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
+			if (e && v != "") || (e2 && v2 != "") {
+				neofd = true
 			}
 			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, staging, neofd}
 			instances = append(instances, Instance{
@@ -372,7 +386,6 @@ func parse_cfg(
 			}
 			config[current_section][k] = v
 		} else {
-			log.Println(scanner.Text())
 			return nil, errors.New("Invalid config")
 		}
 	}
@@ -382,4 +395,17 @@ func parse_cfg(
 	}
 
 	return config, nil
+}
+
+type MetaPack struct {
+	Name string
+	Desc string
+	Versions []string
+	Loaders map[string]string
+}
+
+type MetaPacks struct {
+	Packs map[string]MetaPack
+	Versions []string
+	Loaders []string
 }

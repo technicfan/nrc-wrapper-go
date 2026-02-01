@@ -57,6 +57,38 @@ func (pack *Pack) get_details(
 
 type Packs map[string]Pack
 
+func (packs Packs) get_meta_packs() MetaPacks {
+	var global_versions []string
+	var global_loaders []string
+	metapacks := make(map[string]MetaPack)
+	for i := range packs {
+		var mc_versions []string
+		pack := packs[i]
+		for _, mod := range pack.Mods {
+			for version := range mod.Compatibility {
+				if !slices.Contains(mc_versions, version) && cmp_mc_versions("1.21", version) < 1 {
+					mc_versions = append(mc_versions, version)
+				}
+			}
+		}
+		slices.SortFunc(mc_versions, cmp_mc_versions)
+		_, _, loaders := pack.get_details(packs)
+		for l := range loaders {
+			if !slices.Contains(global_loaders, l) {
+				global_loaders = append(global_loaders, l)
+			}
+		}
+		for i := range mc_versions {
+			if !slices.Contains(global_versions, mc_versions[i]) {
+				global_versions = append(global_versions, mc_versions[i])
+			}
+		}
+		metapacks[i] = MetaPack{pack.Name, pack.Desc, mc_versions, loaders}
+	}
+
+	return MetaPacks{metapacks, global_versions, global_loaders}
+}
+
 func (packs Packs) print_packs() {
 	fmt.Println("Available NRC packs:")
 	for _, key := range slices.Sorted(maps.Keys(packs)) {

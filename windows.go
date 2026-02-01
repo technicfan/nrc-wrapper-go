@@ -3,8 +3,12 @@
 package main
 
 import (
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 
 	"github.com/kolesnikovae/go-winjob"
 	"golang.org/x/sys/windows"
@@ -23,6 +27,23 @@ func cli() {
 	stderrHandle, _ := windows.GetStdHandle(windows.STD_ERROR_HANDLE)
 	os.Stdout = os.NewFile(uintptr(stdoutHandle), "/dev/stdout")
 	os.Stderr = os.NewFile(uintptr(stderrHandle), "/dev/stderr")
+}
+
+func get_launcher_dirs() map[string][]string {
+	usr, _ := user.Current()
+	home := usr.HomeDir
+	dirs := map[string][]string{
+		"Modrinth App" : {filepath.Join(home, DATA_HOME, "ModrinthApp"), ""},
+		"Prism Launcher": {filepath.Join(home, DATA_HOME, "PrismLauncher"), ""},
+	}
+	for l := range dirs {
+		_, err := os.Stat(dirs[l][0])
+		if err != nil && errors.Is(err, fs.ErrNotExist) {
+			delete(dirs, l)
+		}
+	}
+
+	return dirs
 }
 
 func Exec(command string, args []string) error {
