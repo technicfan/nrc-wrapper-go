@@ -85,29 +85,40 @@ func (instance *PrismInstance) get_details() (string, string, string) {
 	return version, loader, loader_version
 }
 
-func get_prism_details(
+func get_prism_instance(
 	path string,
-) (Minecraft, error) {
-	var profile, version, loader, loader_version, token, username, uuid string
-
-	file, err := os.OpenFile("../mmc-pack.json", os.O_RDONLY, os.ModePerm)
+) (PrismInstance, error) {
+	file, err := os.OpenFile(filepath.Join(path, "mmc-pack.json"), os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		return Minecraft{}, err
+		return PrismInstance{}, err
 	}
 	content, err := io.ReadAll(file)
 	if err != nil {
-		return Minecraft{}, err
+		return PrismInstance{}, err
 	}
 	defer file.Close()
 
 	var instance PrismInstance
 	err = json.Unmarshal(content, &instance)
 	if err != nil {
+		return PrismInstance{}, err
+	}
+	
+	return instance, nil
+}
+
+func get_prism_details(
+	path string,
+) (Minecraft, error) {
+	var profile, version, loader, loader_version, token, username, uuid string
+
+	instance, err := get_prism_instance("../")
+	if err != nil {
 		return Minecraft{}, err
 	}
 	version, loader, loader_version = instance.get_details()
 
-	file, err = os.OpenFile("../instance.cfg", os.O_RDONLY, os.ModePerm)
+	file, err := os.OpenFile("../instance.cfg", os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		return Minecraft{}, err
 	}
@@ -125,7 +136,7 @@ func get_prism_details(
 	}
 	defer file.Close()
 
-	content, err = io.ReadAll(file)
+	content, err := io.ReadAll(file)
 	if err != nil {
 		return Minecraft{}, err
 	}

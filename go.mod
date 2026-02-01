@@ -6,8 +6,8 @@ require (
 	github.com/gen2brain/beeep v0.11.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/kolesnikovae/go-winjob v1.0.0
-	github.com/mattn/go-sqlite3 v1.14.16
-	golang.org/x/sys v0.35.0
+	github.com/mattn/go-sqlite3 v1.14.33
+	golang.org/x/sys v0.40.0
 )
 
 require (
