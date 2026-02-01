@@ -29,7 +29,7 @@ func main() {
 		NORISK_API_URL = NORISK_API_STAGING_URL
 	}
 
-	versions, err := get_norisk_versions()
+	versions, err := get_norisk_versions(NORISK_API_URL)
 	if err == nil {
 		if !launch {
 			versions.Packs.print_packs()
