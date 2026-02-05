@@ -14,7 +14,7 @@ func main() {
 		launch = false
 		cli()
 	} else if len(os.Args) < 3 {
-		log.Fatal("You need to use it as the wrapper command")
+		gui()
 	}
 
 	var token string

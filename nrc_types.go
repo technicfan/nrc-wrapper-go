@@ -57,13 +57,15 @@ func (pack *Pack) get_details(
 
 type Packs map[string]Pack
 
-func (packs Packs) get_meta_packs() MetaPacks {
+func (packs Packs) to_meta_packs() MetaPacks {
 	var global_versions []string
 	var global_loaders []string
+	var pack_names []string
 	metapacks := make(map[string]MetaPack)
 	for i := range packs {
 		var mc_versions []string
 		pack := packs[i]
+		pack_names = append(pack_names, i)
 		for _, mod := range pack.Mods {
 			for version := range mod.Compatibility {
 				if !slices.Contains(mc_versions, version) && cmp_mc_versions("1.21", version) < 1 {
@@ -86,7 +88,7 @@ func (packs Packs) get_meta_packs() MetaPacks {
 		metapacks[i] = MetaPack{pack.Name, pack.Desc, mc_versions, loaders}
 	}
 
-	return MetaPacks{metapacks, global_versions, global_loaders}
+	return MetaPacks{metapacks, global_versions, global_loaders, pack_names}
 }
 
 func (packs Packs) print_packs() {

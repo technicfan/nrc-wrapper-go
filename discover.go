@@ -22,7 +22,6 @@ type NrcConfig struct {
 	NrcPack string
 	ModDir string
 	Notify bool
-	Staging bool
 	Neofd bool
 }
 
@@ -90,8 +89,6 @@ func (instance *Instance) update(ex string) error {
 				}
 				delete(instance.Env, "NRC_PACK")
 				instance.Config.NrcPack = ""
-				delete(instance.Env, "STAGING")
-				instance.Config.Staging = false
 				delete(instance.Env, "NRC_MOD_DIR")
 				instance.Config.ModDir = ""
 				delete(instance.Env, "NOTIFY")
@@ -105,14 +102,6 @@ func (instance *Instance) update(ex string) error {
 			if instance.Config.NrcPack != instance.NewConfig.NrcPack {
 				instance.Config.NrcPack = instance.NewConfig.NrcPack
 				instance.Env["NRC_PACK"] = instance.Config.NrcPack
-			}
-			if instance.Config.Staging != instance.NewConfig.Staging {
-				instance.Config.Staging = instance.NewConfig.Staging
-				if instance.Config.Staging {
-					instance.Env["STAGING"] = "true"
-				} else {
-					delete(instance.Env, "STAGING")
-				}
 			}
 			if instance.Config.ModDir != instance.NewConfig.ModDir {
 				instance.Config.ModDir = instance.NewConfig.ModDir
@@ -156,15 +145,22 @@ func (instance *Instance) update(ex string) error {
 func update_prism_instance(
 	instance *Instance,
 ) error {
-	instance.Cfg["General"]["WrapperCommand"] = instance.Config.Command
-	if instance.Config.Nrc {
+	if instance.Config.Command != "" {
+		instance.Cfg["General"]["OverrideCommands"] = "true"
+		instance.Cfg["General"]["WrapperCommand"] = instance.Config.Command
+	}
+	if len(instance.Env) != 0 {
 		instance.Cfg["General"]["OverrideEnv"] = "true"
 	}
 	raw_env, err := json.Marshal(instance.Env)
 	if err != nil {
 		return err
 	}
-	instance.Cfg["General"]["Env"] = strings.ReplaceAll(string(raw_env), `"`, `\"`)
+	env := strings.ReplaceAll(strings.Trim(string(raw_env), `"`), `"`, `\"`)
+	if len(instance.Env) >= 2 {
+		env = `"` + env + `"`
+	}
+	instance.Cfg["General"]["Env"] = env
 	return instance.Cfg.write(filepath.Join(instance.Path, "instance.cfg"))
 }
 
@@ -256,7 +252,7 @@ func get_prism_instances(
 			} else {
 				vars = make(map[string]string)
 			}
-			var staging, notify, neofd bool
+			var notify, neofd bool
 			var mod_path string
 			pack := "norisk-prod"
 			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
@@ -269,15 +265,12 @@ func get_prism_instances(
 			if v, e := vars["NOTIFY"]; e {
 				notify = !(v == "False" || v == "false" || v == "0")
 			}
-			if v, e := vars["STAGING"]; e && v != "" {
-				staging = true
-			}
 			v, e := vars["NEOFD"]
 			v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
 			if (e && v != "") || (e2 && v2 != "") {
 				neofd = true
 			}
-			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, staging, neofd}
+			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, neofd}
 			instances = append(instances, Instance{
 				name, version, loader, loader_version, instance_path, "prism", config, vars,
 				flatpak, nrc_config, nrc_config,
@@ -316,7 +309,7 @@ func get_modrinth_instances(
 		var wrapper_ptr *string
 		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper_ptr, &env)
 		if err == nil && slices.Contains(versions, version) && slices.Contains(loaders, loader) {
-			var staging, neofd bool
+			var neofd bool
 			var mod_path string
 			pack := "norisk-prod"
 			notify := true
@@ -342,15 +335,12 @@ func get_modrinth_instances(
 			if v, e := vars["NOTIFY"]; e {
 				notify = !(v == "False" || v == "false" || v == "0")
 			}
-			if v, e := vars["STAGING"]; e && v != "" {
-				staging = true
-			}
 			v, e := vars["NEOFD"]
 			v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
 			if (e && v != "") || (e2 && v2 != "") {
 				neofd = true
 			}
-			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, staging, neofd}
+			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, neofd}
 			instances = append(instances, Instance{
 				name, version, loader, loader_version, filepath.Join(path, "profiles", instance_path), "modrinth", nil, vars,
 				flatpak, nrc_config, nrc_config,
@@ -408,4 +398,15 @@ type MetaPacks struct {
 	Packs map[string]MetaPack
 	Versions []string
 	Loaders []string
+	Names []string
+}
+
+func (packs *MetaPacks) get_compatible_packs(version string, loader string) []string {
+	var pack_names []string
+	for i := range packs.Packs {
+		if _, e := packs.Packs[i].Loaders[loader]; e && slices.Contains(packs.Packs[i].Versions, version) {
+			pack_names = append(pack_names, i)
+		}
+	}
+	return pack_names
 }
