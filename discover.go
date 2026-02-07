@@ -75,8 +75,11 @@ func (instance *Instance) save(ex string) error {
 					instance.Config.Command += " " + ex
 				}
 				if instance.FlatpakId != "" {
-					cmd := exec.Command("flatpak", "override", "--user", fmt.Sprintf("filesystem=%s", ex), instance.FlatpakId)
-					cmd.Run()
+					cmd := exec.Command("flatpak", "override", "--user", "--show", instance.FlatpakId)
+					if o, err := cmd.Output(); err == nil && !strings.Contains(string(o), instance.Config.Command) {
+						cmd = exec.Command("flatpak", "override", "--user", fmt.Sprintf("--filesystem=%s", ex), instance.FlatpakId)
+						cmd.Run()
+					}
 				}
 			} else {
 				if instance.Config.Command == ex || instance.Config.Command == filepath.Base(ex) {
@@ -102,11 +105,15 @@ func (instance *Instance) save(ex string) error {
 		if instance.Config.Nrc {
 			if instance.Config.NrcPack != instance.NewConfig.NrcPack {
 				instance.Config.NrcPack = instance.NewConfig.NrcPack
-				instance.Env["NRC_PACK"] = instance.Config.NrcPack
+				if instance.Config.NrcPack == "" || instance.Config.NrcPack == DEFAULT_PACK {
+				    delete(instance.Env, "NRC_PACK")
+				} else {
+					instance.Env["NRC_PACK"] = instance.Config.NrcPack
+				}
 			}
 			if instance.Config.ModDir != instance.NewConfig.ModDir {
 				instance.Config.ModDir = instance.NewConfig.ModDir
-				if instance.Config.ModDir != "" {
+				if instance.Config.ModDir != "" && instance.Config.ModDir != DEFAULT_MOD_DIR {
 					instance.Env["NRC_MOD_DIR"] = instance.Config.ModDir
 				} else {
 					delete(instance.Env, "NRC_MOD_DIR")
@@ -115,7 +122,11 @@ func (instance *Instance) save(ex string) error {
 			if instance.Config.Notify != instance.NewConfig.Notify {
 				instance.Config.Notify = instance.NewConfig.Notify
 				if instance.Config.Notify {
-					instance.Env["NOTIFY"] = "true"
+					if instance.Launcher == "modrinth" {
+						delete(instance.Env, "NOTIFY")
+					} else {
+						instance.Env["NOTIFY"] = "true"
+					}
 				} else {
 					instance.Env["NOTIFY"] = "false"
 				}
@@ -152,9 +163,14 @@ func save_prism_instance(
 	if instance.Config.Command != "" {
 		instance.Cfg["General"]["OverrideCommands"] = "true"
 		instance.Cfg["General"]["WrapperCommand"] = instance.Config.Command
+	} else {
+		instance.Cfg["General"]["OverrideCommands"] = "false"
+		instance.Cfg["General"]["WrapperCommand"] = ""
 	}
 	if len(instance.Env) != 0 {
 		instance.Cfg["General"]["OverrideEnv"] = "true"
+	} else {
+		instance.Cfg["General"]["OverrideEnv"] = "false"
 	}
 	raw_env, err := json.Marshal(instance.Env)
 	if err != nil {
@@ -197,7 +213,10 @@ func get_prism_instance_dir(
 		return "", err
 	}
 	if instances, exists := config["General"]["InstanceDir"]; exists {
-		return instances, nil
+		if regexp.MustCompile("^([A-Z]:|/).*").MatchString(instances) {
+			return instances, nil
+		}
+		return filepath.Join(path, instances), nil
 	}
 	return filepath.Join(path, "instances"), nil
 }
@@ -258,7 +277,7 @@ func get_prism_instances(
 			}
 			var notify, neofd bool
 			var mod_path string
-			pack := "norisk-prod"
+			pack := DEFAULT_PACK
 			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
 			if v, e := vars["NRC_PACK"]; e {
 				pack = v
@@ -315,7 +334,7 @@ func get_modrinth_instances(
 		if err == nil && slices.Contains(versions, version) && slices.Contains(loaders, loader) {
 			var neofd bool
 			var mod_path string
-			pack := "norisk-prod"
+			pack := DEFAULT_PACK
 			notify := true
 			if wrapper_ptr != nil {
 				wrapper = *wrapper_ptr
@@ -408,9 +427,15 @@ type MetaPacks struct {
 func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]string, []string) {
 	var index int
 	var unique_pack_names []string
-	var pack_ids []string
-	for i := range packs.Packs {
+	pack_ids := MAIN_PACKS
+	for _, i := range MAIN_PACKS {
 		if _, e := packs.Packs[i].Loaders[loader]; e && slices.Contains(packs.Packs[i].Versions, version) {
+			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[i].Name, index))
+			index++
+		}
+	}
+	for i := range packs.Packs {
+		if _, e := packs.Packs[i].Loaders[loader]; e && slices.Contains(packs.Packs[i].Versions, version) && !slices.Contains(MAIN_PACKS, i) {
 			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[i].Name, index))
 			pack_ids = append(pack_ids, i)
 			index++

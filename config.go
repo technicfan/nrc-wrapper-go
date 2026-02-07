@@ -98,7 +98,7 @@ func get_config() Config {
 	if value := os.Getenv("NRC_PACK"); value != "" {
 		config.NrcPack = value
 	} else {
-		config.NrcPack = "norisk-prod"
+		config.NrcPack = DEFAULT_PACK
 	}
 
 	minecraft, err := get_minecraft_details(config.LauncherDir, config.Launcher)
@@ -114,7 +114,7 @@ func get_config() Config {
 	if value := os.Getenv("NRC_MOD_DIR"); value != "" {
 		config.ModDir = value
 	} else if config.Minecraft.Loader == "fabric" {
-		config.ModDir = "mods/NoRiskClient"
+		config.ModDir = DEFAULT_MOD_DIR
 	} else {
 		config.ModDir = "mods"
 	}

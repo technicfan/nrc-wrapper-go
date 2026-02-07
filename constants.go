@@ -6,4 +6,7 @@ const (
 	NORISK_API_STAGING_URL = "https://api-staging.norisk.gg/api/v1"
 	NORISK_ASSETS_URL      = "https://cdn.norisk.gg/assets"
 	MOJANG_SESSION_URL     = "https://sessionserver.mojang.com"
+
+	DEFAULT_PACK = "norisk-prod"
+	DEFAULT_MOD_DIR = "mods/NoRiskClient"
 )
