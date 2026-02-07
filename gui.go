@@ -224,11 +224,11 @@ func gui() {
 
 - %s
 
-- **Supported Minecraft Versions:** %s
+- Supported Minecraft Versions: %s
 
-- **Supported Modloaders:** %s
+- Supported Modloaders: %s
 ---`,
-			pack.Name, id, pack.Desc, strings.Join(packs.Versions, ", "), strings.Join(loaders, ", "),
+			pack.Name, id, pack.Desc, strings.Join(pack.Versions, ", "), strings.Join(loaders, ", "),
 		)
 	}
 	scroll := container.NewVScroll(container.NewCenter(widget.NewRichTextFromMarkdown(packs_string_builder.String())))
