@@ -15,6 +15,7 @@ func main() {
 		cli()
 	} else if len(os.Args) < 3 {
 		gui()
+		os.Exit(0)
 	}
 
 	var token string

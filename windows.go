@@ -3,8 +3,6 @@
 package main
 
 import (
-	"errors"
-	"io/fs"
 	"os"
 	"os/exec"
 	"os/user"
@@ -29,21 +27,15 @@ func cli() {
 	os.Stderr = os.NewFile(uintptr(stderrHandle), "/dev/stderr")
 }
 
-func get_launcher_dirs() map[string][]string {
+func get_const_dirs() (map[string][]string, []string) {
 	usr, _ := user.Current()
 	home := usr.HomeDir
 	dirs := map[string][]string{
-		"Modrinth App" : {filepath.Join(home, DATA_HOME, "ModrinthApp"), ""},
 		"Prism Launcher": {filepath.Join(home, DATA_HOME, "PrismLauncher"), ""},
-	}
-	for l := range dirs {
-		_, err := os.Stat(dirs[l][0])
-		if err != nil && errors.Is(err, fs.ErrNotExist) {
-			delete(dirs, l)
-		}
+		"Modrinth App": {filepath.Join(home, DATA_HOME, "ModrinthApp"), ""},
 	}
 
-	return dirs
+	return dirs, []string{"Prism Launcher", "Modrinth App"}
 }
 
 func Exec(command string, args []string) error {

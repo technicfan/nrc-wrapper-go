@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,26 +18,26 @@ import (
 )
 
 type NrcConfig struct {
-	Nrc bool
+	Nrc     bool
 	Command string
 	NrcPack string
-	ModDir string
-	Notify bool
-	Neofd bool
+	ModDir  string
+	Notify  bool
+	Neofd   bool
 }
 
 type Instance struct {
-	Name string
-	Version string
-	Loader string
+	Name          string
+	Version       string
+	Loader        string
 	LoaderVersion string
-	Path string
-	Launcher string
-	Cfg Cfg
-	Env map[string]string
-	FlatpakId string
-	Config NrcConfig
-	NewConfig NrcConfig
+	Path          string
+	Launcher      string
+	Cfg           Cfg
+	Env           map[string]string
+	FlatpakId     string
+	Config        NrcConfig
+	NewConfig     NrcConfig
 }
 
 type Cfg map[string]map[string]string
@@ -63,7 +64,7 @@ func (cfg *Cfg) write(
 	return nil
 }
 
-func (instance *Instance) update(ex string) error {
+func (instance *Instance) save(ex string) error {
 	if instance.Config != instance.NewConfig {
 		if instance.Config.Nrc != instance.NewConfig.Nrc {
 			instance.Config.Nrc = instance.NewConfig.Nrc
@@ -129,10 +130,13 @@ func (instance *Instance) update(ex string) error {
 			}
 		}
 		var err error
-		switch(instance.Launcher) {
-			case "prism": err = update_prism_instance(instance)
-			case "modrinth": err = update_modrinth_instance(instance)
-			default: return fmt.Errorf("%s is an invalid launcher", instance.Launcher)
+		switch instance.Launcher {
+		case "prism":
+			err = save_prism_instance(instance)
+		case "modrinth":
+			err = save_modrinth_instance(instance)
+		default:
+			return fmt.Errorf("%s is an invalid launcher", instance.Launcher)
 		}
 		if err != nil {
 			return err
@@ -142,7 +146,7 @@ func (instance *Instance) update(ex string) error {
 	return nil
 }
 
-func update_prism_instance(
+func save_prism_instance(
 	instance *Instance,
 ) error {
 	if instance.Config.Command != "" {
@@ -164,7 +168,7 @@ func update_prism_instance(
 	return instance.Cfg.write(filepath.Join(instance.Path, "instance.cfg"))
 }
 
-func update_modrinth_instance(
+func save_modrinth_instance(
 	instance *Instance,
 ) error {
 	var env [][]string
@@ -388,25 +392,63 @@ func parse_cfg(
 }
 
 type MetaPack struct {
-	Name string
-	Desc string
+	Name     string
+	Desc     string
 	Versions []string
-	Loaders map[string]string
+	Loaders  map[string]string
 }
 
 type MetaPacks struct {
-	Packs map[string]MetaPack
+	Packs    map[string]MetaPack
 	Versions []string
-	Loaders []string
-	Names []string
+	Loaders  []string
+	Names    []string
 }
 
-func (packs *MetaPacks) get_compatible_packs(version string, loader string) []string {
-	var pack_names []string
+func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]string, []string) {
+	var index int
+	var unique_pack_names []string
+	var pack_ids []string
 	for i := range packs.Packs {
 		if _, e := packs.Packs[i].Loaders[loader]; e && slices.Contains(packs.Packs[i].Versions, version) {
-			pack_names = append(pack_names, i)
+			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[i].Name, index))
+			pack_ids = append(pack_ids, i)
+			index++
 		}
 	}
-	return pack_names
+	return unique_pack_names, pack_ids
+}
+
+func make_unique(str string, index int) string {
+	var builder strings.Builder
+	builder.WriteString(str)
+	for range index {
+		builder.WriteRune('\u200d')
+	}
+	return builder.String()
+}
+
+func get_launcher_dirs() (map[string][]string, []string) {
+	dirs, order := get_const_dirs()
+	for i, l := range order {
+		if l == "" {
+			continue
+		}
+		_, err := os.Stat(dirs[l][0])
+		if err != nil && errors.Is(err, fs.ErrNotExist) {
+			order = slices.Delete(order, i, i+1)
+		} else if err == nil && strings.HasPrefix(l, "Prism") {
+			dir, err := get_prism_instance_dir(dirs[l][0])
+			if dirs["Prism Launcher"][0] == dir {
+				i := slices.Index(order, "Prism Launcher")
+				order = slices.Delete(order, i, i+1)
+			}
+			if err != nil {
+				order = slices.Delete(order, i, i+1)
+			}
+			dirs[l][0] = dir
+		}
+	}
+
+	return dirs, order
 }
