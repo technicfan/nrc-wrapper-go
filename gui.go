@@ -51,6 +51,7 @@ func gui() {
 	a := app.NewWithID("nrc-wrapper-go")
 	w := a.NewWindow("nrc-wrapper-go")
 	w.Resize(fyne.NewSize(800, 500))
+	w.CenterOnScreen()
 
 	tabs := container.NewAppTabs()
 
