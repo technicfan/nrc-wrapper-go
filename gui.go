@@ -103,12 +103,17 @@ func gui() {
 							selected := pack_select.SelectedIndex()
 							if selected != -1 {
 								if p, e := packs.Packs[reference[selected]]; e && cmp_mc_versions(instance.LoaderVersion, p.Loaders[instance.Loader]) == -1 {
-									loader_warn.SetText(fmt.Sprintf("Please update your %s%s loader to version %s to use this pack", strings.ToUpper(instance.Loader[:1]), instance.Loader[1:], p.Loaders[instance.Loader]))
+									loader_warn.SetText(fmt.Sprintf(
+										"Please update your %s%s loader to version %s to use this pack",
+										strings.ToUpper(instance.Loader[:1]),
+										instance.Loader[1:], p.Loaders[instance.Loader],
+									))
 									loader_warn.Show()
 								} else {
-									loader_warn.SetText("")
+									if !loader_warn.Hidden {
+										cw.Resize(fyne.NewSize(0, 0))
+									}
 									loader_warn.Hide()
-									cw.Resize(fyne.NewSize(0, 0))
 								}
 							}
 						}
@@ -167,9 +172,6 @@ func gui() {
 							container.New(layout.NewHBoxLayout(), notify_toggle, layout.NewSpacer(), neofd_toggle),
 							container.New(layout.NewGridLayout(2), cancel_button, save_button),
 						)
-						if loader_warn.Text == "" {
-							loader_warn.Hide()
-						}
 						cw.SetContent(content)
 
 						open_configs = append(open_configs, instance)
