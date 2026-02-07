@@ -54,6 +54,7 @@ func gui() {
 
 	tabs := container.NewAppTabs()
 	stack := container.NewStack()
+	windows := container.NewMultipleWindows()
 
 	for _, l := range order {
 		list := widget.NewList(
@@ -122,10 +123,10 @@ func gui() {
 							neofd_toggle.Disable()
 						}
 
-						cancel_botton := widget.NewButton("Cancel", func() {
+						cancel_button := widget.NewButton("Cancel", func() {
 							cw.CloseIntercept()
 						})
-						save_botton := widget.NewButton("Save", func() {
+						save_button := widget.NewButton("Save", func() {
 							instance.NewConfig.Nrc = nrc_toggle.Checked
 							instance.NewConfig.Notify = notify_toggle.Checked
 							instance.NewConfig.Neofd = neofd_toggle.Checked
@@ -139,19 +140,12 @@ func gui() {
 						})
 
 						content := container.New(
-							layout.NewFormLayout(),
-							nrc_toggle,
-							container.New(layout.NewFormLayout(), pack_select, all_packs_toggle),
-							notify_toggle,
-							neofd_toggle,
-							cancel_botton,
-							save_botton,
+							layout.NewVBoxLayout(),
+							container.New(layout.NewHBoxLayout(), nrc_toggle, container.NewGridWrap(fyne.NewSize(260, 35), pack_select), all_packs_toggle),
+							container.New(layout.NewHBoxLayout(), notify_toggle, layout.NewSpacer(), neofd_toggle),
+							container.New(layout.NewGridLayout(2), cancel_button, save_button),
 						)
 						cw.SetContent(content)
-
-						cw.OnDragged = func(de *fyne.DragEvent) {
-							cw.Move(de.AbsolutePosition.SubtractXY(cw.MinSize().Width / 2, 10))
-						}
 
 						open_configs = append(open_configs, instance)
 						cw.CloseIntercept = func() {
@@ -161,8 +155,8 @@ func gui() {
 							cw.Close()
 						}
 
-						center := container.New(layout.NewCenterLayout(), cw)
-						stack.Add(center)
+						cw.Move(fyne.NewPos(w.Canvas().Size().Width / 2 - content.MinSize().Width / 2, w.Canvas().Size().Height / 2 - content.MinSize().Height / 1.2))
+						windows.Add(cw)
 					}
 				}
 			},
@@ -174,6 +168,7 @@ func gui() {
 	tabs.SetTabLocation(container.TabLocationTop)
 
 	stack.Add(tabs)
+	stack.Add(windows)
 
 	w.SetContent(stack)
 	w.ShowAndRun()
