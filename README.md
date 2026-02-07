@@ -45,7 +45,7 @@ To build it yourself simply install Go and run
 On Linux:
 
 ```
-go build -o nrc-wrapper-go
+go build -tags json1 -o nrc-wrapper-go
 ```
 
 or for Windows build on Linux (how I built the releases):
@@ -53,7 +53,7 @@ or for Windows build on Linux (how I built the releases):
 - install mingw-w64-gcc
 
 ```
-GOOS=windows GOARCH=386 CGO_ENABLED=1 CXX=i686-w64-mingw32-g++ CC=i686-w64-mingw32-gcc go build -ldflags -H=windowsgui -o nrc-wrapper-go.exe
+GOOS=windows GOARCH=386 CGO_ENABLED=1 CXX=i686-w64-mingw32-g++ CC=i686-w64-mingw32-gcc go build -tags json1 -ldflags -H=windowsgui -o nrc-wrapper-go.exe
 ```
 
 And on Windows:
@@ -62,7 +62,7 @@ And on Windows:
 
 ```
 go env -w CGO_ENABLED=1
-go build -ldflags -H=windowsgui -o nrc-wrapper-go.exe
+go build -tags json1 -ldflags -H=windowsgui -o nrc-wrapper-go.exe
 ```
 
 in the git repository.
