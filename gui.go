@@ -40,12 +40,13 @@ func gui() {
 	loaders := packs.Loaders
 	launchers, order := get_launcher_dirs()
 	instances := make(map[string][]Instance)
-	for _, l := range order {
-		i, err := get_instances(launchers[l][0], launchers[l][1], versions, loaders, ex)
+	for i, l := range order {
+		inst, err := get_instances(launchers[l][0], launchers[l][1], versions, loaders, ex)
 		if err != nil {
-			log.Fatal(err)
+			order = slices.Delete(order, i, i + 1)
+		} else {
+			instances[l] = inst
 		}
-		instances[l] = i
 	}
 
 	a := app.NewWithID("nrc-wrapper-go")
