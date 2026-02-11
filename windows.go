@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"strings"
 
 	"github.com/kolesnikovae/go-winjob"
 	"golang.org/x/sys/windows"
@@ -53,4 +54,19 @@ func Exec(command string, args []string) error {
 	}
 
 	return err
+}
+
+func get_running_launchers() []string {
+	var running []string
+	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq prismlauncher.exe")
+	out, err := cmd.Output()
+	if err == nil && strings.Contains(string(out), "prismlauncher.exe") {
+		running = append(running, "Prism Launcher")
+	}
+	cmd = exec.Command("tasklist", "/FI", "IMAGENAME eq Modrinth App.exe")
+	out, err = cmd.Output()
+	if err == nil && strings.Contains(string(out), "Modrinth App.exe") {
+		running = append(running, "Modrinth App")
+	}
+	return running
 }
