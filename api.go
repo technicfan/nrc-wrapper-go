@@ -139,10 +139,9 @@ func download_asset(
 }
 
 func get_asset_metadata_async(
-	index int,
 	pack string,
 	wg *sync.WaitGroup,
-	data chan<- map[int]map[string]map[string]string,
+	data chan<- map[string]map[string]map[string]string,
 ) {
 	defer wg.Done()
 
@@ -168,7 +167,7 @@ func get_asset_metadata_async(
 		results[i] = asset
 	}
 
-	data <- map[int]map[string]map[string]string{index: results}
+	data <- map[string]map[string]map[string]string{pack: results}
 }
 
 func request_token(

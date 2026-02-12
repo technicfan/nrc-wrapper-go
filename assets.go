@@ -57,10 +57,10 @@ func download_assets_async(
 ) {
 	defer wg1.Done()
 	var wg sync.WaitGroup
-	data := make(chan map[int]map[string]map[string]string, len(packs))
-	for i, pack := range packs {
+	data := make(chan map[string]map[string]map[string]string, len(packs))
+	for _, pack := range packs {
 		wg.Add(1)
-		go get_asset_metadata_async(i, pack, &wg, data)
+		go get_asset_metadata_async(pack, &wg, data)
 	}
 
 	go func() {
@@ -68,13 +68,13 @@ func download_assets_async(
 		close(data)
 	}()
 
-	final_data := make(map[int]map[string]map[string]string)
+	final_data := make(map[string]map[string]map[string]string)
 	for obj := range data {
 		maps.Copy(final_data, obj)
 	}
 	merged := make(map[string]map[string]string)
-	for i := 0; i < len(final_data); i++ {
-		maps.Copy(merged, final_data[i])
+	for _, pack := range packs {
+		maps.Copy(merged, final_data[pack])
 	}
 
 	missing_assets := make(chan map[string]string, len(merged))
