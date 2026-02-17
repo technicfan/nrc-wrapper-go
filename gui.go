@@ -148,12 +148,13 @@ func gui() {
 
 						warn_label := widget.NewLabel("")
 						warn_label.Alignment = fyne.TextAlignCenter
+						warn_label.Hide()
 						loader_warn_update := func() {
 							selected := pack_select.SelectedIndex()
 							if selected != -1 {
 								if p, e := packs.Packs[reference[selected]]; e && cmp_versions(
 									instance.LoaderVersion, p.Loaders[instance.Loader],
-								) == -1 {
+								) < 0 {
 									warn_label.SetText(fmt.Sprintf(
 										"Please update your %s%s loader to version %s to use this pack",
 										strings.ToUpper(instance.Loader[:1]),
@@ -243,9 +244,7 @@ func gui() {
 											main_button.Hide()
 										}
 									}
-									return
 								}
-								warn_label.Hide()
 								placeholder.Hide()
 								save_button.Show()
 							})
@@ -275,6 +274,12 @@ func gui() {
 							open_configs = slices.Delete(open_configs, index, index+1)
 							instance.NewConfig = instance.Config
 							cw.Close()
+							for i := range cws.Windows {
+								if cws.Windows[i] == cw {
+									cws.Windows = slices.Delete(cws.Windows, i, i + 1)
+									break
+								}
+							}
 							if len(open_configs) == 0 {
 								cws.Hide()
 							}
