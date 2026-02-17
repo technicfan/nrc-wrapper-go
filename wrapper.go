@@ -44,7 +44,7 @@ func main() {
 		}
 		mods, assets, loaders := pack.get_details(versions.Packs)
 
-		if len(loaders) > 0 {
+		if !GUI && len(loaders) > 0 {
 			if version, exists := loaders[config.Minecraft.Loader]; exists {
 				if config.Minecraft.LoaderVersion < version {
 					notify(

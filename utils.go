@@ -85,14 +85,15 @@ func notify(
 	if error {
 		if notify {
 			err := beeep.Notify("Error", msg, "")
+			log.Println(1)
 			if err != nil {
 				log.Fatalf("Notify failed: %s", err.Error())
 			}
 		}
-		if !GUI {
-			log.Fatal(msg)
-		} else {
+		if GUI {
 			log.Println(msg)
+		} else {
+			log.Fatal(msg)
 		}
 	} else {
 		if notify {

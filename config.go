@@ -56,8 +56,9 @@ func get_config() Config {
 	case "false", "False", "0":
 		config.Notify = false
 	default:
-		config.Notify = config.Launcher == "modrinth" || GUI
+		config.Notify = config.Launcher == "modrinth"
 	}
+	config.Notify = (config.Notify || GUI) && (!GUI || !WINDOWS)
 
 	if data_home == "" {
 		if os.Getenv("container") == "flatpak" {
