@@ -244,6 +244,7 @@ func gui() {
 				buttons.Add(widget.NewLabel(""))
 				line.Add(buttons)
 				list.Add(line)
+				list.Add(widget.NewSeparator())
 			}
 			lstack.Add(container.NewVScroll(list))
 			lstack.Add(cws)
