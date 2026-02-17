@@ -199,6 +199,14 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 	return mods, nil
 }
 
+func (nrc_mods NoriskMods) get_names(mods *map[string]map[string]string) {
+	for i := range nrc_mods {
+		if _, e := (*mods)[nrc_mods[i].Id]; e {
+			(*mods)[nrc_mods[i].Id]["name"] = nrc_mods[i].Name
+		}
+	}
+}
+
 // ModEntry/ModEntries
 
 type ModEntry struct {

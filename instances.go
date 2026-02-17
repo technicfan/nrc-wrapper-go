@@ -262,7 +262,7 @@ func get_prism_instances(
 		if dir.IsDir() {
 			var vars map[string]string
 			var notify, neofd bool
-			var wrapper, mod_path string
+			var wrapper string
 
 			instance_path := filepath.Join(path, dir.Name())
 			instance, err := get_prism_instance(instance_path)
@@ -292,6 +292,7 @@ func get_prism_instances(
 			}
 
 			pack := DEFAULT_PACK
+			mod_path := DEFAULT_MOD_DIR
 			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
 			if v, e := vars["NRC_PACK"]; e {
 				pack = v
@@ -348,10 +349,10 @@ func get_modrinth_instances(
 		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper_ptr, &env)
 		if err == nil && slices.Contains(versions, version) && slices.Contains(loaders, loader) {
 			var neofd bool
-			var mod_path string
 			var data [][]string
 
 			pack := DEFAULT_PACK
+			mod_path := DEFAULT_MOD_DIR
 			notify := true
 			if wrapper_ptr != nil {
 				wrapper = *wrapper_ptr

@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -14,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -63,6 +67,7 @@ func gui() {
 
 		for _, l := range order {
 			var open_configs []*Instance
+
 			lstack := container.NewStack()
 			cws := container.NewMultipleWindows()
 			list := container.NewVBox()
@@ -75,8 +80,7 @@ func gui() {
 				)))
 				line.Add(layout.NewSpacer())
 
-				buttons := container.NewHBox()
-				buttons.Add(widget.NewButton("Options", func() {
+				line.Add(widget.NewButton("Options", func() {
 					if !slices.Contains(open_configs, instance) {
 						cw := container.NewInnerWindow(instance.Name, nil)
 
@@ -221,7 +225,6 @@ func gui() {
 						)
 						cw.SetContent(content)
 
-						open_configs = append(open_configs, instance)
 						cw.CloseIntercept = func() {
 							index := slices.Index(open_configs, instance)
 							open_configs = slices.Delete(open_configs, index, index+1)
@@ -238,11 +241,122 @@ func gui() {
 							),
 						)
 						cws.Show()
+
+						open_configs = append(open_configs, instance)
 						cws.Add(cw)
 					}
 				}))
-				buttons.Add(widget.NewLabel(""))
-				line.Add(buttons)
+				line.Add(widget.NewButton("NRC Mods", func() {
+					var path string
+					if instance.Launcher == "modrinth" {
+						path = instance.Path
+					} else {
+						path = filepath.Join(instance.Path, "minecraft")
+						_, err := os.Stat(path)
+						if err != nil && errors.Is(err, fs.ErrNotExist) {
+							path = filepath.Join(instance.Path, ".minecraft")
+						}
+					}
+
+					mods, err := get_installed_mods(path, instance.Config.ModDir)
+					path = filepath.Join(path, instance.Config.ModDir)
+					var mods_to_toggle []string
+
+					var mod_list *fyne.Container
+					if err == nil && len(mods) != 0 {
+						mod_list = container.NewVBox()
+						mod_list.Add(container.NewHBox(widget.NewLabel("")))
+						if pack, e := v.Packs[instance.Config.NrcPack]; e {
+							pack.Mods.get_names(&mods)
+						}
+						for id := range mods {
+							line := container.NewGridWithColumns(5)
+							line.Add(layout.NewSpacer())
+							var name string
+							if n, e := mods[id]["name"]; e {
+								name = n
+							} else {
+								name = id
+							}
+							line.Add(widget.NewLabel(name))
+							line.Add(layout.NewSpacer())
+							toggle := widget.NewButton("", func() {})
+							if strings.HasSuffix(mods[id]["filename"], ".jar") {
+								toggle.SetText("Disable")
+								toggle.SetIcon(theme.CancelIcon())
+							} else {
+								toggle.SetText("Enable")
+								toggle.SetIcon(theme.ContentAddIcon())
+							}
+							toggle.OnTapped = func() {
+								if !slices.Contains(mods_to_toggle, id) {
+									mods_to_toggle = append(mods_to_toggle, id)
+								}
+								if toggle.Text == "Disable" {
+									toggle.SetText("Enable")
+									toggle.SetIcon(theme.ContentAddIcon())
+								} else {
+									toggle.SetText("Disable")
+									toggle.SetIcon(theme.CancelIcon())
+								}
+							}
+							line.Add(toggle)
+							line.Add(layout.NewSpacer())
+							mod_list.Add(line)
+						}
+					} else {
+						mod_list = container.NewCenter(widget.NewLabel("No Noriskclient mods found"))
+						if err != nil {
+							log.Printf(
+								"Getting installed mods for %s failed: %s",
+								instance.Name, err.Error(),
+							)
+						}
+					}
+
+					content := container.NewStack()
+					content.Add(container.NewVScroll(mod_list))
+
+					close_view := func () {
+						lstack.Remove(content)
+						lstack.Objects[0].Show()
+						if len(lstack.Objects[1].(*container.MultipleWindows).Windows) != 0 {
+							lstack.Objects[1].Show()
+						}
+					}
+
+					content.Add(container.NewVBox(container.NewGridWithColumns(2,
+						widget.NewButton("Back", close_view),
+						widget.NewButton("Save", func() {
+							for _, id := range mods_to_toggle {
+								var new_name string
+								if strings.HasSuffix(mods[id]["filename"], ".jar") {
+									new_name = mods[id]["filename"] + ".disabled"
+								} else {
+									new_name = regexp.MustCompile(".disabled$").ReplaceAllString(
+										mods[id]["filename"], "",
+									)
+								}
+								err := os.Rename(
+									filepath.Join(path, mods[id]["filename"]),
+									filepath.Join(path, new_name),
+								)
+								if err != nil {
+									log.Printf(
+										"Failed to toggle %s: %s",
+										mods[id]["filename"], err.Error(),
+									)
+								}
+							}
+							close_view()
+						}),
+					)))
+					for i := range lstack.Objects {
+						lstack.Objects[i].Hide()
+					}
+					lstack.Add(content)
+				}))
+				line.Add(widget.NewLabel(""))
 				list.Add(line)
 				list.Add(widget.NewSeparator())
 			}

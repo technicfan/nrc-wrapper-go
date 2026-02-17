@@ -15,8 +15,8 @@ import (
 
 type Index []map[string]string
 
-func read_index() Index {
-	file, err := os.Open(".nrc-index.json")
+func read_index(path string) Index {
+	file, err := os.Open(path)
 	if err != nil {
 		return nil
 	}
@@ -112,19 +112,20 @@ func download_jar_async(
 }
 
 func get_installed_mods(
-	path string,
+	root string,
+	mod_dir string,
 ) (map[string]map[string]string, error) {
-	files, err := os.ReadDir(path)
+	files, err := os.ReadDir(filepath.Join(root, mod_dir))
 	if err != nil {
 		return nil, err
 	}
-	index := read_index()
+	index := read_index(filepath.Join(root, ".nrc-index.json"))
 
 	hashes := make(map[string]map[string]string)
 	for _, f := range files {
 		if !f.IsDir() &&
 			(filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
-			hash, err := calc_hash(filepath.Join(path, f.Name()))
+			hash, err := calc_hash(filepath.Join(root, mod_dir, f.Name()))
 			if err == nil {
 				info := make(map[string]string)
 				info["filename"] = f.Name()
@@ -191,7 +192,7 @@ func download_mods_async(
 			mods = append(mods, mod)
 		}
 	}
-	installed_mods, err := get_installed_mods(config.ModDir)
+	installed_mods, err := get_installed_mods("./", config.ModDir)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
 	}
