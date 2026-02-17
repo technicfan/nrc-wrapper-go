@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -20,7 +21,7 @@ import (
 )
 
 var MAIN_PACKS []string
-var GUI bool
+var REFRESH bool
 
 func gui() {
 	MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter"}
@@ -90,19 +91,28 @@ func gui() {
 				main_button.OnTapped = func() {
 					lstack.Add(loading_bar)
 					fyne.Do(func() {
-						err := os.Chdir(instance.McRoot)
-						if err != nil {
-							notify(fmt.Sprintf("Failed: %s", err.Error()), false, true)
-						}
+						var env []string
 						if instance.FlatpakId != "" {
-							os.Setenv("FLATPAK_ID", instance.FlatpakId)
+							env = append(env, "FLATPAK_ID=" + instance.FlatpakId)
 						}
 						for k, v := range instance.Env {
-							os.Setenv(k, v)
+							env = append(env, k + "=" + v)
 						}
-						main()
-						main_button.SetText("Refresh NRC")
-						notify("Finished!", false, true)
+						cmd := exec.Command(ex, "--refresh")
+						cmd.Dir = instance.McRoot
+						cmd.Env = env
+						out, err := cmd.Output()
+						log.Print(string(out))
+						log.Println()
+						if err != nil {
+							notify(
+								fmt.Sprintf("%s failed: %s", main_button.Text, err.Error()),
+								false, true,
+							)
+						} else {
+							main_button.SetText("Refresh NRC")
+							notify("Finished!", false, true)
+						}
 						lstack.Remove(loading_bar)
 					})
 				}

@@ -90,7 +90,7 @@ func notify(
 				log.Fatalf("Notify failed: %s", err.Error())
 			}
 		}
-		if GUI {
+		if REFRESH {
 			log.Println(msg)
 		} else {
 			log.Fatal(msg)

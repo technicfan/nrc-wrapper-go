@@ -58,7 +58,7 @@ func get_config() Config {
 	default:
 		config.Notify = config.Launcher == "modrinth"
 	}
-	config.Notify = (config.Notify || GUI) && (!GUI || !WINDOWS)
+	config.Notify = config.Notify || REFRESH
 
 	if data_home == "" {
 		if os.Getenv("container") == "flatpak" {

@@ -13,8 +13,9 @@ func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--packs" {
 		launch = false
 		cli()
-	} else if len(os.Args) < 3 && !GUI {
-		GUI = true
+	} else if len(os.Args) == 2 && os.Args[1] == "--refresh" {
+		REFRESH = true
+	} else if len(os.Args) < 3 {
 		gui()
 		os.Exit(0)
 	}
@@ -44,7 +45,7 @@ func main() {
 		}
 		mods, assets, loaders := pack.get_details(versions.Packs)
 
-		if !GUI && len(loaders) > 0 {
+		if !REFRESH && len(loaders) > 0 {
 			if version, exists := loaders[config.Minecraft.Loader]; exists {
 				if config.Minecraft.LoaderVersion < version {
 					notify(
@@ -94,7 +95,7 @@ func main() {
 		notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, config.Notify)
 	}
 
-	if !GUI {
+	if !REFRESH {
 		command := os.Args[1]
 		args := append(
 			[]string{
