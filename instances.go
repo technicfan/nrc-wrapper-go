@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -75,9 +74,15 @@ func (instance *Instance) save(ex string) error {
 					instance.Config.Command += " " + ex
 				}
 				if instance.FlatpakId != "" {
-					cmd := exec.Command("flatpak", "override", "--user", "--show", instance.FlatpakId)
-					if o, err := cmd.Output(); err == nil && !strings.Contains(string(o), instance.Config.Command) {
-						cmd = exec.Command("flatpak", "override", "--user", fmt.Sprintf("--filesystem=%s", ex), instance.FlatpakId)
+					cmd := exec.Command(
+						"flatpak", "override", "--user", "--show", instance.FlatpakId,
+					)
+					if o, err := cmd.Output(); err == nil &&
+						!strings.Contains(string(o), instance.Config.Command) {
+						cmd = exec.Command(
+							"flatpak", "override", "--user",
+							fmt.Sprintf("--filesystem=%s", ex), instance.FlatpakId,
+						)
 						cmd.Run()
 					}
 				}
@@ -89,7 +94,9 @@ func (instance *Instance) save(ex string) error {
 					if !strings.Contains(instance.Config.Command, ex) {
 						cmd = filepath.Base(ex)
 					}
-					instance.Config.Command = strings.TrimSpace(strings.ReplaceAll(instance.Config.Command, cmd, ""))
+					instance.Config.Command = strings.TrimSpace(
+						strings.ReplaceAll(instance.Config.Command, cmd, ""),
+					)
 				}
 				delete(instance.Env, "NRC_PACK")
 				instance.Config.NrcPack = ""
@@ -106,7 +113,7 @@ func (instance *Instance) save(ex string) error {
 			if instance.Config.NrcPack != instance.NewConfig.NrcPack {
 				instance.Config.NrcPack = instance.NewConfig.NrcPack
 				if instance.Config.NrcPack == "" || instance.Config.NrcPack == DEFAULT_PACK {
-				    delete(instance.Env, "NRC_PACK")
+					delete(instance.Env, "NRC_PACK")
 				} else {
 					instance.Env["NRC_PACK"] = instance.Config.NrcPack
 				}
@@ -195,7 +202,9 @@ func save_modrinth_instance(
 	if err != nil {
 		return err
 	}
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/app.db", filepath.Dir(filepath.Dir(instance.Path))))
+	db, err := sql.Open(
+		"sqlite3", fmt.Sprintf("%s/app.db", filepath.Dir(filepath.Dir(instance.Path))),
+	)
 	if err != nil {
 		return err
 	}
@@ -223,12 +232,13 @@ func get_prism_instance_dir(
 
 func get_instances(
 	path string,
+	launcher string,
 	flatpak string,
 	versions []string,
 	loaders []string,
 	ex string,
 ) ([]Instance, error) {
-	if strings.Contains(path, "ModrinthApp") {
+	if strings.Contains(launcher, "Modrinth App") {
 		return get_modrinth_instances(path, flatpak, versions, loaders, ex)
 	} else {
 		return get_prism_instances(path, flatpak, versions, loaders, ex)
@@ -250,6 +260,10 @@ func get_prism_instances(
 	}
 	for _, dir := range files {
 		if dir.IsDir() {
+			var vars map[string]string
+			var notify, neofd bool
+			var wrapper, mod_path string
+
 			instance_path := filepath.Join(path, dir.Name())
 			instance, err := get_prism_instance(instance_path)
 			if err != nil {
@@ -263,10 +277,11 @@ func get_prism_instances(
 			if err != nil {
 				continue
 			}
-			wrapper := config["General"]["WrapperCommand"]
+			if config["General"]["OverrideCommands"] == "true" {
+				wrapper = config["General"]["WrapperCommand"]
+			}
 			name := config["General"]["name"]
 			env := strings.Trim(strings.ReplaceAll(config["General"]["Env"], `\"`, `"`), `"`)
-			var vars map[string]string
 			if config["General"]["OverrideEnv"] == "true" {
 				err = json.Unmarshal([]byte(env), &vars)
 				if err != nil {
@@ -275,8 +290,7 @@ func get_prism_instances(
 			} else {
 				vars = make(map[string]string)
 			}
-			var notify, neofd bool
-			var mod_path string
+
 			pack := DEFAULT_PACK
 			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
 			if v, e := vars["NRC_PACK"]; e {
@@ -330,17 +344,19 @@ func get_modrinth_instances(
 		var env []byte
 		var name, version, loader, loader_version, instance_path, wrapper string
 		var wrapper_ptr *string
+
 		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper_ptr, &env)
 		if err == nil && slices.Contains(versions, version) && slices.Contains(loaders, loader) {
 			var neofd bool
 			var mod_path string
+			var data [][]string
+
 			pack := DEFAULT_PACK
 			notify := true
 			if wrapper_ptr != nil {
 				wrapper = *wrapper_ptr
 			}
 			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
-			var data [][]string
 			err := json.Unmarshal(env, &data)
 			if err != nil {
 				return nil, err
@@ -365,7 +381,8 @@ func get_modrinth_instances(
 			}
 			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, neofd}
 			instances = append(instances, Instance{
-				name, version, loader, loader_version, filepath.Join(path, "profiles", instance_path), "modrinth", nil, vars,
+				name, version, loader, loader_version,
+				filepath.Join(path, "profiles", instance_path), "modrinth", nil, vars,
 				flatpak, nrc_config, nrc_config,
 			})
 		}
@@ -408,72 +425,4 @@ func parse_cfg(
 	}
 
 	return config, nil
-}
-
-type MetaPack struct {
-	Name     string
-	Desc     string
-	Versions []string
-	Loaders  map[string]string
-}
-
-type MetaPacks struct {
-	Packs    map[string]MetaPack
-	Versions []string
-	Loaders  []string
-	Names    []string
-}
-
-func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]string, []string) {
-	var index int
-	var unique_pack_names []string
-	pack_ids := MAIN_PACKS
-	for _, i := range MAIN_PACKS {
-		if _, e := packs.Packs[i].Loaders[loader]; e && slices.Contains(packs.Packs[i].Versions, version) {
-			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[i].Name, index))
-			index++
-		}
-	}
-	for i := range packs.Packs {
-		if _, e := packs.Packs[i].Loaders[loader]; e && slices.Contains(packs.Packs[i].Versions, version) && !slices.Contains(MAIN_PACKS, i) {
-			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[i].Name, index))
-			pack_ids = append(pack_ids, i)
-			index++
-		}
-	}
-	return unique_pack_names, pack_ids
-}
-
-func make_unique(str string, index int) string {
-	var builder strings.Builder
-	builder.WriteString(str)
-	for range index {
-		builder.WriteRune('\u200d')
-	}
-	return builder.String()
-}
-
-func get_launcher_dirs() (map[string][]string, []string) {
-	dirs, order := get_const_dirs()
-	for i, l := range order {
-		if l == "" {
-			continue
-		}
-		_, err := os.Stat(dirs[l][0])
-		if err != nil && errors.Is(err, fs.ErrNotExist) {
-			order = slices.Delete(order, i, i+1)
-		} else if err == nil && strings.HasPrefix(l, "Prism") {
-			dir, err := get_prism_instance_dir(dirs[l][0])
-			if dirs["Prism Launcher"][0] == dir {
-				i := slices.Index(order, "Prism Launcher")
-				order = slices.Delete(order, i, i+1)
-			}
-			if err != nil {
-				order = slices.Delete(order, i, i+1)
-			}
-			dirs[l][0] = dir
-		}
-	}
-
-	return dirs, order
 }
