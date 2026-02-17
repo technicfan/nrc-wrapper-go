@@ -34,7 +34,12 @@ func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]s
 			pack_ids = slices.Delete(pack_ids, i, i+1)
 		}
 	}
-	for i := range packs.Packs {
+	var ordered []string
+	for pack := range packs.Packs {
+		ordered = append(ordered, pack)
+	}
+	slices.Sort(ordered)
+	for _, i := range ordered {
 		if _, e := packs.Packs[i].Loaders[loader]; e &&
 			slices.Contains(packs.Packs[i].Versions, version) && !slices.Contains(MAIN_PACKS, i) {
 			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[i].Name, index))

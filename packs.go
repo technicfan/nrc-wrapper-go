@@ -68,12 +68,12 @@ func (packs Packs) to_meta_packs() MetaPacks {
 		pack_names = append(pack_names, i)
 		for _, mod := range pack.Mods {
 			for version := range mod.Compatibility {
-				if !slices.Contains(mc_versions, version) && cmp_mc_versions("1.21", version) < 1 {
+				if !slices.Contains(mc_versions, version) && cmp_versions("1.21", version) < 1 {
 					mc_versions = append(mc_versions, version)
 				}
 			}
 		}
-		slices.SortFunc(mc_versions, cmp_mc_versions)
+		slices.SortFunc(mc_versions, cmp_versions)
 		_, _, loaders := pack.get_details(packs)
 		for l := range loaders {
 			if !slices.Contains(global_loaders, l) {
@@ -100,7 +100,7 @@ func (packs Packs) print_packs() {
 		mods, _, loaders := pack.get_details(packs)
 		for _, mod := range pack.Mods {
 			for version := range mod.Compatibility {
-				if !slices.Contains(mc_versions, version) && cmp_mc_versions("1.21", version) < 1 {
+				if !slices.Contains(mc_versions, version) && cmp_versions("1.21", version) < 1 {
 					mc_versions = append(mc_versions, version)
 				}
 			}
@@ -108,7 +108,7 @@ func (packs Packs) print_packs() {
 		for _, mod := range append(pack.Mods, mods...) {
 			count := false
 			for version := range mod.Compatibility {
-				if cmp_mc_versions("1.21", version) < 1 {
+				if cmp_versions("1.21", version) < 1 {
 					count = true
 				}
 			}
@@ -116,7 +116,7 @@ func (packs Packs) print_packs() {
 				mod_count++
 			}
 		}
-		slices.SortFunc(mc_versions, cmp_mc_versions)
+		slices.SortFunc(mc_versions, cmp_versions)
 		var loaders_string string
 		var loaders_list []string
 		for loader, version := range loaders {

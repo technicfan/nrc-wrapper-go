@@ -421,7 +421,7 @@ func parse_cfg(
 		}
 	}
 
-	if v, e := config["General"]["ConfigVersion"]; !e || cmp_mc_versions(v, "1.3") < 0 {
+	if v, e := config["General"]["ConfigVersion"]; !e || cmp_versions(v, "1.3") < 0 {
 		return nil, fmt.Errorf("%s is too old. Only config version >= 1.3 compatible", v)
 	}
 

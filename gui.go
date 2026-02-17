@@ -59,6 +59,9 @@ func gui() {
 			if err != nil {
 				order = slices.Delete(order, i, i+1)
 			} else {
+				slices.SortFunc(inst, func(a Instance, b Instance) int {
+					return strings.Compare(a.Name, b.Name)
+				})
 				instances[l] = inst
 			}
 		}
@@ -76,7 +79,10 @@ func gui() {
 
 				line := container.NewHBox()
 				line.Add(widget.NewLabel(fmt.Sprintf(
-					"%s - %s %s", instance.Name, instance.Loader, instance.Version,
+					"%s - %s %s",
+					instance.Name,
+					strings.ToUpper(instance.Loader[:1]) + instance.Loader[1:],
+					instance.Version,
 				)))
 				line.Add(layout.NewSpacer())
 
@@ -119,7 +125,7 @@ func gui() {
 						loader_warn_update := func() {
 							selected := pack_select.SelectedIndex()
 							if selected != -1 {
-								if p, e := packs.Packs[reference[selected]]; e && cmp_mc_versions(
+								if p, e := packs.Packs[reference[selected]]; e && cmp_versions(
 									instance.LoaderVersion, p.Loaders[instance.Loader],
 								) == -1 {
 									warn_label.SetText(fmt.Sprintf(
@@ -265,13 +271,16 @@ func gui() {
 					var mod_list *fyne.Container
 					if err == nil && len(mods) != 0 {
 						mod_list = container.NewVBox()
-						mod_list.Add(container.NewHBox(widget.NewLabel("")))
 						if pack, e := v.Packs[instance.Config.NrcPack]; e {
 							pack.Mods.get_names(&mods)
 						}
+						var ordered []string
 						for id := range mods {
-							line := container.NewGridWithColumns(5)
-							line.Add(layout.NewSpacer())
+							ordered = append(ordered, id)
+						}
+						slices.Sort(ordered)
+						for _, id := range ordered {
+							line := container.NewGridWithColumns(2)
 							var name string
 							if n, e := mods[id]["name"]; e {
 								name = n
@@ -279,15 +288,17 @@ func gui() {
 								name = id
 							}
 							line.Add(widget.NewLabel(name))
-							line.Add(layout.NewSpacer())
 							toggle := widget.NewButton("", func() {})
 							if strings.HasSuffix(mods[id]["filename"], ".jar") {
 								toggle.SetText("Disable")
 								toggle.SetIcon(theme.CancelIcon())
+								toggle.Importance = widget.DangerImportance
 							} else {
 								toggle.SetText("Enable")
 								toggle.SetIcon(theme.ContentAddIcon())
+								toggle.Importance = widget.HighImportance
 							}
+							toggle.Refresh()
 							toggle.OnTapped = func() {
 								if !slices.Contains(mods_to_toggle, id) {
 									mods_to_toggle = append(mods_to_toggle, id)
@@ -295,14 +306,17 @@ func gui() {
 								if toggle.Text == "Disable" {
 									toggle.SetText("Enable")
 									toggle.SetIcon(theme.ContentAddIcon())
+									toggle.Importance = widget.HighImportance
 								} else {
 									toggle.SetText("Disable")
 									toggle.SetIcon(theme.CancelIcon())
+									toggle.Importance = widget.DangerImportance
 								}
+								toggle.Refresh()
 							}
-							line.Add(toggle)
-							line.Add(layout.NewSpacer())
+							line.Add(container.NewGridWithColumns(2, layout.NewSpacer(), toggle))
 							mod_list.Add(line)
+							mod_list.Add(widget.NewSeparator())
 						}
 					} else {
 						mod_list = container.NewCenter(widget.NewLabel("No Noriskclient mods found"))
@@ -315,7 +329,13 @@ func gui() {
 					}
 
 					content := container.NewStack()
-					content.Add(container.NewVScroll(mod_list))
+					content.Add(container.New(
+						layout.NewCustomPaddedLayout(40, 0, 0, 0),
+						container.NewVScroll(container.New(
+							layout.NewCustomPaddedLayout(0, 0, 100, 100),
+							mod_list,
+						)),
+					))
 
 					close_view := func () {
 						lstack.Remove(content)
@@ -360,7 +380,9 @@ func gui() {
 				list.Add(line)
 				list.Add(widget.NewSeparator())
 			}
-			lstack.Add(container.NewVScroll(list))
+			lstack.Add(container.NewVScroll(
+				container.New(layout.NewCustomPaddedLayout(2.5, 2.5, 25, 25), list),
+			))
 			lstack.Add(cws)
 			cws.Hide()
 			tabs.Append(container.NewTabItem(l, lstack))
@@ -374,12 +396,14 @@ func gui() {
 			tabs.Append(container.NewTabItem("Nothing found", container.NewCenter(label)))
 		}
 
-		packs_main_first := MAIN_PACKS
+		var packs_main_first []string
 		for id := range packs.Packs {
 			if !slices.Contains(packs_main_first, id) {
 				packs_main_first = append(packs_main_first, id)
 			}
 		}
+		slices.Sort(packs_main_first)
+		packs_main_first = append(MAIN_PACKS, packs_main_first...)
 
 		var packs_string_builder strings.Builder
 		for _, id := range packs_main_first {

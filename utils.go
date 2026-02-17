@@ -36,7 +36,7 @@ func calc_hash(
 	return hex.EncodeToString(bytesHash[:]), nil
 }
 
-func cmp_mc_versions(
+func cmp_versions(
 	a string,
 	b string,
 ) int {
