@@ -7,8 +7,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-
-	// _ "github.com/mattn/go-sqlite3"
 )
 
 type Config struct {
@@ -58,7 +56,7 @@ func get_config() Config {
 	case "false", "False", "0":
 		config.Notify = false
 	default:
-		config.Notify = config.Launcher == "modrinth"
+		config.Notify = config.Launcher == "modrinth" || GUI
 	}
 
 	if data_home == "" {

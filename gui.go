@@ -1,9 +1,7 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,6 +20,7 @@ import (
 )
 
 var MAIN_PACKS []string
+var GUI bool
 
 func gui() {
 	MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter"}
@@ -74,6 +73,7 @@ func gui() {
 			lstack := container.NewStack()
 			cws := container.NewMultipleWindows()
 			list := container.NewVBox()
+			loading_bar := widget.NewProgressBarInfinite()
 			for i := range instances[l] {
 				instance := &instances[l][i]
 
@@ -85,6 +85,32 @@ func gui() {
 					instance.Version,
 				)))
 				line.Add(layout.NewSpacer())
+
+				main_button := widget.NewButton("Refresh NRC", func() {})
+				main_button.OnTapped = func() {
+					lstack.Add(loading_bar)
+					fyne.Do(func() {
+						err := os.Chdir(instance.McRoot)
+						if err != nil {
+							notify(fmt.Sprintf("Failed: %s", err.Error()), false, true)
+						}
+						if instance.FlatpakId != "" {
+							os.Setenv("FLATPAK_ID", instance.FlatpakId)
+						}
+						for k, v := range instance.Env {
+							os.Setenv(k, v)
+						}
+						main()
+						main_button.SetText("Refresh NRC")
+						notify("Finished!", false, true)
+						lstack.Remove(loading_bar)
+					})
+				}
+				if !instance.Config.Nrc {
+					main_button.Hide()
+					main_button.SetText("Download NRC")
+				}
+				line.Add(main_button)
 
 				line.Add(widget.NewButton("Options", func() {
 					if !slices.Contains(open_configs, instance) {
@@ -201,15 +227,28 @@ func gui() {
 							} else {
 								warn_label.SetText("Your settings have been saved successfully")
 								warn_label.Show()
-								save_button.Hide()
-								placeholder.Show()
-								fyne.Do(func() {
-									time.Sleep(time.Millisecond * 650)
-									cw.CloseIntercept()
-									placeholder.Hide()
-									save_button.Show()
-								})
 							}
+							save_button.Hide()
+							placeholder.Show()
+							fyne.Do(func() {
+								time.Sleep(time.Millisecond * 650)
+								if err == nil {
+									cw.CloseIntercept()
+									if instance.Config.Nrc {
+										if main_button.Hidden {
+											main_button.Show()
+										}
+									} else {
+										if !main_button.Hidden {
+											main_button.Hide()
+										}
+									}
+									return
+								}
+								warn_label.Hide()
+								placeholder.Hide()
+								save_button.Show()
+							})
 						}
 
 						content := container.New(
@@ -253,19 +292,8 @@ func gui() {
 					}
 				}))
 				line.Add(widget.NewButton("NRC Mods", func() {
-					var path string
-					if instance.Launcher == "modrinth" {
-						path = instance.Path
-					} else {
-						path = filepath.Join(instance.Path, "minecraft")
-						_, err := os.Stat(path)
-						if err != nil && errors.Is(err, fs.ErrNotExist) {
-							path = filepath.Join(instance.Path, ".minecraft")
-						}
-					}
-
-					mods, err := get_installed_mods(path, instance.Config.ModDir)
-					path = filepath.Join(path, instance.Config.ModDir)
+					mods, err := get_installed_mods(instance.McRoot, instance.Config.ModDir)
+					path := filepath.Join(instance.McRoot, instance.Config.ModDir)
 					var mods_to_toggle []string
 
 					var mod_list *fyne.Container

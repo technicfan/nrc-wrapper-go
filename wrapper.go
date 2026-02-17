@@ -13,7 +13,8 @@ func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--packs" {
 		launch = false
 		cli()
-	} else if len(os.Args) < 3 {
+	} else if len(os.Args) < 3 && !GUI {
+		GUI = true
 		gui()
 		os.Exit(0)
 	}
@@ -93,17 +94,19 @@ func main() {
 		notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, config.Notify)
 	}
 
-	command := os.Args[1]
-	args := append(
-		[]string{
-			command, fmt.Sprintf("-Dnorisk.token=%s", token),
-			fmt.Sprintf("-Dnorisk.profile.name=%s", config.Minecraft.Profile),
-			fmt.Sprintf("-Dfabric.addMods=%s", config.ModDir),
-		}, os.Args[2:]...,
-	)
+	if !GUI {
+		command := os.Args[1]
+		args := append(
+			[]string{
+				command, fmt.Sprintf("-Dnorisk.token=%s", token),
+				fmt.Sprintf("-Dnorisk.profile.name=%s", config.Minecraft.Profile),
+				fmt.Sprintf("-Dfabric.addMods=%s", config.ModDir),
+			}, os.Args[2:]...,
+		)
 
-	err = Exec(command, args)
-	if err != nil {
-		notify(fmt.Sprintf("Command failed with: %s", err.Error()), true, config.Notify)
+		err = Exec(command, args)
+		if err != nil {
+			notify(fmt.Sprintf("Command failed with: %s", err.Error()), true, config.Notify)
+		}
 	}
 }

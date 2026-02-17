@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +32,7 @@ type Instance struct {
 	Loader        string
 	LoaderVersion string
 	Path          string
+	McRoot        string
 	Launcher      string
 	Cfg           Cfg
 	Env           map[string]string
@@ -309,9 +311,14 @@ func get_prism_instances(
 				neofd = true
 			}
 			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, neofd}
+			mc_root := filepath.Join(instance_path, "minecraft")
+			_, err = os.Stat(mc_root)
+			if err != nil && errors.Is(err, fs.ErrNotExist) {
+				mc_root = filepath.Join(instance_path, ".minecraft")
+			}
 			instances = append(instances, Instance{
-				name, version, loader, loader_version, instance_path, "prism", config, vars,
-				flatpak, nrc_config, nrc_config,
+				name, version, loader, loader_version, instance_path, mc_root,
+				"prism", config, vars, flatpak, nrc_config, nrc_config,
 			})
 		}
 	}
@@ -381,10 +388,10 @@ func get_modrinth_instances(
 				neofd = true
 			}
 			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, neofd}
+			path := filepath.Join(path, "profiles", instance_path)
 			instances = append(instances, Instance{
-				name, version, loader, loader_version,
-				filepath.Join(path, "profiles", instance_path), "modrinth", nil, vars,
-				flatpak, nrc_config, nrc_config,
+				name, version, loader, loader_version, path, path,
+				"modrinth", nil, vars, flatpak, nrc_config, nrc_config,
 			})
 		}
 	}
