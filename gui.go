@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -317,12 +318,7 @@ func gui() {
 						if pack, e := v.Packs[instance.Config.NrcPack]; e {
 							pack.Mods.get_names(&mods)
 						}
-						var ordered []string
-						for id := range mods {
-							ordered = append(ordered, id)
-						}
-						slices.Sort(ordered)
-						for _, id := range ordered {
+						for _, id := range slices.Sorted(maps.Keys(mods)) {
 							line := container.NewGridWithColumns(2)
 							var name string
 							if n, e := mods[id]["name"]; e {

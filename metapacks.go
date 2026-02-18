@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"io/fs"
+	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -23,28 +24,26 @@ type MetaPacks struct {
 }
 
 func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]string, []string) {
-	var index int
 	var unique_pack_names []string
 	pack_ids := MAIN_PACKS
 	for i, p := range MAIN_PACKS {
 		if _, e := packs.Packs[p].Loaders[loader]; e && slices.Contains(packs.Packs[p].Versions, version) {
-			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[p].Name, index))
-			index++
+			unique_pack_names = append(
+				unique_pack_names,
+				make_unique(packs.Packs[p].Name, len(unique_pack_names)),
+			)
 		} else {
 			pack_ids = slices.Delete(pack_ids, i, i+1)
 		}
 	}
-	var ordered []string
-	for pack := range packs.Packs {
-		ordered = append(ordered, pack)
-	}
-	slices.Sort(ordered)
-	for _, i := range ordered {
+	for _, i := range slices.Sorted(maps.Keys(packs.Packs)) {
 		if _, e := packs.Packs[i].Loaders[loader]; e &&
 			slices.Contains(packs.Packs[i].Versions, version) && !slices.Contains(MAIN_PACKS, i) {
-			unique_pack_names = append(unique_pack_names, make_unique(packs.Packs[i].Name, index))
+			unique_pack_names = append(
+				unique_pack_names,
+				make_unique(packs.Packs[i].Name, len(unique_pack_names)),
+			)
 			pack_ids = append(pack_ids, i)
-			index++
 		}
 	}
 	return unique_pack_names, pack_ids

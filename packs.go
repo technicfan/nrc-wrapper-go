@@ -93,33 +93,11 @@ func (packs Packs) to_meta_packs() MetaPacks {
 
 func (packs Packs) print_packs() {
 	fmt.Println("Available NRC packs:")
-	for _, key := range slices.Sorted(maps.Keys(packs)) {
-		var mc_versions []string
-		var mod_count int
-		pack := packs[key]
-		mods, _, loaders := pack.get_details(packs)
-		for _, mod := range pack.Mods {
-			for version := range mod.Compatibility {
-				if !slices.Contains(mc_versions, version) && cmp_versions("1.21", version) < 1 {
-					mc_versions = append(mc_versions, version)
-				}
-			}
-		}
-		for _, mod := range append(pack.Mods, mods...) {
-			count := false
-			for version := range mod.Compatibility {
-				if cmp_versions("1.21", version) < 1 {
-					count = true
-				}
-			}
-			if count {
-				mod_count++
-			}
-		}
-		slices.SortFunc(mc_versions, cmp_versions)
+	meta := packs.to_meta_packs().Packs
+	for _, key := range slices.Sorted(maps.Keys(meta)) {
 		var loaders_string string
 		var loaders_list []string
-		for loader, version := range loaders {
+		for loader, version := range meta[key].Loaders {
 			loaders_list = append(
 				loaders_list, fmt.Sprintf("%s %s", loader, version),
 			)
@@ -129,12 +107,11 @@ func (packs Packs) print_packs() {
 		} else {
 			loaders_string = "unknown"
 		}
-		fmt.Printf("- %s\n", pack.Name)
+		fmt.Printf("- %s\n", meta[key].Name)
 		fmt.Printf("  NRC_PACK: %s\n", key)
-		fmt.Printf("  Description: %s\n", pack.Desc)
-		fmt.Printf("  Compatible versions: %s\n", strings.Join(mc_versions, ", "))
+		fmt.Printf("  Description: %s\n", meta[key].Desc)
+		fmt.Printf("  Compatible versions: %s\n", strings.Join(meta[key].Versions, ", "))
 		fmt.Printf("  Mod loaders: %s\n", loaders_string)
-		fmt.Printf("  Mods: %v\n", mod_count)
 	}
 }
 
