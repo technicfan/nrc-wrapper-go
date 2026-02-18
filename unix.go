@@ -13,7 +13,6 @@ import (
 
 const (
 	DATA_HOME = ".local/share"
-	WINDOWS = false
 )
 
 func cli() {}

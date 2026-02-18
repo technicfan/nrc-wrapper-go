@@ -15,7 +15,6 @@ import (
 
 const (
 	DATA_HOME = "AppData/Roaming"
-	WINDOWS = true
 )
 
 func cli() {
