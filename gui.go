@@ -21,12 +21,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var MAIN_PACKS []string
+var MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter", "norisk-development"}
 var REFRESH bool
 
 func gui() {
-	MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter"}
-
 	a := app.NewWithID("nrc-wrapper-go")
 	w := a.NewWindow("nrc-wrapper-go")
 	w.Resize(fyne.NewSize(800, 500))
@@ -66,6 +64,11 @@ func gui() {
 				instances[l] = inst
 			}
 		}
+		var unique_main []string
+		for i := range MAIN_PACKS {
+			name := packs.Packs[MAIN_PACKS[i]].Name
+			unique_main = append(unique_main, make_unique(name, i))
+		}
 
 		tabs := container.NewAppTabs()
 
@@ -102,9 +105,7 @@ func gui() {
 						cmd := exec.Command(ex, "--refresh")
 						cmd.Dir = instance.McRoot
 						cmd.Env = env
-						out, err := cmd.Output()
-						log.Print(string(out))
-						log.Println()
+						_, err := cmd.Output()
 						if err != nil {
 							notify(
 								fmt.Sprintf("%s failed: %s", main_button.Text, err.Error()),
@@ -137,11 +138,15 @@ func gui() {
 
 						all_packs_toggle := widget.NewCheck("Show all", func(b bool) {
 							if !b {
-								reference = MAIN_PACKS
-								pack_select.SetOptions([]string{
-									packs.Packs[reference[0]].Name,
-									make_unique(packs.Packs[reference[1]].Name, 1),
-								})
+								var new_reference, new_options []string
+								for i := range MAIN_PACKS {
+									if slices.Contains(reference, MAIN_PACKS[i]) {
+										new_reference = append(new_reference, MAIN_PACKS[i])
+										new_options = append(new_options, unique_main[i])
+									}
+								}
+								reference = new_reference
+								pack_select.SetOptions(new_options)
 							} else {
 								reference = temp_ref
 								pack_select.SetOptions(options)
@@ -219,8 +224,6 @@ func gui() {
 							cw.CloseIntercept()
 						})
 						save_button := widget.NewButton("Save", func() {})
-						placeholder := widget.NewButton("Save", func() {})
-						placeholder.Hide()
 						save_button.OnTapped = func() {
 							instance.NewConfig.Nrc = nrc_toggle.Checked
 							instance.NewConfig.Notify = notify_toggle.Checked
@@ -240,10 +243,8 @@ func gui() {
 								warn_label.SetText("Your settings have been saved successfully")
 								warn_label.Show()
 							}
-							save_button.Hide()
-							placeholder.Show()
 							fyne.Do(func() {
-								time.Sleep(time.Millisecond * 650)
+								time.Sleep(time.Millisecond * 350)
 								if err == nil {
 									cw.CloseIntercept()
 									if instance.Config.Nrc {
@@ -256,8 +257,6 @@ func gui() {
 										}
 									}
 								}
-								placeholder.Hide()
-								save_button.Show()
 							})
 						}
 
@@ -276,7 +275,7 @@ func gui() {
 								layout.NewSpacer(),
 								neofd_toggle,
 							),
-							container.New(layout.NewGridLayout(2), cancel_button, save_button, placeholder),
+							container.New(layout.NewGridLayout(2), cancel_button, save_button),
 						)
 						cw.SetContent(content)
 
@@ -437,7 +436,7 @@ func gui() {
 
 		var packs_main_first []string
 		for id := range packs.Packs {
-			if !slices.Contains(packs_main_first, id) {
+			if !slices.Contains(MAIN_PACKS, id) {
 				packs_main_first = append(packs_main_first, id)
 			}
 		}
