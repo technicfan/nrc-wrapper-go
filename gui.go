@@ -128,12 +128,17 @@ func gui() {
 					if !slices.Contains(open_configs, instance) {
 						cw := container.NewInnerWindow(instance.Name, nil)
 
-						options, reference := packs.get_compatible_packs(
+						options, reference, has_main_pack := packs.get_compatible_packs(
 							instance.Version, instance.Loader,
 						)
 						temp_ref := reference
 						pack_select := widget.NewSelect(options, func(s string) {})
 						selected := instance.Config.NrcPack
+						if !has_main_pack {
+							selected = options[0]
+							instance.Config.NrcPack = selected
+							instance.NewConfig.NrcPack = selected
+						}
 						show_all := !slices.Contains(MAIN_PACKS, selected)
 
 						all_packs_toggle := widget.NewCheck("Show all", func(b bool) {
@@ -154,6 +159,9 @@ func gui() {
 						})
 						all_packs_toggle.SetChecked(show_all)
 						all_packs_toggle.OnChanged(show_all)
+						if !has_main_pack {
+							all_packs_toggle.Disable()
+						}
 
 						if v, e := packs.Packs[instance.Config.NrcPack]; e {
 							selected = make_unique(
@@ -448,9 +456,13 @@ func gui() {
 			pack := packs.Packs[id]
 			var loaders []string
 			for l, v := range pack.Loaders {
+				var version string
+				if v != "0" {
+					version = fmt.Sprintf(" \u2265 %s", v)
+				}
 				loaders = append(
 					loaders,
-					fmt.Sprintf("%s%s \u2265 %s", strings.ToUpper(l[:1]), l[1:], v),
+					fmt.Sprintf("%s%s%s", strings.ToUpper(l[:1]), l[1:], version),
 				)
 			}
 			fmt.Fprintf(&packs_string_builder, `

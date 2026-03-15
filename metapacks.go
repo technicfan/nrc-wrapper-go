@@ -23,17 +23,17 @@ type MetaPacks struct {
 	Names    []string
 }
 
-func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]string, []string) {
-	var unique_pack_names []string
-	pack_ids := MAIN_PACKS
-	for i, p := range MAIN_PACKS {
+func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]string, []string, bool) {
+	has_main_pack := false
+	var pack_ids, unique_pack_names []string
+	for _, p := range MAIN_PACKS {
 		if _, e := packs.Packs[p].Loaders[loader]; e && slices.Contains(packs.Packs[p].Versions, version) {
+			has_main_pack = true
+			pack_ids = append(pack_ids, p)
 			unique_pack_names = append(
 				unique_pack_names,
 				make_unique(packs.Packs[p].Name, len(unique_pack_names)),
 			)
-		} else {
-			pack_ids = slices.Delete(pack_ids, i, i+1)
 		}
 	}
 	for _, i := range slices.Sorted(maps.Keys(packs.Packs)) {
@@ -46,7 +46,7 @@ func (packs *MetaPacks) get_compatible_packs(version string, loader string) ([]s
 			pack_ids = append(pack_ids, i)
 		}
 	}
-	return unique_pack_names, pack_ids
+	return unique_pack_names, pack_ids, has_main_pack
 }
 
 func make_unique(str string, index int) string {

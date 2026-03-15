@@ -34,13 +34,13 @@ type Pack struct {
 
 func (pack *Pack) get_details(
 	packs map[string]Pack,
-) (NoriskMods, []string, map[string]string) {
+) (NoriskMods, []string, []string, map[string]string) {
 	loaders := make(map[string]string)
 	for name, loader := range pack.Loader["default"] {
 		loaders[name] = loader.Version
 	}
 	var mods []NoriskMod
-	var assets []string
+	var assets, versions []string
 	for _, inherited_pack := range pack.Inherits {
 		mods = append(mods, packs[inherited_pack].Mods...)
 		for _, asset_pack := range packs[inherited_pack].Assets {
@@ -52,7 +52,20 @@ func (pack *Pack) get_details(
 	}
 	assets = append(assets, pack.Assets...)
 
-	return mods, assets, loaders
+	for _, mod := range pack.Mods {
+		for version := range mod.Compatibility {
+			if !slices.Contains(versions, version) {
+				versions = append(versions, version)
+			}
+			for loader := range mod.Compatibility[version] {
+				if _, e := loaders[loader]; !e {
+					loaders[loader] = "0"
+				}
+			}
+		}
+	}
+
+	return mods, assets, versions, loaders
 }
 
 type Packs map[string]Pack
@@ -66,15 +79,8 @@ func (packs Packs) to_meta_packs() MetaPacks {
 		var mc_versions []string
 		pack := packs[i]
 		pack_names = append(pack_names, i)
-		for _, mod := range pack.Mods {
-			for version := range mod.Compatibility {
-				if !slices.Contains(mc_versions, version) && cmp_versions("1.21", version) < 1 {
-					mc_versions = append(mc_versions, version)
-				}
-			}
-		}
+		_, _, mc_versions, loaders := pack.get_details(packs)
 		slices.SortFunc(mc_versions, cmp_versions)
-		_, _, loaders := pack.get_details(packs)
 		for l := range loaders {
 			if !slices.Contains(global_loaders, l) {
 				global_loaders = append(global_loaders, l)

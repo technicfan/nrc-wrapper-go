@@ -43,11 +43,11 @@ func main() {
 		if !exists {
 			notify(fmt.Sprintf("%s is not a valid NRC pack", config.NrcPack), true, config.Notify)
 		}
-		mods, assets, loaders := pack.get_details(versions.Packs)
+		mods, assets, _, loaders := pack.get_details(versions.Packs)
 
 		if !REFRESH && len(loaders) > 0 {
 			if version, exists := loaders[config.Minecraft.Loader]; exists {
-				if config.Minecraft.LoaderVersion < version {
+				if cmp_versions(config.Minecraft.LoaderVersion, version) < 0 {
 					notify(
 						fmt.Sprintf(
 							"Please update %s to version %s",
@@ -59,15 +59,19 @@ func main() {
 					)
 				}
 			} else {
-				var loaders []string
-				for loader, version := range pack.Loader["default"] {
-					loaders = append(loaders, fmt.Sprintf("%s %s", loader, version))
+				var loaders_str []string
+				for loader, version := range loaders {
+					if version != "0" {
+						loaders_str = append(loaders_str, fmt.Sprintf("%s %s", loader, version))
+					} else {
+						loaders_str = append(loaders_str, loader)
+					}
 				}
 				notify(
 					fmt.Sprintf(
 						"%s requires one of the following modloaders: %s",
 						config.NrcPack,
-						strings.Join(loaders, ", "),
+						strings.Join(loaders_str, ", "),
 					),
 					true,
 					config.Notify,
