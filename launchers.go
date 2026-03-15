@@ -158,7 +158,6 @@ func get_prism_details(
 	} else {
 		token, username, uuid, err = data.get_active()
 	}
-	println(username)
 	if err != nil {
 		return Minecraft{}, err
 	}
