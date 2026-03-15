@@ -401,7 +401,7 @@ func get_modrinth_instances(
 func parse_cfg(
 	filename string,
 ) (Cfg, error) {
-	file, err := os.OpenFile(filepath.Join(filename), os.O_RDONLY, os.ModePerm)
+	file, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -414,11 +414,9 @@ func parse_cfg(
 		if scanner.Text() == "" || strings.HasPrefix(scanner.Text(), "#") {
 			continue
 		}
-		if match, _ := regexp.MatchString(`^\[.+\]$`, scanner.Text()); match {
-			current_section = regexp.MustCompile(`^\[|\]$`).ReplaceAllString(scanner.Text(), "")
-		} else if match, _ := regexp.MatchString("^.+=.*$", scanner.Text()); match && current_section != "" {
-			k := regexp.MustCompile("=.*$").ReplaceAllString(scanner.Text(), "")
-			v := regexp.MustCompile("^.+=").ReplaceAllString(scanner.Text(), "")
+		if strings.HasPrefix(scanner.Text(), "[") && strings.HasSuffix(scanner.Text(), "]") {
+			current_section = strings.Trim(scanner.Text(), "[]")
+		} else if k, v, e := strings.Cut(scanner.Text(), "="); e && k != "" {
 			if _, exists := config[current_section]; !exists {
 				config[current_section] = make(map[string]string)
 			}

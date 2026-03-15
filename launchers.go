@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -9,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 )
 
 type Minecraft struct {
@@ -39,10 +37,12 @@ type PrismData struct {
 	FormatVersion int `json:"formatVersion"`
 }
 
-func (data *PrismData) get_active() (string, string, string, error) {
+func (data *PrismData) get(
+	id *string,
+) (string, string, string, error) {
 	var token string
 	for _, v := range data.Accounts {
-		if v.Active != nil && v.Active.(bool) {
+		if (id != nil && v.Profile.Id == *id) || (id == nil && v.Active != nil && v.Active.(bool)) {
 			if v.Type == "Offline" {
 				token = "offline"
 			} else {
@@ -52,7 +52,17 @@ func (data *PrismData) get_active() (string, string, string, error) {
 		}
 	}
 
-	return "", "", "", errors.New("No active account found")
+	var err error
+	if id != nil {
+		err = fmt.Errorf("Account with id %s not found", id)
+	} else {
+		err = errors.New("No active account found")
+	}
+	return "", "", "", err
+}
+
+func (data *PrismData) get_active() (string, string, string, error) {
+	return data.get(nil)
 }
 
 type PrismInstance struct {
@@ -103,7 +113,7 @@ func get_prism_instance(
 	if err != nil {
 		return PrismInstance{}, err
 	}
-	
+
 	return instance, nil
 }
 
@@ -118,19 +128,16 @@ func get_prism_details(
 	}
 	version, loader, loader_version = instance.get_details()
 
-	file, err := os.OpenFile("../instance.cfg", os.O_RDONLY, os.ModePerm)
+	config, err := parse_cfg("../instance.cfg")
 	if err != nil {
 		return Minecraft{}, err
 	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		if match, _ := regexp.MatchString("^name=.*", scanner.Text()); match {
-			profile = regexp.MustCompile("^name=").ReplaceAllString(scanner.Text(), "")
-		}
+
+	if name, e := config["General"]["Name"]; e {
+		profile = name
 	}
 
-	file, err = os.Open(fmt.Sprintf("%s/accounts.json", path))
+	file, err := os.Open(fmt.Sprintf("%s/accounts.json", path))
 	if err != nil {
 		return Minecraft{}, err
 	}
@@ -146,7 +153,12 @@ func get_prism_details(
 	if err != nil {
 		return Minecraft{}, err
 	}
-	token, username, uuid, err = data.get_active()
+	if id, e := config["General"]["InstanceAccountId"]; e && config["General"]["UseAccountForInstance"] == "true" {
+		token, username, uuid, err = data.get(&id)
+	} else {
+		token, username, uuid, err = data.get_active()
+	}
+	println(username)
 	if err != nil {
 		return Minecraft{}, err
 	}
