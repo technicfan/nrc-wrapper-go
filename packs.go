@@ -149,7 +149,7 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 ) (ModEntries, error) {
 	var mods []ModEntry
 	for _, mod := range nrc_mods {
-		if _, exists := mod.Compatibility[mc_version]; exists {
+		if _, exists := mod.Compatibility[mc_version][loader]; exists {
 			var filename string
 			if mod.Compatibility[mc_version][loader]["source"] != nil {
 				source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
