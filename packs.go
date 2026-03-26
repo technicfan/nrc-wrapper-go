@@ -149,33 +149,35 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 ) (ModEntries, error) {
 	var mods []ModEntry
 	for _, mod := range nrc_mods {
-		if _, exists := mod.Compatibility[mc_version][loader]; exists {
-			var filename string
-			if mod.Compatibility[mc_version][loader]["source"] != nil {
-				source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
-				for k, v := range source {
-					mod.Source[k] = v.(string)
+		if _, exists := mod.Compatibility[mc_version]; exists {
+			if _, exists := mod.Compatibility[mc_version][loader]; exists {
+				var filename string
+				if mod.Compatibility[mc_version][loader]["source"] != nil {
+					source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
+					for k, v := range source {
+						mod.Source[k] = v.(string)
+					}
 				}
+				if mod.Compatibility[mc_version][loader]["filename"] != nil {
+					filename = mod.Compatibility[mc_version][loader]["filename"].(string)
+				}
+				mods = append(
+					mods,
+					ModEntry{
+						"",
+						mod.Compatibility[mc_version][loader]["identifier"].(string),
+						mod.Id,
+						filename,
+						"",
+						mod.Source["type"],
+						mod.Source["repositoryRef"],
+						mod.Source["groupId"],
+						mod.Source["projectId"],
+						mod.Source["projectSlug"],
+						mod.Source["artifactId"],
+					},
+				)
 			}
-			if mod.Compatibility[mc_version][loader]["filename"] != nil {
-				filename = mod.Compatibility[mc_version][loader]["filename"].(string)
-			}
-			mods = append(
-				mods,
-				ModEntry{
-					"",
-					mod.Compatibility[mc_version][loader]["identifier"].(string),
-					mod.Id,
-					filename,
-					"",
-					mod.Source["type"],
-					mod.Source["repositoryRef"],
-					mod.Source["groupId"],
-					mod.Source["projectId"],
-					mod.Source["projectSlug"],
-					mod.Source["artifactId"],
-				},
-			)
 		}
 	}
 
