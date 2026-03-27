@@ -112,16 +112,20 @@ func (packs Packs) to_meta_packs() MetaPacks {
 	return MetaPacks{metapacks, global_versions, global_loaders, pack_names}
 }
 
-func (packs Packs) print_packs() {
+func (packs Packs) print() {
 	fmt.Println("Available NRC packs:")
 	meta := packs.to_meta_packs().Packs
 	for _, key := range slices.Sorted(maps.Keys(meta)) {
 		var loaders_string string
 		var loaders_list []string
 		for loader, version := range meta[key].Loaders {
-			loaders_list = append(
-				loaders_list, fmt.Sprintf("%s %s", loader, version),
-			)
+			if version != "0" {
+				loaders_list = append(
+					loaders_list, fmt.Sprintf("%s %s", loader, version),
+				)
+			} else {
+				loaders_list = append(loaders_list, loader)
+			}
 		}
 		if len(loaders_list) > 0 {
 			loaders_string = strings.Join(loaders_list, ", ")

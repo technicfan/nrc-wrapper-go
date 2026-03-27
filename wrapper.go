@@ -35,7 +35,7 @@ func main() {
 	versions, err := get_norisk_versions(NORISK_API_URL)
 	if err == nil {
 		if !launch {
-			versions.Packs.print_packs()
+			versions.Packs.print()
 			return
 		}
 
