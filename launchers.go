@@ -133,7 +133,7 @@ func get_prism_details(
 		return Minecraft{}, err
 	}
 
-	if name, e := config["General"]["Name"]; e {
+	if name, e := config["General"]["name"]; e {
 		profile = name
 	}
 
