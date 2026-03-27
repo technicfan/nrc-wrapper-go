@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"log"
 	"net/http"
@@ -27,82 +28,16 @@ type ServerId struct {
 	Id string `json:"serverId"`
 }
 
-func download_jar(
+func download_file(
 	url string,
 	name string,
 	path string,
-	check_hash bool,
-) (string, error) {
-	response, err := http.Get(url)
-	if err != nil {
-		return "", err
-	}
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %v", response.StatusCode)
-	}
-	defer response.Body.Close()
-
-	var expected_hash string
-	if check_hash {
-		hash_response, err := http.Get(fmt.Sprintf("%s.sha1", url))
-		if err != nil {
-			return "", err
-		}
-		if hash_response.StatusCode != http.StatusOK {
-			log.Printf("Maven does not provide a sha1 hash for %s", name)
-		} else {
-			defer hash_response.Body.Close()
-
-			hash_body, err := io.ReadAll(hash_response.Body)
-			if err != nil {
-				return "", err
-			}
-			expected_hash = string(hash_body)
-		}
-	}
-
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if expected_hash != "" {
-		hash := sha1.New()
-		if _, err := hash.Write(body); err != nil {
-			return "", err
-		}
-
-		if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
-			return "", errors.New("wrong hash")
-		}
-	}
-
-	file, err := os.Create(filepath.Join(path, name))
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	_, err = file.Write(body)
-	if err != nil {
-		return "", err
-	}
-
-	log.Printf("Downloaded %s", name)
-
-	return name, nil
-}
-
-func download_asset(
-	pack string,
-	path string,
+	check_remote_hash bool,
 	expected_hash string,
 ) error {
-	os.MkdirAll(fmt.Sprintf("NoRiskClient/assets/%s", filepath.Dir(path)), os.ModePerm)
+	os.MkdirAll(filepath.Join(path, filepath.Dir(name)), os.ModePerm)
 
-	response, err := http.Get(
-		fmt.Sprintf("%s/%s/assets/%s", NORISK_ASSETS_URL, pack, path),
-	)
+	response, err := http.Get(url)
 	if err != nil {
 		return err
 	}
@@ -111,27 +46,53 @@ func download_asset(
 	}
 	defer response.Body.Close()
 
+	if check_remote_hash {
+		hash_response, err := http.Get(fmt.Sprintf("%s.sha1", url))
+		if err != nil {
+			return err
+		}
+		if hash_response.StatusCode != http.StatusOK {
+			log.Printf("Maven does not provide a sha1 hash for %s", name)
+		} else {
+			defer hash_response.Body.Close()
+
+			hash_body, err := io.ReadAll(hash_response.Body)
+			if err != nil {
+				return err
+			}
+			expected_hash = string(hash_body)
+		}
+	}
+
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
 
-	hash := md5.New()
-	if _, err := hash.Write(body); err != nil {
-		return err
+	if expected_hash != "" {
+		var hash hash.Hash
+		if check_remote_hash {
+			hash = sha1.New()
+		} else {
+			hash = md5.New()
+		}
+
+		if _, err := hash.Write(body); err != nil {
+			return err
+		}
+		if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
+			return errors.New("wrong hash")
+		}
 	}
 
-	if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
-		return errors.New("wrong hash")
-	}
-
-	file, err := os.Create(fmt.Sprintf("NoRiskClient/assets/%s", path))
+	file, err := os.Create(filepath.Join(path, name))
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	if _, err := file.Write(body); err != nil {
+	_, err = file.Write(body)
+	if err != nil {
 		return err
 	}
 
@@ -142,7 +103,7 @@ func get_asset_metadata_async(
 	index int,
 	pack string,
 	wg *sync.WaitGroup,
-	data chan<- map[int]map[string]map[string]string,
+	data chan<- map[int]map[string]Asset,
 ) {
 	defer wg.Done()
 
@@ -160,15 +121,13 @@ func get_asset_metadata_async(
 		return
 	}
 
-	results := make(map[string]map[string]string)
+	results := make(map[string]Asset)
 	for i, v := range metadata.Objects {
-		asset := make(map[string]string)
-		asset["hash"] = v.Hash
-		asset["pack"] = pack
+		asset := Asset{pack, "", v.Hash}
 		results[i] = asset
 	}
 
-	data <- map[int]map[string]map[string]string{index: results}
+	data <- map[int]map[string]Asset{index: results}
 }
 
 func request_token(

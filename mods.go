@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"slices"
 
-	"strings"
 	"sync"
 )
 
@@ -36,7 +35,7 @@ func read_index(path string) Index {
 	return data
 }
 
-func (data *Index) write() error {
+func (data Index) write() error {
 	var file *os.File
 	file, err := os.OpenFile(".nrc-index.json", os.O_TRUNC|os.O_RDWR, os.ModePerm)
 	if err != nil {
@@ -58,57 +57,6 @@ func (data *Index) write() error {
 	}
 
 	return nil
-}
-
-func download_jar_async(
-	url string,
-	alt_url string,
-	name string,
-	version string,
-	id string,
-	old_file string,
-	path string,
-	error_on_fail bool,
-	do_notify bool,
-	check_hash bool,
-	wg *sync.WaitGroup,
-	index chan<- map[string]string,
-	limiter chan struct{},
-) {
-	defer wg.Done()
-
-	limiter <- struct{}{}
-	defer func() { <-limiter }()
-
-	if strings.HasSuffix(old_file, ".disabled") {
-		name = name + ".disabled"
-	}
-	a, err := download_jar(url, name, path, check_hash)
-	if alt_url != "" && err != nil && err.Error() == "HTTP 404" {
-		a, err = download_jar(alt_url, name, path, check_hash)
-	}
-	if err != nil {
-		notify(
-			fmt.Sprintf("Failed to download %s: %s", name, err.Error()),
-			error_on_fail,
-			do_notify,
-		)
-		return
-	}
-	if a != old_file && a != "" && old_file != "" {
-		os.Remove(filepath.Join(path, old_file))
-		log.Printf("Removed old file %s", old_file)
-	}
-
-	result := make(map[string]string)
-	result["id"] = id
-	result["hash"], err = calc_hash(filepath.Join(path, name))
-	if err != nil {
-		result["hash"] = ""
-	}
-	result["version"] = version
-
-	index <- result
 }
 
 func get_installed_mods(
@@ -150,21 +98,13 @@ func get_installed_mods(
 
 func download_mods_async(
 	config Config,
-	nrc_mods_main NoriskMods,
-	nrc_mods_inherited NoriskMods,
-	repos map[string]string,
+	mods ModEntries,
+	inherited_mods ModEntries,
 	wg1 *sync.WaitGroup,
 ) {
 	defer wg1.Done()
 	os.Mkdir(config.ModDir, os.ModePerm)
 
-	mods, err := nrc_mods_main.get_compatible_mods(
-		config.Minecraft.Version,
-		config.Minecraft.Loader,
-	)
-	if err != nil {
-		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true, config.Notify)
-	}
 	if len(mods) == 0 {
 		notify(
 			fmt.Sprintf(
@@ -175,13 +115,6 @@ func download_mods_async(
 			true,
 			config.Notify,
 		)
-	}
-	inherited_mods, err := nrc_mods_inherited.get_compatible_mods(
-		config.Minecraft.Version,
-		config.Minecraft.Loader,
-	)
-	if err != nil {
-		notify(fmt.Sprintf("Failed to get nrc mods: %s", err.Error()), true, config.Notify)
 	}
 	var ids []string
 	for _, mod := range mods {
@@ -212,30 +145,8 @@ func download_mods_async(
 
 	index := make(chan map[string]string, len(mods_to_download))
 	for _, mod := range mods_to_download {
-		var url, alt_url, filename string
-		if mod.SourceType == "url" {
-			url = mod.Version
-			filename = mod.Filename
-		} else {
-			url, alt_url, filename = mod.build_maven_url(repos)
-		}
 		wg.Add(1)
-		go download_jar_async(
-			url,
-			alt_url,
-			filename,
-			mod.Version,
-			mod.Id,
-			mod.OldFile,
-			config.ModDir,
-			config.ErrorOnFailedDownload,
-			config.Notify,
-			mod.SourceType != "url",
-			&wg,
-			index,
-			limiter,
-		)
-
+		go mod.download_async(config, &wg, index, limiter)
 	}
 
 	wg.Wait()

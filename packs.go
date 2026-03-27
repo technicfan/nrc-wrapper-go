@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 )
 
 // Pack/Packs
@@ -15,34 +16,48 @@ import (
 
 type Pack struct {
 	// display
-	Name     string     `json:"displayName"`
-	Desc     string     `json:"description"`
+	Name string `json:"displayName"`
+	Desc string `json:"description"`
 	// the id of the packs parent (e.g. norisk-prod)
-	Inherits []string   `json:"inheritsFrom"`
+	Inherits []string `json:"inheritsFrom"`
 	// not used right know but here for good measure
-	Exclude  []any      `json:"excludeMods"`
+	Exclude []any `json:"excludeMods"`
 	// mods of the pack
-	Mods     NoriskMods `json:"mods"`
+	Mods NoriskMods `json:"mods"`
 	// asset packs needed for this pack
-	Assets   []string   `json:"assets"`
+	Assets []string `json:"assets"`
 	// the loader needed
 	// currently only fabric
-	Loader   map[string]map[string]struct {
+	Loader map[string]map[string]struct {
 		Version string `json:"version"`
 	} `json:"loaderPolicy"`
 }
 
-func (pack *Pack) get_details(
+func (pack Pack) get_details(
 	packs map[string]Pack,
 ) (NoriskMods, []string, []string, map[string]string) {
 	loaders := make(map[string]string)
 	for name, loader := range pack.Loader["default"] {
 		loaders[name] = loader.Version
 	}
+	var exclude []string
+	if pack.Exclude != nil {
+		for _, id := range pack.Exclude {
+			exclude = append(exclude, id.(string))
+		}
+	}
 	var mods []NoriskMod
 	var assets, versions []string
 	for _, inherited_pack := range pack.Inherits {
-		mods = append(mods, packs[inherited_pack].Mods...)
+		for i := range packs[inherited_pack].Mods {
+			mod := &packs[inherited_pack].Mods[i]
+			if !(slices.Contains(exclude, mod.Id) ||
+				slices.ContainsFunc(
+					pack.Mods, func(entry NoriskMod) bool { return entry.Id == mod.Id },
+				)) {
+				mods = append(mods, *mod)
+			}
+		}
 		for _, asset_pack := range packs[inherited_pack].Assets {
 			if !slices.Contains(assets, asset_pack) &&
 				!slices.Contains(pack.Assets, asset_pack) {
@@ -131,14 +146,43 @@ type Versions struct {
 
 type NoriskMod struct {
 	// Mod identifier
-	Id            string                               `json:"id"`
+	Id string `json:"id"`
 	// Pretty name
-	Name          string                               `json:"displayName"`
+	Name string `json:"displayName"`
 	// Source (modrinth/maven/url)
-	Source        map[string]string                    `json:"source"`
+	Source map[string]string `json:"source"`
 	// Different versions for different Minecraft versions
 	// also supports another source field to override the one for the whole mod
 	Compatibility map[string]map[string]map[string]any `json:"compatibility"`
+}
+
+func (mod NoriskMod) build_url(
+	mod_version string,
+	repos map[string]string,
+) (string, string, string) {
+	var url, alt_url string
+	if mod.Source["type"] == "modrinth" {
+		version := mod_version
+		if !strings.Contains(mod_version, "-") {
+			version = strings.Replace(mod_version, ",", "-", 1)
+		}
+		filename := fmt.Sprintf("%s-%s.jar", mod.Source["projectId"], version)
+		url = fmt.Sprintf(
+			"%smaven/modrinth/%s/%s/%s",
+			repos[mod.Source["type"]], mod.Source["projectId"], version, filename,
+		)
+		alt_url = strings.ReplaceAll(url, mod.Source["projectId"], mod.Source["projectSlug"])
+	} else {
+		group_path := strings.ReplaceAll(mod.Source["groupId"], ".", "/")
+		filename := fmt.Sprintf("%s-%s.jar", mod.Source["artifactId"], mod_version)
+		url = fmt.Sprintf(
+			"%s%s/%s/%s/%s",
+			repos[mod.Source["repositoryRef"]], group_path,
+			mod.Source["artifactId"], mod_version, filename,
+		)
+	}
+
+	return url, alt_url, fmt.Sprintf("%s-%s.jar", mod.Id, mod_version)
 }
 
 type NoriskMods []NoriskMod
@@ -146,18 +190,22 @@ type NoriskMods []NoriskMod
 func (nrc_mods NoriskMods) get_compatible_mods(
 	mc_version string,
 	loader string,
-) (ModEntries, error) {
+	repos map[string]string,
+) ModEntries {
 	var mods []ModEntry
 	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
 			if _, exists := mod.Compatibility[mc_version][loader]; exists {
-				var filename string
 				if mod.Compatibility[mc_version][loader]["source"] != nil {
 					source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
 					for k, v := range source {
 						mod.Source[k] = v.(string)
 					}
 				}
+				url, alt_url, filename := mod.build_url(
+					mod.Compatibility[mc_version][loader]["identifier"].(string),
+					repos,
+				)
 				if mod.Compatibility[mc_version][loader]["filename"] != nil {
 					filename = mod.Compatibility[mc_version][loader]["filename"].(string)
 				}
@@ -169,19 +217,16 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 						mod.Id,
 						filename,
 						"",
-						mod.Source["type"],
-						mod.Source["repositoryRef"],
-						mod.Source["groupId"],
-						mod.Source["projectId"],
-						mod.Source["projectSlug"],
-						mod.Source["artifactId"],
+						url,
+						alt_url,
+						mod.Source["type"] != "url",
 					},
 				)
 			}
 		}
 	}
 
-	return mods, nil
+	return mods
 }
 
 func (nrc_mods NoriskMods) get_names(mods *map[string]map[string]string) {
@@ -196,53 +241,60 @@ func (nrc_mods NoriskMods) get_names(mods *map[string]map[string]string) {
 
 type ModEntry struct {
 	// MD5 Hash
-	Hash          string
+	Hash string
 	// Version number
-	Version       string
+	Version string
 	// id
-	Id            string
-	Filename      string
+	Id       string
+	Filename string
 	// old file if it was replaced
-	OldFile       string
-	// modrinth/maven/url
-	SourceType    string
-	// maven repo reference
-	RepositoryRef string
-	// maven group
-	GroupId       string
-	// modrinth id
-	ModrinthId    string
-	// modrinth mod name
-	ProjectSlug   string
-	// maven id
-	MavenId       string
+	OldFile   string
+	Url       string
+	AltUrl    string
+	CheckHash bool
 }
 
-func (mod *ModEntry) build_maven_url(
-	repos map[string]string,
-) (string, string, string) {
-	var url, alt_url string
-	if mod.SourceType == "modrinth" {
-		version := mod.Version
-		if !strings.Contains(mod.Version, "-") {
-			version = strings.Replace(mod.Version, ",", "-", 1)
-		}
-		filename := fmt.Sprintf("%s-%s.jar", mod.ModrinthId, version)
-		url = fmt.Sprintf(
-			"%smaven/modrinth/%s/%s/%s",
-			repos[mod.SourceType], mod.ModrinthId, version, filename,
+func (mod ModEntry) download_async(
+	config Config,
+	wg *sync.WaitGroup,
+	index chan<- map[string]string,
+	limiter chan struct{},
+) {
+	defer wg.Done()
+
+	limiter <- struct{}{}
+	defer func() { <-limiter }()
+
+	if strings.HasSuffix(mod.OldFile, ".disabled") {
+		mod.Filename = mod.Filename + ".disabled"
+	}
+	err := download_file(mod.Url, mod.Filename, config.ModDir, mod.CheckHash, "")
+	if mod.AltUrl != "" && err != nil && err.Error() == "HTTP 404" {
+		err = download_file(mod.AltUrl, mod.Filename, config.ModDir, mod.CheckHash, "")
+	}
+	if err != nil {
+		notify(
+			fmt.Sprintf("Failed to download %s: %s", mod.Filename, err.Error()),
+			config.ErrorOnFailedDownload,
+			config.Notify,
 		)
-		alt_url = strings.ReplaceAll(url, mod.ModrinthId, mod.ProjectSlug)
-	} else {
-		group_path := strings.ReplaceAll(mod.GroupId, ".", "/")
-		filename := fmt.Sprintf("%s-%s.jar", mod.MavenId, mod.Version)
-		url = fmt.Sprintf(
-			"%s%s/%s/%s/%s",
-			repos[mod.RepositoryRef], group_path, mod.MavenId, mod.Version, filename,
-		)
+		return
+	}
+	log.Printf("Downloaded %s", mod.Filename)
+	if mod.Filename != mod.OldFile && mod.Filename != "" && mod.OldFile != "" {
+		os.Remove(filepath.Join(config.ModDir, mod.OldFile))
+		log.Printf("Removed old file %s", mod.OldFile)
 	}
 
-	return url, alt_url, fmt.Sprintf("%s-%s.jar", mod.Id, mod.Version)
+	result := make(map[string]string)
+	result["id"] = mod.Id
+	result["hash"], err = calc_hash(filepath.Join(config.ModDir, mod.Filename))
+	if err != nil {
+		result["hash"] = ""
+	}
+	result["version"] = mod.Version
+
+	index <- result
 }
 
 type ModEntries []ModEntry

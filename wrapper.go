@@ -82,7 +82,20 @@ func main() {
 		wg.Add(2)
 
 		go download_assets_async(assets, config, &wg)
-		go download_mods_async(config, pack.Mods, mods, versions.Repositories, &wg)
+		go download_mods_async(
+			config,
+			pack.Mods.get_compatible_mods(
+				config.Minecraft.Version,
+				config.Minecraft.Loader,
+				versions.Repositories,
+			),
+			mods.get_compatible_mods(
+				config.Minecraft.Version,
+				config.Minecraft.Loader,
+				versions.Repositories,
+			),
+			&wg,
+		)
 		token, err = get_token(config, false)
 
 		wg.Wait()
