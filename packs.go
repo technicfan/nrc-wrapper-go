@@ -161,7 +161,10 @@ func (mod NoriskMod) build_url(
 	repos map[string]string,
 ) (string, string, string) {
 	var url, alt_url string
-	if mod.Source["type"] == "modrinth" {
+	switch mod.Source["type"] {
+	case "url":
+	    url = mod_version
+	case "modrinth":
 		version := mod_version
 		if !strings.Contains(mod_version, "-") {
 			version = strings.Replace(mod_version, ",", "-", 1)
@@ -172,7 +175,7 @@ func (mod NoriskMod) build_url(
 			repos[mod.Source["type"]], mod.Source["projectId"], version, filename,
 		)
 		alt_url = strings.ReplaceAll(url, mod.Source["projectId"], mod.Source["projectSlug"])
-	} else {
+	default:
 		group_path := strings.ReplaceAll(mod.Source["groupId"], ".", "/")
 		filename := fmt.Sprintf("%s-%s.jar", mod.Source["artifactId"], mod_version)
 		url = fmt.Sprintf(
