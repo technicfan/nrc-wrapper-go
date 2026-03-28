@@ -318,7 +318,7 @@ func Gui() {
 					}
 				}))
 				line.Add(widget.NewButton("NRC Mods", func() {
-					mods, err := fetcher.Get_installed_mods(instance.McRoot, instance.Config.ModDir)
+					mods, _, err := fetcher.Get_installed_mods(instance.McRoot, instance.Config.ModDir)
 					var mods_to_toggle []string
 
 					var mod_list *fyne.Container
