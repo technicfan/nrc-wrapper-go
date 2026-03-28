@@ -2,15 +2,12 @@ package main
 
 import (
 	"bytes"
-	"crypto/md5"
-	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"hash"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,16 +25,21 @@ type ServerId struct {
 	Id string `json:"serverId"`
 }
 
-func download_file(
-	url string,
-	name string,
-	path string,
-	check_remote_hash bool,
-	expected_hash string,
-) error {
-	os.MkdirAll(filepath.Join(path, filepath.Dir(name)), os.ModePerm)
+type Downloadable interface {
+	Url() string
+	Path() string
+	Filename() string
+	ExpectedHash() string
+	HashObj() hash.Hash
+	Download() error
+}
 
-	response, err := http.Get(url)
+func download(
+	resource Downloadable,
+) error {
+	os.MkdirAll(filepath.Dir(resource.Path()), os.ModePerm)
+
+	response, err := http.Get(resource.Url())
 	if err != nil {
 		return err
 	}
@@ -46,36 +48,14 @@ func download_file(
 	}
 	defer response.Body.Close()
 
-	if check_remote_hash {
-		hash_response, err := http.Get(fmt.Sprintf("%s.sha1", url))
-		if err != nil {
-			return err
-		}
-		if hash_response.StatusCode != http.StatusOK {
-			log.Printf("Maven does not provide a sha1 hash for %s", name)
-		} else {
-			defer hash_response.Body.Close()
-
-			hash_body, err := io.ReadAll(hash_response.Body)
-			if err != nil {
-				return err
-			}
-			expected_hash = string(hash_body)
-		}
-	}
-
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		return err
 	}
 
+	expected_hash := resource.ExpectedHash()
 	if expected_hash != "" {
-		var hash hash.Hash
-		if check_remote_hash {
-			hash = sha1.New()
-		} else {
-			hash = md5.New()
-		}
+		hash := resource.HashObj()
 
 		if _, err := hash.Write(body); err != nil {
 			return err
@@ -85,7 +65,7 @@ func download_file(
 		}
 	}
 
-	file, err := os.Create(filepath.Join(path, name))
+	file, err := os.Create(resource.Path())
 	if err != nil {
 		return err
 	}
@@ -122,9 +102,9 @@ func get_asset_metadata_async(
 	}
 
 	results := make(map[string]Asset)
-	for i, v := range metadata.Objects {
-		asset := Asset{pack, "", v.Hash}
-		results[i] = asset
+	for path, obj := range metadata.Objects {
+		asset := Asset{pack, path, obj.Hash}
+		results[path] = asset
 	}
 
 	data <- map[int]map[string]Asset{index: results}

@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"sync"
 )
@@ -62,7 +61,7 @@ func (data Index) write() error {
 func get_installed_mods(
 	root string,
 	mod_dir string,
-) (map[string]map[string]string, error) {
+) (ModEntries, error) {
 	files, err := os.ReadDir(filepath.Join(root, mod_dir))
 	if err != nil {
 		return nil, err
@@ -82,14 +81,21 @@ func get_installed_mods(
 		}
 	}
 
-	results := make(map[string]map[string]string)
+	results := make(ModEntries)
 	for _, entry := range index {
 		if _, exists := hashes[entry["hash"]]; exists {
-			info := make(map[string]string)
-			info["version"] = entry["version"]
-			info["filename"] = hashes[entry["hash"]]["filename"]
-			info["hash"] = entry["hash"]
-			results[entry["id"]] = info
+			results[entry["id"]] = ModEntry{
+				entry["hash"],
+				entry["version"],
+				entry["id"],
+				hashes[entry["hash"]]["filename"],
+				"",
+				mod_dir,
+				"",
+				"",
+				false,
+				false,
+			}
 		}
 	}
 
@@ -97,34 +103,14 @@ func get_installed_mods(
 }
 
 func download_mods_async(
-	config Config,
 	mods ModEntries,
-	inherited_mods ModEntries,
-	wg1 *sync.WaitGroup,
+	config Config,
+	limiter chan struct{},
+	wg *sync.WaitGroup,
 ) {
-	defer wg1.Done()
+	defer wg.Done()
 	os.Mkdir(config.ModDir, os.ModePerm)
 
-	if len(mods) == 0 {
-		notify(
-			fmt.Sprintf(
-				"There are no NRC mods for %s in %s",
-				config.Minecraft.Version,
-				config.NrcPack,
-			),
-			true,
-			config.Notify,
-		)
-	}
-	var ids []string
-	for _, mod := range mods {
-		ids = append(ids, mod.Id)
-	}
-	for _, mod := range inherited_mods {
-		if !slices.Contains(ids, mod.Id) {
-			mods = append(mods, mod)
-		}
-	}
 	installed_mods, err := get_installed_mods("./", config.ModDir)
 	if err != nil {
 		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
@@ -140,16 +126,15 @@ func download_mods_async(
 
 	log.Println("Installing missing/updated mods")
 
-	limiter := make(chan struct{}, 10)
-	var wg sync.WaitGroup
+	var wg1 sync.WaitGroup
 
 	index := make(chan map[string]string, len(mods_to_download))
 	for _, mod := range mods_to_download {
-		wg.Add(1)
-		go mod.download_async(config, &wg, index, limiter)
+		wg1.Add(1)
+		go mod.download_async(config, &wg1, index, limiter)
 	}
 
-	wg.Wait()
+	wg1.Wait()
 	close(index)
 
 	if len(index) > 0 {

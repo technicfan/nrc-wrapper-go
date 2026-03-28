@@ -316,26 +316,26 @@ func gui() {
 				}))
 				line.Add(widget.NewButton("NRC Mods", func() {
 					mods, err := get_installed_mods(instance.McRoot, instance.Config.ModDir)
-					path := filepath.Join(instance.McRoot, instance.Config.ModDir)
 					var mods_to_toggle []string
 
 					var mod_list *fyne.Container
 					if err == nil && len(mods) != 0 {
 						mod_list = container.NewVBox()
+						mod_names := make(map[string]string)
 						if pack, e := v.Packs[instance.Config.NrcPack]; e {
-							pack.Mods.get_names(&mods)
+							mod_names = pack.Mods.get_names(mods)
 						}
 						for _, id := range slices.Sorted(maps.Keys(mods)) {
 							line := container.NewGridWithColumns(2)
 							var name string
-							if n, e := mods[id]["name"]; e {
+							if n, e := mod_names[id]; e {
 								name = n
 							} else {
 								name = id
 							}
 							line.Add(widget.NewLabel(name))
 							toggle := widget.NewButton("", func() {})
-							if strings.HasSuffix(mods[id]["filename"], ".jar") {
+							if mods[id].Enabled() {
 								toggle.SetText("Disable")
 								toggle.SetIcon(theme.CancelIcon())
 								toggle.Importance = widget.DangerImportance
@@ -396,21 +396,21 @@ func gui() {
 						widget.NewButton("Save", func() {
 							for _, id := range mods_to_toggle {
 								var new_name string
-								if strings.HasSuffix(mods[id]["filename"], ".jar") {
-									new_name = mods[id]["filename"] + ".disabled"
+								if mods[id].Enabled() {
+									new_name = mods[id].Filename() + ".disabled"
 								} else {
 									new_name = regexp.MustCompile(".disabled$").ReplaceAllString(
-										mods[id]["filename"], "",
+										mods[id].Filename(), "",
 									)
 								}
 								err := os.Rename(
-									filepath.Join(path, mods[id]["filename"]),
-									filepath.Join(path, new_name),
+									mods[id].Path(),
+									filepath.Join(filepath.Dir(mods[id].Path()), new_name),
 								)
 								if err != nil {
 									log.Printf(
 										"Failed to toggle %s: %s",
-										mods[id]["filename"], err.Error(),
+										mods[id].Filename(), err.Error(),
 									)
 								}
 							}

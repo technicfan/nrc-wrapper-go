@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/sha1"
 	"fmt"
+	"hash"
+	"io"
 	"log"
 	"maps"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -195,11 +199,11 @@ func (mod NoriskMod) build_url(
 type NoriskMods []NoriskMod
 
 func (nrc_mods NoriskMods) get_compatible_mods(
-	mc_version string,
-	loader string,
+	config Config,
 	repos map[string]string,
 ) ModEntries {
-	var mods []ModEntry
+	mc_version, loader := config.Minecraft.Version, config.Minecraft.Loader
+	mods := make(ModEntries)
 	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
 			if _, exists := mod.Compatibility[mc_version][loader]; exists {
@@ -216,19 +220,18 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 				if mod.Compatibility[mc_version][loader]["filename"] != nil {
 					filename = mod.Compatibility[mc_version][loader]["filename"].(string)
 				}
-				mods = append(
-					mods,
-					ModEntry{
-						"",
-						mod.Compatibility[mc_version][loader]["identifier"].(string),
-						mod.Id,
-						filename,
-						"",
-						url,
-						alt_url,
-						mod.Source["type"] != "url",
-					},
-				)
+				mods[mod.Id] = ModEntry{
+					"",
+					mod.Compatibility[mc_version][loader]["identifier"].(string),
+					mod.Id,
+					filename,
+					"",
+					config.ModDir,
+					url,
+					alt_url,
+					false,
+					mod.Source["type"] != "url",
+				}
 			}
 		}
 	}
@@ -236,12 +239,14 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 	return mods
 }
 
-func (nrc_mods NoriskMods) get_names(mods *map[string]map[string]string) {
+func (nrc_mods NoriskMods) get_names(mods ModEntries) map[string]string {
+	result := make(map[string]string)
 	for i := range nrc_mods {
-		if _, e := (*mods)[nrc_mods[i].Id]; e {
-			(*mods)[nrc_mods[i].Id]["name"] = nrc_mods[i].Name
+		if _, e := mods[nrc_mods[i].Id]; e {
+			result[nrc_mods[i].Id] = nrc_mods[i].Name
 		}
 	}
+	return result
 }
 
 // ModEntry/ModEntries
@@ -253,12 +258,71 @@ type ModEntry struct {
 	Version string
 	// id
 	Id       string
-	Filename string
+	filename string
 	// old file if it was replaced
 	OldFile   string
-	Url       string
-	AltUrl    string
-	CheckHash bool
+	path string
+	url       string
+	altUrl    string
+	useAltUrl bool
+	checkHash bool
+}
+
+func (mod ModEntry) Url() string {
+	if (mod.useAltUrl && mod.altUrl != "") {
+		mod.useAltUrl = false
+		return mod.altUrl
+	}
+	mod.useAltUrl = true
+	return mod.url
+}
+
+func (mod ModEntry) Path() string {
+	return filepath.Join(mod.path, mod.filename)
+}
+
+func (mod ModEntry) Filename() string {
+	return mod.filename
+}
+
+func (mod ModEntry) Enabled() bool {
+	return strings.HasSuffix(mod.filename, ".jar")
+}
+
+func (mod ModEntry) ExpectedHash() string {
+	if (mod.checkHash) {
+		hash_response, err := http.Get(fmt.Sprintf("%s.sha1", mod.Url()))
+		if err != nil {
+			return ""
+		}
+		if hash_response.StatusCode != http.StatusOK {
+			log.Printf("Maven does not provide a sha1 hash for %s", mod.Filename)
+		} else {
+			defer hash_response.Body.Close()
+
+			hash_body, err := io.ReadAll(hash_response.Body)
+			if err != nil {
+				return ""
+			}
+			return string(hash_body)
+		}
+	}
+	return ""
+}
+
+func (mod ModEntry) HashObj() hash.Hash {
+	return sha1.New()
+}
+
+func (mod ModEntry) Download() error {
+	return download(mod)
+}
+
+func (mod *ModEntry) SetOldFile(name string) {
+	mod.OldFile = name
+	if strings.HasSuffix(name, ".disabled") {
+		mod.filename += ".disabled"
+	}
 }
 
 func (mod ModEntry) download_async(
@@ -272,64 +336,53 @@ func (mod ModEntry) download_async(
 	limiter <- struct{}{}
 	defer func() { <-limiter }()
 
-	if strings.HasSuffix(mod.OldFile, ".disabled") {
-		mod.Filename = mod.Filename + ".disabled"
-	}
-	err := download_file(mod.Url, mod.Filename, config.ModDir, mod.CheckHash, "")
-	if mod.AltUrl != "" && err != nil && err.Error() == "HTTP 404" {
-		err = download_file(mod.AltUrl, mod.Filename, config.ModDir, mod.CheckHash, "")
+	err := mod.Download()
+	if err != nil && err.Error() == "HTTP 404" {
+		err = mod.Download()
 	}
 	if err != nil {
 		notify(
-			fmt.Sprintf("Failed to download %s: %s", mod.Filename, err.Error()),
+			fmt.Sprintf("Failed to download %s: %s", mod.Filename(), err.Error()),
 			config.ErrorOnFailedDownload,
 			config.Notify,
 		)
 		return
 	}
-	log.Printf("Downloaded %s", mod.Filename)
-	if mod.Filename != mod.OldFile && mod.Filename != "" && mod.OldFile != "" {
+	log.Printf("Downloaded %s", mod.Filename())
+	if mod.Filename() != mod.OldFile && mod.Filename() != "" && mod.OldFile != "" {
 		os.Remove(filepath.Join(config.ModDir, mod.OldFile))
 		log.Printf("Removed old file %s", mod.OldFile)
 	}
 
-	result := make(map[string]string)
-	result["id"] = mod.Id
-	result["hash"], err = calc_hash(filepath.Join(config.ModDir, mod.Filename))
-	if err != nil {
-		result["hash"] = ""
-	}
-	result["version"] = mod.Version
-
-	index <- result
+	hash, _ := calc_hash(mod.Path())
+	index <- map[string]string{"id": mod.Id, "hash": hash, "version": mod.Version}
 }
 
-type ModEntries []ModEntry
+type ModEntries map[string]ModEntry
 
 func (mods ModEntries) get_missing_mods(
-	installed_mods map[string]map[string]string,
+	installed_mods ModEntries,
 	path string,
 ) (ModEntries, ModEntries) {
-	var result ModEntries
-	var removed ModEntries
+	result, removed := make(ModEntries), make(ModEntries)
 	for _, mod := range mods {
-		if _, exists := installed_mods[mod.Id]; exists {
-			if mod.Version != installed_mods[mod.Id]["version"] {
-				mod.OldFile = installed_mods[mod.Id]["filename"]
-				result = append(result, mod)
+		if installed_mod, exists := installed_mods[mod.Id]; exists {
+			if mod.Version != installed_mod.Version {
+				mod.SetOldFile(installed_mod.Filename())
+				result[mod.Id] = mod
 			} else {
-				mod.Hash = installed_mods[mod.Id]["hash"]
-				removed = append(removed, mod)
+				mod.Hash = installed_mod.Hash
+				removed[mod.Id] = mod
 			}
 			delete(installed_mods, mod.Id)
 		} else {
-			result = append(result, mod)
+			result[mod.Id] = mod
 		}
 	}
 
-	for _, file := range installed_mods {
-		os.Remove(filepath.Join(path, file["filename"]))
-		log.Printf("Removed left over file %s", file["filename"])
+	for _, mod := range installed_mods {
+		os.Remove(mod.Path())
+		log.Printf("Removed left over file %s", mod.Filename())
 	}
 
 	return result, removed

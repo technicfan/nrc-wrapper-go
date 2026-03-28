@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -43,7 +44,7 @@ func main() {
 		if !exists {
 			notify(fmt.Sprintf("%s is not a valid NRC pack", config.NrcPack), true, config.Notify)
 		}
-		mods, assets, _, loaders := pack.get_details(versions.Packs)
+		pack_mods, assets, _, loaders := pack.get_details(versions.Packs)
 
 		if !REFRESH && len(loaders) > 0 {
 			if version, exists := loaders[config.Minecraft.Loader]; exists {
@@ -79,23 +80,25 @@ func main() {
 			}
 		}
 
-		wg.Add(2)
+		mods := pack.Mods.get_compatible_mods(config, versions.Repositories)
+		if len(mods) == 0 {
+			notify(
+				fmt.Sprintf(
+					"There are no NRC mods for %s in %s",
+					config.Minecraft.Version,
+					config.NrcPack,
+				),
+				true,
+				config.Notify,
+			)
+		}
+		maps.Copy(mods, pack_mods.get_compatible_mods(config, versions.Repositories))
 
-		go download_assets_async(assets, config, &wg)
-		go download_mods_async(
-			config,
-			pack.Mods.get_compatible_mods(
-				config.Minecraft.Version,
-				config.Minecraft.Loader,
-				versions.Repositories,
-			),
-			mods.get_compatible_mods(
-				config.Minecraft.Version,
-				config.Minecraft.Loader,
-				versions.Repositories,
-			),
-			&wg,
-		)
+		wg.Add(2)
+		limiter := make(chan struct{}, 10)
+
+		go download_assets_async(assets, config, limiter, &wg)
+		go download_mods_async(mods, config, limiter, &wg)
 		token, err = get_token(config, false)
 
 		wg.Wait()
