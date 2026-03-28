@@ -1,9 +1,7 @@
 package fetcher
 
 import (
-	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"main/config"
 	"main/mod_entry"
@@ -14,52 +12,6 @@ import (
 	"sync"
 )
 
-type Index []map[string]string
-
-func read_index(path string) Index {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-
-	byte_data, err := io.ReadAll(file)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-
-	var data Index
-	err = json.Unmarshal(byte_data, &data)
-	if err != nil {
-		return nil
-	}
-
-	return data
-}
-
-func (data Index) write() error {
-	var file *os.File
-	file, err := os.OpenFile(".nrc-index.json", os.O_TRUNC|os.O_RDWR, os.ModePerm)
-	if err != nil {
-		file, err = os.Create(".nrc-index.json")
-		if err != nil {
-			return err
-		}
-	}
-	defer file.Close()
-
-	json_string, err := json.MarshalIndent(data, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	_, err = file.WriteString(string(json_string))
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func Get_installed_mods(
 	root string,
@@ -69,17 +21,22 @@ func Get_installed_mods(
 	if err != nil {
 		return nil, err
 	}
-	index := read_index(filepath.Join(root, ".nrc-index.json"))
+	index := utils.Read_index(filepath.Join(root, ".nrc-mod-index.json"))
 
-	hashes := make(map[string]map[string]string)
+	hashes := make(map[string]string)
 	for _, f := range files {
 		if !f.IsDir() &&
 			(filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
-			hash, err := utils.Calc_hash(filepath.Join(root, mod_dir, f.Name()))
+			entry, e := index[f.Name()]
+			var hash string
+			var err error
+			if e {
+				hash = entry["hash"]
+			} else {
+				hash, err = utils.Calc_hash(filepath.Join(root, mod_dir, f.Name()))
+			}
 			if err == nil {
-				info := make(map[string]string)
-				info["filename"] = f.Name()
-				hashes[hash] = info
+				hashes[hash] = f.Name()
 			}
 		}
 	}
@@ -91,7 +48,7 @@ func Get_installed_mods(
 				entry["hash"],
 				entry["version"],
 				entry["id"],
-				hashes[entry["hash"]]["filename"],
+				hashes[entry["hash"]],
 				mod_dir,
 				"",
 				"",
@@ -129,7 +86,7 @@ func Download_mods_async(
 
 	var wg1 sync.WaitGroup
 
-	index := make(chan map[string]string, len(mods_to_download))
+	index := make(chan utils.Pair, len(mods_to_download))
 	for _, mod := range mods_to_download {
 		wg1.Add(1)
 		go mod.Download_async(config, &wg1, index, limiter)
@@ -139,12 +96,11 @@ func Download_mods_async(
 	close(index)
 
 	if len(index) > 0 {
-		var existing_index Index
-		existing_index = already_installed.Convert_to_index()
-		for entry := range index {
-			existing_index = append(existing_index, entry)
+		existing_index := already_installed.Convert_to_index()
+		for k := range index {
+			existing_index[k.Key] = k.Value
 		}
-		err = existing_index.write()
+		err = existing_index.Write(".nrc-mod-index.json")
 		if err != nil {
 			utils.Notify(
 				fmt.Sprintf("Failed to write mod metadata: %s", err.Error()),

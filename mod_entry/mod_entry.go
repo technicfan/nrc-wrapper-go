@@ -116,7 +116,7 @@ func (mod *ModEntry) SetOldFile(name string) {
 func (mod ModEntry) Download_async(
 	config config.Config,
 	wg *sync.WaitGroup,
-	index chan<- map[string]string,
+	index chan<- utils.Pair,
 	limiter chan struct{},
 ) {
 	defer wg.Done()
@@ -143,7 +143,7 @@ func (mod ModEntry) Download_async(
 	}
 
 	hash, _ := utils.Calc_hash(mod.Path())
-	index <- map[string]string{"id": mod.id, "hash": hash, "version": mod.version}
+	index <- utils.Pair{mod.filename, map[string]string{"id": mod.id, "hash": hash, "version": mod.version}}
 }
 
 type ModEntries map[string]ModEntry
@@ -176,14 +176,13 @@ func (mods ModEntries) Get_missing_mods(
 	return result, removed
 }
 
-func (mods ModEntries) Convert_to_index() []map[string]string {
-	var results []map[string]string
+func (mods ModEntries) Convert_to_index() utils.Index {
+	results := make(utils.Index)
 	for _, mod := range mods {
 		info := make(map[string]string)
-		info["id"] = mod.id
 		info["hash"] = mod.hash
 		info["version"] = mod.version
-		results = append(results, info)
+		results[mod.id] = info
 	}
 
 	return results

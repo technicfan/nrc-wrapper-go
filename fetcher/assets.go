@@ -52,16 +52,20 @@ func (asset Asset) Download() error {
 	return utils.Download(asset)
 }
 
-func (asset Asset) IsMissing() bool {
-	if hash, err := utils.Calc_hash(asset.Path()); err == nil && hash == asset.ExpectedHash() {
-		return false
+func (asset Asset) IsMissing(index utils.Index) (bool, bool) {
+	if entry, e := index[asset.path]; e && entry["hash"] == asset.hash {
+		return false, false
 	}
-	return true
+	if hash, err := utils.Calc_hash(asset.Path()); err == nil && hash == asset.hash {
+		return false, true
+	}
+	return true, true
 }
 
 func (asset Asset) download_async(
 	config config.Config,
 	wg *sync.WaitGroup,
+	index chan <- utils.Pair,
 	limiter chan struct{},
 ) {
 	defer wg.Done()
@@ -78,6 +82,8 @@ func (asset Asset) download_async(
 		)
 		return
 	}
+
+	index <- utils.Pair{asset.path, map[string]string{"hash": asset.hash}}
 
 	log.Printf("Downloaded %s/%s", asset.pack, asset.Filename())
 }
@@ -127,6 +133,8 @@ func Download_assets_async(
 		go get_asset_metadata_async(i, pack, &wg, data)
 	}
 
+	existing_index := utils.Read_index(".nrc-asset-index.json")
+
 	go func() {
 		wg.Wait()
 		close(data)
@@ -141,10 +149,15 @@ func Download_assets_async(
 		maps.Copy(merged, final_data[i])
 	}
 
+	index_updated := false
 	var missing_assets []Asset
 	for _, asset := range merged {
-		if asset.IsMissing() {
+		missing, untracked := asset.IsMissing(existing_index)
+		if missing {
 			missing_assets = append(missing_assets, asset)
+		} else if untracked {
+			index_updated = true
+			existing_index[asset.path] = map[string]string{"hash": asset.hash}
 		}
 	}
 
@@ -152,10 +165,26 @@ func Download_assets_async(
 		log.Println("Downloading missing/updated assets")
 	}
 
+	index := make(chan utils.Pair, len(merged))
 	for i := range missing_assets {
 		wg.Add(1)
-		go missing_assets[i].download_async(config, &wg, limiter)
+		go missing_assets[i].download_async(config, &wg, index, limiter)
 	}
 
 	wg.Wait()
+	close(index)
+
+	if (index_updated || len(index) > 0) {
+		for k := range index {
+			existing_index[k.Key] = k.Value
+		}
+		err := existing_index.Write(".nrc-asset-index.json")
+		if err != nil {
+			utils.Notify(
+				fmt.Sprintf("Failed to write asset index: %s", err.Error()),
+				true,
+				config.Notify,
+			)
+		}
+	}
 }
