@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -399,13 +398,11 @@ func gui() {
 								if mods[id].Enabled() {
 									new_name = mods[id].Filename() + ".disabled"
 								} else {
-									new_name = regexp.MustCompile(".disabled$").ReplaceAllString(
-										mods[id].Filename(), "",
-									)
+									new_name = strings.TrimSuffix(mods[id].Filename(), ".disabled")
 								}
 								err := os.Rename(
-									mods[id].Path(),
-									filepath.Join(filepath.Dir(mods[id].Path()), new_name),
+									filepath.Join(instance.McRoot, mods[id].Path()),
+									filepath.Join(instance.McRoot, filepath.Dir(mods[id].Path()), new_name),
 								)
 								if err != nil {
 									log.Printf(

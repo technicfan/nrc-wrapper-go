@@ -320,7 +320,7 @@ func (mod ModEntry) Download() error {
 
 func (mod *ModEntry) SetOldFile(name string) {
 	mod.OldFile = name
-	if strings.HasSuffix(name, ".disabled") {
+	if strings.HasSuffix(name, ".disabled") && mod.Enabled() {
 		mod.filename += ".disabled"
 	}
 }
