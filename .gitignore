@@ -17,6 +17,7 @@ nrc-wrapper-go*
 coverage.*
 *.coverprofile
 profile.cov
+*.profile
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
