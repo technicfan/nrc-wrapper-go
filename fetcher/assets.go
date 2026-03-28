@@ -49,7 +49,19 @@ func (asset Asset) HashObj() hash.Hash {
 }
 
 func (asset Asset) Download() error {
-	return utils.Download(asset)
+	err := utils.Download(asset)
+	if err == nil {
+		log.Printf("Downloaded %s/%s", asset.pack, asset.Filename())
+	}
+	return err
+}
+
+func (asset Asset) IndexPair() utils.Pair {
+	return utils.Pair{asset.path, map[string]string{"hash": asset.hash}}
+}
+
+func (asset Asset) Type() int {
+	return 1
 }
 
 func (asset Asset) IsMissing(index utils.Index) (bool, bool) {
@@ -60,32 +72,6 @@ func (asset Asset) IsMissing(index utils.Index) (bool, bool) {
 		return false, true
 	}
 	return true, true
-}
-
-func (asset Asset) download_async(
-	config config.Config,
-	wg *sync.WaitGroup,
-	index chan <- utils.Pair,
-	limiter chan struct{},
-) {
-	defer wg.Done()
-
-	limiter <- struct{}{}
-	defer func() { <-limiter }()
-
-	err := asset.Download()
-	if err != nil {
-		utils.Notify(
-			fmt.Sprintf("Failed to download %s: %s", asset.Filename(), err.Error()),
-			config.ErrorOnFailedDownload,
-			config.Notify,
-		)
-		return
-	}
-
-	index <- utils.Pair{asset.path, map[string]string{"hash": asset.hash}}
-
-	log.Printf("Downloaded %s/%s", asset.pack, asset.Filename())
 }
 
 func get_asset_metadata_async(
@@ -119,13 +105,10 @@ func get_asset_metadata_async(
 	data <- map[int]map[string]Asset{index: results}
 }
 
-func Download_assets_async(
+func Get_assets(
 	packs []string,
 	config config.Config,
-	limiter chan struct{},
-	wg1 *sync.WaitGroup,
-) {
-	defer wg1.Done()
+) ([]utils.Resource, utils.Index, bool) {
 	var wg sync.WaitGroup
 	data := make(chan map[int]map[string]Asset, len(packs))
 	for i, pack := range packs {
@@ -150,7 +133,7 @@ func Download_assets_async(
 	}
 
 	index_updated := false
-	var missing_assets []Asset
+	var missing_assets []utils.Resource
 	for _, asset := range merged {
 		missing, untracked := asset.IsMissing(existing_index)
 		if missing {
@@ -161,30 +144,5 @@ func Download_assets_async(
 		}
 	}
 
-	if len(missing_assets) != 0 {
-		log.Println("Downloading missing/updated assets")
-	}
-
-	index := make(chan utils.Pair, len(merged))
-	for i := range missing_assets {
-		wg.Add(1)
-		go missing_assets[i].download_async(config, &wg, index, limiter)
-	}
-
-	wg.Wait()
-	close(index)
-
-	if (index_updated || len(index) > 0) {
-		for k := range index {
-			existing_index[k.Key] = k.Value
-		}
-		err := existing_index.Write(".nrc-asset-index.json")
-		if err != nil {
-			utils.Notify(
-				fmt.Sprintf("Failed to write asset index: %s", err.Error()),
-				true,
-				config.Notify,
-			)
-		}
-	}
+	return missing_assets, existing_index, index_updated
 }

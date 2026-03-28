@@ -101,14 +101,37 @@ func main() {
 		}
 		maps.Copy(mods, pack_mods.Get_compatible_mods(cfg, versions.Repositories))
 
-		wg.Add(2)
-		limiter := make(chan struct{}, 10)
+		asset_resources, asset_index, update_assets := fetcher.Get_assets(assets, cfg)
+		mod_resources, mod_index, update_mods := fetcher.Get_Mods(mods, cfg)
+		resources := append(asset_resources, mod_resources...)
 
-		go fetcher.Download_assets_async(assets, cfg, limiter, &wg)
-		go fetcher.Download_mods_async(mods, cfg, limiter, &wg)
+		limiter := make(chan struct{}, 10)
+		asset_index_chan := make(chan utils.Pair, len(asset_resources))
+		mod_index_chan := make(chan utils.Pair, len(mod_resources))
+		for i := range resources {
+			wg.Add(1)
+			go utils.DownloadAsync(
+				resources[i],
+				cfg.ErrorOnFailedDownload,
+				cfg.Notify,
+				mod_index_chan,
+				asset_index_chan,
+				&wg,
+				limiter,
+			)
+		}
 		token, err = fetcher.Get_token(cfg, false)
 
 		wg.Wait()
+		close(asset_index_chan)
+		close(mod_index_chan)
+
+		if update_assets || len(asset_index_chan) > 0 {
+			asset_index.Merge(asset_index_chan).Write(globals.ASSET_INDEX)
+		}
+		if update_mods || len(mod_index_chan) > 0 {
+			mod_index.Merge(mod_index_chan).Write(globals.MOD_INDEX)
+		}
 	} else {
 		if !launch {
 			log.Println("No connection to the API")

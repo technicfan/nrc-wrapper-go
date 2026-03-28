@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gen2brain/beeep"
 )
@@ -26,6 +27,8 @@ type Resource interface {
 	ExpectedHash() string
 	HashObj() hash.Hash
 	Download() error
+	IndexPair() Pair
+	Type() int
 }
 
 func Download(resource Resource) error {
@@ -71,10 +74,40 @@ func Download(resource Resource) error {
 	return nil
 }
 
+func DownloadAsync(
+	resource Resource,
+	eofd bool,
+	notify bool,
+	mods chan <- Pair,
+	assets chan <- Pair,
+	wg *sync.WaitGroup,
+	limiter chan struct{},
+) {
+	defer wg.Done()
+	limiter <- struct{}{}
+	defer func() { <-limiter }()
+
+	err := resource.Download()
+	if err != nil {
+		Notify(
+			fmt.Sprintf("Failed to download %s: %s", resource.Filename(), err.Error()),
+			eofd,
+			notify,
+		)
+	} else {
+		switch resource.Type() {
+		case 0:
+			mods <- resource.IndexPair()
+		case 1:
+			assets <- resource.IndexPair()
+		}
+	}
+}
+
 type Index map[string]map[string]string
 
 type Pair struct {
-	Key string
+	Key   string
 	Value map[string]string
 }
 
@@ -121,6 +154,13 @@ func (data Index) Write(path string) error {
 	}
 
 	return nil
+}
+
+func (data Index) Merge(index chan Pair) Index {
+	for e := range index {
+		data[e.Key] = e.Value
+	}
+	return data
 }
 
 func Calc_hash(
@@ -205,7 +245,6 @@ func Notify(
 	if error {
 		if notify {
 			err := beeep.Notify("Error", msg, "")
-			log.Println(1)
 			if err != nil {
 				log.Fatalf("Notify failed: %s", err.Error())
 			}

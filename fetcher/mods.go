@@ -2,24 +2,20 @@ package fetcher
 
 import (
 	"fmt"
-	"log"
 	"main/config"
 	"main/mod_entry"
 	"main/utils"
 	"os"
 	"path/filepath"
-
-	"sync"
 )
-
 
 func Get_installed_mods(
 	root string,
 	mod_dir string,
-) (mod_entry.ModEntries, error) {
+) (mod_entry.ModEntries, bool, error) {
 	files, err := os.ReadDir(filepath.Join(root, mod_dir))
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	index := utils.Read_index(filepath.Join(root, ".nrc-mod-index.json"))
 
@@ -41,35 +37,38 @@ func Get_installed_mods(
 		}
 	}
 
+	updated := false
 	results := make(mod_entry.ModEntries)
-	for _, entry := range index {
-		if _, exists := hashes[entry["hash"]]; exists {
+	for entry_name, entry := range index {
+		if name, exists := hashes[entry["hash"]]; exists {
 			results[entry["id"]] = mod_entry.New(
 				entry["hash"],
 				entry["version"],
 				entry["id"],
-				hashes[entry["hash"]],
+				name,
 				mod_dir,
 				"",
 				"",
 				false,
 			)
+			if entry_name != name {
+				updated = true
+			}
+		} else {
+			updated = true
 		}
 	}
 
-	return results, nil
+	return results, updated, nil
 }
 
-func Download_mods_async(
+func Get_Mods(
 	mods mod_entry.ModEntries,
 	config config.Config,
-	limiter chan struct{},
-	wg *sync.WaitGroup,
-) {
-	defer wg.Done()
+) ([]utils.Resource, utils.Index, bool) {
 	os.Mkdir(config.ModDir, os.ModePerm)
 
-	installed_mods, err := Get_installed_mods("./", config.ModDir)
+	installed_mods, updated, err := Get_installed_mods("./", config.ModDir)
 	if err != nil {
 		utils.Notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
 	}
@@ -79,34 +78,13 @@ func Download_mods_async(
 	)
 
 	if len(mods_to_download) == 0 {
-		return
+		return []utils.Resource{}, already_installed.Convert_to_index(), updated
 	}
 
-	log.Println("Installing missing/updated mods")
-
-	var wg1 sync.WaitGroup
-
-	index := make(chan utils.Pair, len(mods_to_download))
-	for _, mod := range mods_to_download {
-		wg1.Add(1)
-		go mod.Download_async(config, &wg1, index, limiter)
+	var result []utils.Resource
+	for id := range mods_to_download {
+		result = append(result, mods_to_download[id])
 	}
 
-	wg1.Wait()
-	close(index)
-
-	if len(index) > 0 {
-		existing_index := already_installed.Convert_to_index()
-		for k := range index {
-			existing_index[k.Key] = k.Value
-		}
-		err = existing_index.Write(".nrc-mod-index.json")
-		if err != nil {
-			utils.Notify(
-				fmt.Sprintf("Failed to write mod metadata: %s", err.Error()),
-				true,
-				config.Notify,
-			)
-		}
-	}
+	return result, already_installed.Convert_to_index(), updated
 }

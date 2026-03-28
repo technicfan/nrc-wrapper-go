@@ -6,13 +6,11 @@ import (
 	"hash"
 	"io"
 	"log"
-	"main/config"
 	"main/utils"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 type ModEntry struct {
@@ -24,12 +22,12 @@ type ModEntry struct {
 	id       string
 	filename string
 	// old file if it was replaced
-	old_file    string
-	path        string
-	url         string
-	alt_url     string
-	use_alt_url bool
-	check_hash   bool
+	old_file      string
+	path          string
+	url           string
+	alt_url       string
+	use_alt_url   bool
+	check_hash    bool
 }
 
 func New(
@@ -103,7 +101,27 @@ func (mod ModEntry) HashObj() hash.Hash {
 }
 
 func (mod ModEntry) Download() error {
-	return utils.Download(mod)
+	err := utils.Download(mod)
+	if err != nil && err.Error() == "HTTP 404" {
+		err = utils.Download(mod)
+	}
+	if err == nil {
+		log.Printf("Downloaded %s", mod.Filename())
+		if mod.Filename() != mod.old_file && mod.Filename() != "" && mod.old_file != "" {
+			os.Remove(filepath.Join(mod.path, mod.old_file))
+			log.Printf("Removed old file %s", mod.old_file)
+		}
+	}
+	return err
+}
+
+func (mod ModEntry) IndexPair() utils.Pair {
+	hash, _ := utils.Calc_hash(mod.Path())
+	return utils.Pair{mod.filename, map[string]string{"id": mod.id, "hash": hash, "version": mod.version}}
+}
+
+func (mod ModEntry) Type() int {
+	return 0
 }
 
 func (mod *ModEntry) SetOldFile(name string) {
@@ -111,39 +129,6 @@ func (mod *ModEntry) SetOldFile(name string) {
 	if strings.HasSuffix(name, ".disabled") && mod.Enabled() {
 		mod.filename += ".disabled"
 	}
-}
-
-func (mod ModEntry) Download_async(
-	config config.Config,
-	wg *sync.WaitGroup,
-	index chan<- utils.Pair,
-	limiter chan struct{},
-) {
-	defer wg.Done()
-
-	limiter <- struct{}{}
-	defer func() { <-limiter }()
-
-	err := mod.Download()
-	if err != nil && err.Error() == "HTTP 404" {
-		err = mod.Download()
-	}
-	if err != nil {
-		utils.Notify(
-			fmt.Sprintf("Failed to download %s: %s", mod.Filename(), err.Error()),
-			config.ErrorOnFailedDownload,
-			config.Notify,
-		)
-		return
-	}
-	log.Printf("Downloaded %s", mod.Filename())
-	if mod.Filename() != mod.old_file && mod.Filename() != "" && mod.old_file != "" {
-		os.Remove(filepath.Join(config.ModDir, mod.old_file))
-		log.Printf("Removed old file %s", mod.old_file)
-	}
-
-	hash, _ := utils.Calc_hash(mod.Path())
-	index <- utils.Pair{mod.filename, map[string]string{"id": mod.id, "hash": hash, "version": mod.version}}
 }
 
 type ModEntries map[string]ModEntry
