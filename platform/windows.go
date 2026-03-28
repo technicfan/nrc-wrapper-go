@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package platform
 
 import (
 	"os"
@@ -17,7 +17,7 @@ const (
 	DATA_HOME = "AppData/Roaming"
 )
 
-func cli() {
+func Cli() {
 	const ATTACH_PARENT_PROCESS = ^uintptr(0)
 
 	windows.NewLazyDLL("kernel32.dll").NewProc("AttachConsole").Call(ATTACH_PARENT_PROCESS)
@@ -28,7 +28,7 @@ func cli() {
 	os.Stderr = os.NewFile(uintptr(stderrHandle), "/dev/stderr")
 }
 
-func get_const_dirs() (map[string][]string, []string) {
+func Get_const_dirs() (map[string][]string, []string) {
 	usr, _ := user.Current()
 	home := usr.HomeDir
 	dirs := map[string][]string{
@@ -56,7 +56,7 @@ func Exec(command string, args []string) error {
 	return err
 }
 
-func get_running_launchers() []string {
+func Get_running_launchers() []string {
 	var running []string
 	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq prismlauncher.exe")
 	out, err := cmd.Output()

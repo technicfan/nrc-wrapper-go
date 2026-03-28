@@ -1,8 +1,15 @@
-package main
+package gui
 
 import (
 	"fmt"
 	"log"
+	"main/api"
+	"main/fetcher"
+	"main/globals"
+	"main/launchers"
+	"main/packs"
+	"main/platform"
+	"main/utils"
 	"maps"
 	"os"
 	"os/exec"
@@ -20,16 +27,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter", "norisk-development"}
-var REFRESH bool
-
-func gui() {
+func Gui() {
 	a := app.NewWithID("nrc-wrapper-go")
 	w := a.NewWindow("nrc-wrapper-go")
 	w.Resize(fyne.NewSize(800, 500))
 	w.CenterOnScreen()
 
-	running_launchers := get_running_launchers()
+	running_launchers := platform.Get_running_launchers()
 
 	if len(running_launchers) == 0 {
 		ex, err := os.Executable()
@@ -43,36 +47,36 @@ func gui() {
 		if strings.Contains(ex, `\`) {
 			ex = strings.ReplaceAll(ex, `\`, `\\`)
 		}
-		v, err := get_norisk_versions(NORISK_API_URL)
+		v, err := api.Get_norisk_versions()
 		if err != nil {
 			log.Fatal(err)
 		}
-		packs := v.Packs.to_meta_packs()
+		launchers_dirs, order := packs.Get_launcher_dirs()
+		packs := v.Packs.To_meta_packs()
 		versions := packs.Versions
 		loaders := packs.Loaders
-		launchers, order := get_launcher_dirs()
-		instances := make(map[string][]Instance)
+		instances := make(map[string][]launchers.Instance)
 		for i, l := range order {
-			inst, err := get_instances(launchers[l][0], l, launchers[l][1], versions, loaders, ex)
+			inst, err := launchers.Get_instances(launchers_dirs[l][0], l, launchers_dirs[l][1], versions, loaders, ex)
 			if err != nil {
 				order = slices.Delete(order, i, i+1)
 			} else {
-				slices.SortFunc(inst, func(a Instance, b Instance) int {
+				slices.SortFunc(inst, func(a launchers.Instance, b launchers.Instance) int {
 					return strings.Compare(a.Name, b.Name)
 				})
 				instances[l] = inst
 			}
 		}
 		var unique_main []string
-		for i := range MAIN_PACKS {
-			name := packs.Packs[MAIN_PACKS[i]].Name
-			unique_main = append(unique_main, make_unique(name, i))
+		for i := range globals.MAIN_PACKS {
+			name := packs.Packs[globals.MAIN_PACKS[i]].Name
+			unique_main = append(unique_main, utils.Make_unique(name, i))
 		}
 
 		tabs := container.NewAppTabs()
 
 		for _, l := range order {
-			var open_configs []*Instance
+			var open_configs []*launchers.Instance
 
 			lstack := container.NewStack()
 			cws := container.NewMultipleWindows()
@@ -106,13 +110,13 @@ func gui() {
 						cmd.Env = env
 						_, err := cmd.Output()
 						if err != nil {
-							notify(
+							utils.Notify(
 								fmt.Sprintf("%s failed: %s", main_button.Text, err.Error()),
 								false, true,
 							)
 						} else {
 							main_button.SetText("Refresh NRC")
-							notify("Finished!", false, true)
+							utils.Notify("Finished!", false, true)
 						}
 						lstack.Remove(loading_bar)
 					})
@@ -127,7 +131,7 @@ func gui() {
 					if !slices.Contains(open_configs, instance) {
 						cw := container.NewInnerWindow(instance.Name, nil)
 
-						options, reference, has_main_pack := packs.get_compatible_packs(
+						options, reference, has_main_pack := packs.Get_compatible_packs(
 							instance.Version, instance.Loader,
 						)
 						temp_ref := reference
@@ -138,14 +142,14 @@ func gui() {
 							instance.Config.NrcPack = selected
 							instance.NewConfig.NrcPack = selected
 						}
-						show_all := !slices.Contains(MAIN_PACKS, selected)
+						show_all := !slices.Contains(globals.MAIN_PACKS, selected)
 
 						all_packs_toggle := widget.NewCheck("Show all", func(b bool) {
 							if !b {
 								var new_reference, new_options []string
-								for i := range MAIN_PACKS {
-									if slices.Contains(reference, MAIN_PACKS[i]) {
-										new_reference = append(new_reference, MAIN_PACKS[i])
+								for i := range globals.MAIN_PACKS {
+									if slices.Contains(reference, globals.MAIN_PACKS[i]) {
+										new_reference = append(new_reference, globals.MAIN_PACKS[i])
 										new_options = append(new_options, unique_main[i])
 									}
 								}
@@ -163,7 +167,7 @@ func gui() {
 						}
 
 						if v, e := packs.Packs[instance.Config.NrcPack]; e {
-							selected = make_unique(
+							selected = utils.Make_unique(
 								v.Name, slices.Index(reference, instance.Config.NrcPack),
 							)
 						}
@@ -175,7 +179,7 @@ func gui() {
 						loader_warn_update := func() {
 							selected := pack_select.SelectedIndex()
 							if selected != -1 {
-								if p, e := packs.Packs[reference[selected]]; e && cmp_versions(
+								if p, e := packs.Packs[reference[selected]]; e && utils.Cmp_versions(
 									instance.LoaderVersion, p.Loaders[instance.Loader],
 								) < 0 {
 									warn_label.SetText(fmt.Sprintf(
@@ -239,7 +243,7 @@ func gui() {
 							if pack != -1 {
 								instance.NewConfig.NrcPack = reference[pack]
 							}
-							err := instance.save(ex)
+							err := instance.Save(ex)
 							if err != nil {
 								warn_label.SetText(
 									"An error occurred while saving\nSee log (stdout) for more details",
@@ -314,7 +318,7 @@ func gui() {
 					}
 				}))
 				line.Add(widget.NewButton("NRC Mods", func() {
-					mods, err := get_installed_mods(instance.McRoot, instance.Config.ModDir)
+					mods, err := fetcher.Get_installed_mods(instance.McRoot, instance.Config.ModDir)
 					var mods_to_toggle []string
 
 					var mod_list *fyne.Container
@@ -322,7 +326,7 @@ func gui() {
 						mod_list = container.NewVBox()
 						mod_names := make(map[string]string)
 						if pack, e := v.Packs[instance.Config.NrcPack]; e {
-							mod_names = pack.Mods.get_names(mods)
+							mod_names = pack.Mods.Get_names(mods)
 						}
 						for _, id := range slices.Sorted(maps.Keys(mods)) {
 							line := container.NewGridWithColumns(2)
@@ -441,12 +445,12 @@ func gui() {
 
 		var packs_main_first []string
 		for id := range packs.Packs {
-			if !slices.Contains(MAIN_PACKS, id) {
+			if !slices.Contains(globals.MAIN_PACKS, id) {
 				packs_main_first = append(packs_main_first, id)
 			}
 		}
 		slices.Sort(packs_main_first)
-		packs_main_first = append(MAIN_PACKS, packs_main_first...)
+		packs_main_first = append(globals.MAIN_PACKS, packs_main_first...)
 
 		var packs_string_builder strings.Builder
 		for _, id := range packs_main_first {

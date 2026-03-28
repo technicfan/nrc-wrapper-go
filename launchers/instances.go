@@ -1,4 +1,4 @@
-package main
+package launchers
 
 import (
 	"bufio"
@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"main/globals"
+	"main/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -65,7 +67,7 @@ func (cfg *Cfg) write(
 	return nil
 }
 
-func (instance *Instance) save(ex string) error {
+func (instance *Instance) Save(ex string) error {
 	if instance.Config != instance.NewConfig {
 		if instance.Config.Nrc != instance.NewConfig.Nrc {
 			instance.Config.Nrc = instance.NewConfig.Nrc
@@ -114,7 +116,7 @@ func (instance *Instance) save(ex string) error {
 		if instance.Config.Nrc {
 			if instance.Config.NrcPack != instance.NewConfig.NrcPack {
 				instance.Config.NrcPack = instance.NewConfig.NrcPack
-				if instance.Config.NrcPack == "" || instance.Config.NrcPack == DEFAULT_PACK {
+				if instance.Config.NrcPack == "" || instance.Config.NrcPack == globals.DEFAULT_PACK {
 					delete(instance.Env, "NRC_PACK")
 				} else {
 					instance.Env["NRC_PACK"] = instance.Config.NrcPack
@@ -122,7 +124,7 @@ func (instance *Instance) save(ex string) error {
 			}
 			if instance.Config.ModDir != instance.NewConfig.ModDir {
 				instance.Config.ModDir = instance.NewConfig.ModDir
-				if instance.Config.ModDir != "" && instance.Config.ModDir != DEFAULT_MOD_DIR {
+				if instance.Config.ModDir != "" && instance.Config.ModDir != globals.DEFAULT_MOD_DIR {
 					instance.Env["NRC_MOD_DIR"] = instance.Config.ModDir
 				} else {
 					delete(instance.Env, "NRC_MOD_DIR")
@@ -216,7 +218,7 @@ func save_modrinth_instance(
 	return err
 }
 
-func get_prism_instance_dir(
+func Get_prism_instance_dir(
 	path string,
 ) (string, error) {
 	config, err := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
@@ -232,7 +234,7 @@ func get_prism_instance_dir(
 	return filepath.Join(path, "instances"), nil
 }
 
-func get_instances(
+func Get_instances(
 	path string,
 	launcher string,
 	flatpak string,
@@ -293,8 +295,8 @@ func get_prism_instances(
 				vars = make(map[string]string)
 			}
 
-			pack := DEFAULT_PACK
-			mod_path := DEFAULT_MOD_DIR
+			pack := globals.DEFAULT_PACK
+			mod_path := globals.DEFAULT_MOD_DIR
 			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
 			if v, e := vars["NRC_PACK"]; e {
 				pack = v
@@ -358,8 +360,8 @@ func get_modrinth_instances(
 			var neofd bool
 			var data [][]string
 
-			pack := DEFAULT_PACK
-			mod_path := DEFAULT_MOD_DIR
+			pack := globals.DEFAULT_PACK
+			mod_path := globals.DEFAULT_MOD_DIR
 			notify := true
 			if wrapper_ptr != nil {
 				wrapper = *wrapper_ptr
@@ -426,7 +428,7 @@ func parse_cfg(
 		}
 	}
 
-	if v, e := config["General"]["ConfigVersion"]; !e || cmp_versions(v, "1.3") < 0 {
+	if v, e := config["General"]["ConfigVersion"]; !e || utils.Cmp_versions(v, "1.3") < 0 {
 		return nil, fmt.Errorf("%s is too old. Only config version >= 1.3 compatible", v)
 	}
 

@@ -1,10 +1,13 @@
-package main
+package fetcher
 
 import (
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"main/config"
+	"main/mod_entry"
+	"main/utils"
 	"os"
 	"path/filepath"
 
@@ -58,10 +61,10 @@ func (data Index) write() error {
 	return nil
 }
 
-func get_installed_mods(
+func Get_installed_mods(
 	root string,
 	mod_dir string,
-) (ModEntries, error) {
+) (mod_entry.ModEntries, error) {
 	files, err := os.ReadDir(filepath.Join(root, mod_dir))
 	if err != nil {
 		return nil, err
@@ -72,7 +75,7 @@ func get_installed_mods(
 	for _, f := range files {
 		if !f.IsDir() &&
 			(filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
-			hash, err := calc_hash(filepath.Join(root, mod_dir, f.Name()))
+			hash, err := utils.Calc_hash(filepath.Join(root, mod_dir, f.Name()))
 			if err == nil {
 				info := make(map[string]string)
 				info["filename"] = f.Name()
@@ -81,41 +84,39 @@ func get_installed_mods(
 		}
 	}
 
-	results := make(ModEntries)
+	results := make(mod_entry.ModEntries)
 	for _, entry := range index {
 		if _, exists := hashes[entry["hash"]]; exists {
-			results[entry["id"]] = ModEntry{
+			results[entry["id"]] = mod_entry.New(
 				entry["hash"],
 				entry["version"],
 				entry["id"],
 				hashes[entry["hash"]]["filename"],
-				"",
 				mod_dir,
 				"",
 				"",
 				false,
-				false,
-			}
+			)
 		}
 	}
 
 	return results, nil
 }
 
-func download_mods_async(
-	mods ModEntries,
-	config Config,
+func Download_mods_async(
+	mods mod_entry.ModEntries,
+	config config.Config,
 	limiter chan struct{},
 	wg *sync.WaitGroup,
 ) {
 	defer wg.Done()
 	os.Mkdir(config.ModDir, os.ModePerm)
 
-	installed_mods, err := get_installed_mods("./", config.ModDir)
+	installed_mods, err := Get_installed_mods("./", config.ModDir)
 	if err != nil {
-		notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
+		utils.Notify(fmt.Sprintf("Failed to get installed mods: %s", err.Error()), true, config.Notify)
 	}
-	mods_to_download, already_installed := mods.get_missing_mods(
+	mods_to_download, already_installed := mods.Get_missing_mods(
 		installed_mods,
 		config.ModDir,
 	)
@@ -131,20 +132,21 @@ func download_mods_async(
 	index := make(chan map[string]string, len(mods_to_download))
 	for _, mod := range mods_to_download {
 		wg1.Add(1)
-		go mod.download_async(config, &wg1, index, limiter)
+		go mod.Download_async(config, &wg1, index, limiter)
 	}
 
 	wg1.Wait()
 	close(index)
 
 	if len(index) > 0 {
-		existing_index := already_installed.convert_to_index()
+		var existing_index Index
+		existing_index = already_installed.Convert_to_index()
 		for entry := range index {
 			existing_index = append(existing_index, entry)
 		}
 		err = existing_index.write()
 		if err != nil {
-			notify(
+			utils.Notify(
 				fmt.Sprintf("Failed to write mod metadata: %s", err.Error()),
 				true,
 				config.Notify,

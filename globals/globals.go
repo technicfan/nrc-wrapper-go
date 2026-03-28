@@ -1,6 +1,8 @@
-package main
+package globals
 
 var NORISK_API_URL = "https://api.norisk.gg/api/v1"
+var MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter", "norisk-development"}
+var REFRESH bool
 
 const (
 	NORISK_API_STAGING_URL = "https://api-staging.norisk.gg/api/v1"

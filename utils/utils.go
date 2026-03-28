@@ -1,18 +1,76 @@
-package main
+package utils
 
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
+	"fmt"
+	"hash"
 	"io"
 	"log"
+	"main/globals"
+	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/gen2brain/beeep"
 )
 
-func calc_hash(
+type Resource interface {
+	Url() string
+	Path() string
+	Filename() string
+	ExpectedHash() string
+	HashObj() hash.Hash
+	Download() error
+}
+
+func Download(resource Resource) error {
+	os.MkdirAll(filepath.Dir(resource.Path()), os.ModePerm)
+
+	response, err := http.Get(resource.Url())
+	if err != nil {
+		return err
+	}
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %v", response.StatusCode)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(response.Body)
+	if err != nil {
+		return err
+	}
+
+	expected_hash := resource.ExpectedHash()
+	if expected_hash != "" {
+		hash := resource.HashObj()
+
+		if _, err := hash.Write(body); err != nil {
+			return err
+		}
+		if hex.EncodeToString(hash.Sum(nil)) != expected_hash {
+			return errors.New("wrong hash")
+		}
+	}
+
+	file, err := os.Create(resource.Path())
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = file.Write(body)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Calc_hash(
 	path string,
 ) (string, error) {
 	var file, err = os.Open(path)
@@ -36,7 +94,16 @@ func calc_hash(
 	return hex.EncodeToString(bytesHash[:]), nil
 }
 
-func cmp_versions(
+func Make_unique(str string, index int) string {
+	var builder strings.Builder
+	builder.WriteString(str)
+	for range index {
+		builder.WriteRune('\u200d')
+	}
+	return builder.String()
+}
+
+func Cmp_versions(
 	a string,
 	b string,
 ) int {
@@ -76,7 +143,7 @@ func cmp_versions(
 	}
 }
 
-func notify(
+func Notify(
 	msg string,
 	error bool,
 	notify bool,
@@ -90,7 +157,7 @@ func notify(
 				log.Fatalf("Notify failed: %s", err.Error())
 			}
 		}
-		if REFRESH {
+		if globals.REFRESH {
 			log.Println(msg)
 		} else {
 			log.Fatal(msg)

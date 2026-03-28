@@ -1,18 +1,13 @@
-package main
+package packs
 
 import (
-	"crypto/sha1"
 	"fmt"
-	"hash"
-	"io"
-	"log"
+	"main/config"
+	"main/mod_entry"
+	"main/utils"
 	"maps"
-	"net/http"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 )
 
 // Pack/Packs
@@ -37,7 +32,7 @@ type Pack struct {
 	} `json:"loaderPolicy"`
 }
 
-func (pack Pack) get_details(
+func (pack Pack) Get_details(
 	packs map[string]Pack,
 ) (NoriskMods, []string, []string, map[string]string) {
 	loaders := make(map[string]string)
@@ -89,7 +84,7 @@ func (pack Pack) get_details(
 
 type Packs map[string]Pack
 
-func (packs Packs) to_meta_packs() MetaPacks {
+func (packs Packs) To_meta_packs() MetaPacks {
 	var global_versions []string
 	var global_loaders []string
 	var pack_names []string
@@ -98,8 +93,8 @@ func (packs Packs) to_meta_packs() MetaPacks {
 		var mc_versions []string
 		pack := packs[i]
 		pack_names = append(pack_names, i)
-		_, _, mc_versions, loaders := pack.get_details(packs)
-		slices.SortFunc(mc_versions, cmp_versions)
+		_, _, mc_versions, loaders := pack.Get_details(packs)
+		slices.SortFunc(mc_versions, utils.Cmp_versions)
 		for l := range loaders {
 			if !slices.Contains(global_loaders, l) {
 				global_loaders = append(global_loaders, l)
@@ -116,9 +111,9 @@ func (packs Packs) to_meta_packs() MetaPacks {
 	return MetaPacks{metapacks, global_versions, global_loaders, pack_names}
 }
 
-func (packs Packs) print() {
+func (packs Packs) Print() {
 	fmt.Println("Available NRC packs:")
-	meta := packs.to_meta_packs().Packs
+	meta := packs.To_meta_packs().Packs
 	for _, key := range slices.Sorted(maps.Keys(meta)) {
 		var loaders_string string
 		var loaders_list []string
@@ -144,11 +139,6 @@ func (packs Packs) print() {
 	}
 }
 
-type Versions struct {
-	Packs        Packs             `json:"packs"`
-	Repositories map[string]string `json:"repositories"`
-}
-
 // NoriskMod(s)
 // The mods that come from the api
 
@@ -171,7 +161,7 @@ func (mod NoriskMod) build_url(
 	var url, alt_url string
 	switch mod.Source["type"] {
 	case "url":
-	    url = mod_version
+		url = mod_version
 	case "modrinth":
 		version := mod_version
 		if !strings.Contains(mod_version, "-") {
@@ -198,12 +188,12 @@ func (mod NoriskMod) build_url(
 
 type NoriskMods []NoriskMod
 
-func (nrc_mods NoriskMods) get_compatible_mods(
-	config Config,
+func (nrc_mods NoriskMods) Get_compatible_mods(
+	config config.Config,
 	repos map[string]string,
-) ModEntries {
+) mod_entry.ModEntries {
 	mc_version, loader := config.Minecraft.Version, config.Minecraft.Loader
-	mods := make(ModEntries)
+	mods := make(mod_entry.ModEntries)
 	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[mc_version]; exists {
 			if _, exists := mod.Compatibility[mc_version][loader]; exists {
@@ -220,18 +210,16 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 				if mod.Compatibility[mc_version][loader]["filename"] != nil {
 					filename = mod.Compatibility[mc_version][loader]["filename"].(string)
 				}
-				mods[mod.Id] = ModEntry{
+				mods[mod.Id] = mod_entry.New(
 					"",
 					mod.Compatibility[mc_version][loader]["identifier"].(string),
 					mod.Id,
 					filename,
-					"",
 					config.ModDir,
 					url,
 					alt_url,
-					false,
 					mod.Source["type"] != "url",
-				}
+				)
 			}
 		}
 	}
@@ -239,7 +227,7 @@ func (nrc_mods NoriskMods) get_compatible_mods(
 	return mods
 }
 
-func (nrc_mods NoriskMods) get_names(mods ModEntries) map[string]string {
+func (nrc_mods NoriskMods) Get_names(mods mod_entry.ModEntries) map[string]string {
 	result := make(map[string]string)
 	for i := range nrc_mods {
 		if _, e := mods[nrc_mods[i].Id]; e {
@@ -247,156 +235,4 @@ func (nrc_mods NoriskMods) get_names(mods ModEntries) map[string]string {
 		}
 	}
 	return result
-}
-
-// ModEntry/ModEntries
-
-type ModEntry struct {
-	// MD5 Hash
-	Hash string
-	// Version number
-	Version string
-	// id
-	Id       string
-	filename string
-	// old file if it was replaced
-	OldFile   string
-	path string
-	url       string
-	altUrl    string
-	useAltUrl bool
-	checkHash bool
-}
-
-func (mod ModEntry) Url() string {
-	if (mod.useAltUrl && mod.altUrl != "") {
-		mod.useAltUrl = false
-		return mod.altUrl
-	}
-	mod.useAltUrl = true
-	return mod.url
-}
-
-func (mod ModEntry) Path() string {
-	return filepath.Join(mod.path, mod.filename)
-}
-
-func (mod ModEntry) Filename() string {
-	return mod.filename
-}
-
-func (mod ModEntry) Enabled() bool {
-	return strings.HasSuffix(mod.filename, ".jar")
-}
-
-func (mod ModEntry) ExpectedHash() string {
-	if (mod.checkHash) {
-		hash_response, err := http.Get(fmt.Sprintf("%s.sha1", mod.Url()))
-		if err != nil {
-			return ""
-		}
-		if hash_response.StatusCode != http.StatusOK {
-			log.Printf("Maven does not provide a sha1 hash for %s", mod.Filename)
-		} else {
-			defer hash_response.Body.Close()
-
-			hash_body, err := io.ReadAll(hash_response.Body)
-			if err != nil {
-				return ""
-			}
-			return string(hash_body)
-		}
-	}
-	return ""
-}
-
-func (mod ModEntry) HashObj() hash.Hash {
-	return sha1.New()
-}
-
-func (mod ModEntry) Download() error {
-	return download(mod)
-}
-
-func (mod *ModEntry) SetOldFile(name string) {
-	mod.OldFile = name
-	if strings.HasSuffix(name, ".disabled") && mod.Enabled() {
-		mod.filename += ".disabled"
-	}
-}
-
-func (mod ModEntry) download_async(
-	config Config,
-	wg *sync.WaitGroup,
-	index chan<- map[string]string,
-	limiter chan struct{},
-) {
-	defer wg.Done()
-
-	limiter <- struct{}{}
-	defer func() { <-limiter }()
-
-	err := mod.Download()
-	if err != nil && err.Error() == "HTTP 404" {
-		err = mod.Download()
-	}
-	if err != nil {
-		notify(
-			fmt.Sprintf("Failed to download %s: %s", mod.Filename(), err.Error()),
-			config.ErrorOnFailedDownload,
-			config.Notify,
-		)
-		return
-	}
-	log.Printf("Downloaded %s", mod.Filename())
-	if mod.Filename() != mod.OldFile && mod.Filename() != "" && mod.OldFile != "" {
-		os.Remove(filepath.Join(config.ModDir, mod.OldFile))
-		log.Printf("Removed old file %s", mod.OldFile)
-	}
-
-	hash, _ := calc_hash(mod.Path())
-	index <- map[string]string{"id": mod.Id, "hash": hash, "version": mod.Version}
-}
-
-type ModEntries map[string]ModEntry
-
-func (mods ModEntries) get_missing_mods(
-	installed_mods ModEntries,
-	path string,
-) (ModEntries, ModEntries) {
-	result, removed := make(ModEntries), make(ModEntries)
-	for _, mod := range mods {
-		if installed_mod, exists := installed_mods[mod.Id]; exists {
-			if mod.Version != installed_mod.Version {
-				mod.SetOldFile(installed_mod.Filename())
-				result[mod.Id] = mod
-			} else {
-				mod.Hash = installed_mod.Hash
-				removed[mod.Id] = mod
-			}
-			delete(installed_mods, mod.Id)
-		} else {
-			result[mod.Id] = mod
-		}
-	}
-
-	for _, mod := range installed_mods {
-		os.Remove(mod.Path())
-		log.Printf("Removed left over file %s", mod.Filename())
-	}
-
-	return result, removed
-}
-
-func (mods ModEntries) convert_to_index() Index {
-	var results []map[string]string
-	for _, mod := range mods {
-		info := make(map[string]string)
-		info["id"] = mod.Id
-		info["hash"] = mod.Hash
-		info["version"] = mod.Version
-		results = append(results, info)
-	}
-
-	return results
 }

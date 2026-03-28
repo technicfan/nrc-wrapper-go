@@ -1,9 +1,12 @@
-package main
+package config
 
 import (
-	"errors"
 	"fmt"
 	"log"
+	"main/globals"
+	"main/launchers"
+	"main/platform"
+	"main/utils"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -13,27 +16,13 @@ type Config struct {
 	Launcher              string
 	LauncherDir           string
 	NrcPack               string
-	Minecraft             Minecraft
+	Minecraft             launchers.Minecraft
 	ModDir                string
 	ErrorOnFailedDownload bool
 	Notify                bool
 }
 
-func get_minecraft_details(
-	path string,
-	launcher string,
-) (Minecraft, error) {
-	switch launcher {
-	case "prism":
-		return get_prism_details(path)
-	case "modrinth":
-		return get_modrinth_details(path)
-	default:
-		return Minecraft{}, errors.New("Minecraft details not found")
-	}
-}
-
-func get_config() Config {
+func Get_config() Config {
 	var config Config
 	usr, _ := user.Current()
 	home := usr.HomeDir
@@ -58,7 +47,7 @@ func get_config() Config {
 	default:
 		config.Notify = config.Launcher == "modrinth"
 	}
-	config.Notify = config.Notify || REFRESH
+	config.Notify = config.Notify || globals.REFRESH
 
 	if data_home == "" {
 		if os.Getenv("container") == "flatpak" {
@@ -66,14 +55,14 @@ func get_config() Config {
 			if app_id != "" {
 				data_home = filepath.Join(home, ".var/app", app_id, "data")
 			} else {
-				notify(
+				utils.Notify(
 					"Flatpak ID not set - you have to manually set the launcher directory",
 					true,
 					config.Notify,
 				)
 			}
 		} else {
-			data_home = filepath.Join(home, DATA_HOME)
+			data_home = filepath.Join(home, platform.DATA_HOME)
 		}
 	}
 
@@ -91,18 +80,18 @@ func get_config() Config {
 			config.LauncherDir = filepath.Join(data_home, "ModrinthApp")
 		}
 	default:
-		notify("No valid launcher detected or set manually", true, config.Notify)
+		utils.Notify("No valid launcher detected or set manually", true, config.Notify)
 	}
 
 	if value := os.Getenv("NRC_PACK"); value != "" {
 		config.NrcPack = value
 	} else {
-		config.NrcPack = DEFAULT_PACK
+		config.NrcPack = globals.DEFAULT_PACK
 	}
 
-	minecraft, err := get_minecraft_details(config.LauncherDir, config.Launcher)
+	minecraft, err := launchers.Get_minecraft_details(config.LauncherDir, config.Launcher)
 	if err != nil {
-		notify(
+		utils.Notify(
 			fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()),
 			true,
 			config.Notify,
@@ -113,7 +102,7 @@ func get_config() Config {
 	if value := os.Getenv("NRC_MOD_DIR"); value != "" {
 		config.ModDir = value
 	} else if config.Minecraft.Loader == "fabric" {
-		config.ModDir = DEFAULT_MOD_DIR
+		config.ModDir = globals.DEFAULT_MOD_DIR
 	} else {
 		config.ModDir = "mods"
 	}

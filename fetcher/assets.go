@@ -1,11 +1,16 @@
-package main
+package fetcher
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"hash"
 	"log"
+	"main/config"
+	"main/globals"
+	"main/utils"
 	"maps"
+	"net/http"
 	"path/filepath"
 	"sync"
 )
@@ -16,8 +21,15 @@ type Asset struct {
 	hash string
 }
 
+type Assets struct {
+	Objects map[string]struct {
+		Hash string `json:"hash"`
+		Size int    `json:"size"`
+	} `json:"objects"`
+}
+
 func (asset Asset) Url() string {
-	return fmt.Sprintf("%s/%s/assets/%s", NORISK_ASSETS_URL, asset.pack, asset.path)
+	return fmt.Sprintf("%s/%s/assets/%s", globals.NORISK_ASSETS_URL, asset.pack, asset.path)
 }
 
 func (asset Asset) Path() string {
@@ -37,18 +49,18 @@ func (asset Asset) HashObj() hash.Hash {
 }
 
 func (asset Asset) Download() error {
-	return download(asset)
+	return utils.Download(asset)
 }
 
 func (asset Asset) IsMissing() bool {
-	if hash, err := calc_hash(asset.Path()); err == nil && hash == asset.ExpectedHash() {
+	if hash, err := utils.Calc_hash(asset.Path()); err == nil && hash == asset.ExpectedHash() {
 		return false
 	}
 	return true
 }
 
 func (asset Asset) download_async(
-	config Config,
+	config config.Config,
 	wg *sync.WaitGroup,
 	limiter chan struct{},
 ) {
@@ -59,7 +71,7 @@ func (asset Asset) download_async(
 
 	err := asset.Download()
 	if err != nil {
-		notify(
+		utils.Notify(
 			fmt.Sprintf("Failed to download %s: %s", asset.Filename(), err.Error()),
 			config.ErrorOnFailedDownload,
 			config.Notify,
@@ -70,9 +82,40 @@ func (asset Asset) download_async(
 	log.Printf("Downloaded %s/%s", asset.pack, asset.Filename())
 }
 
-func download_assets_async(
+func get_asset_metadata_async(
+	index int,
+	pack string,
+	wg *sync.WaitGroup,
+	data chan<- map[int]map[string]Asset,
+) {
+	defer wg.Done()
+
+	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", globals.NORISK_API_URL, pack))
+	if err != nil {
+		return
+	}
+	if response.StatusCode != http.StatusOK {
+		return
+	}
+	defer response.Body.Close()
+
+	var metadata Assets
+	if err := json.NewDecoder(response.Body).Decode(&metadata); err != nil {
+		return
+	}
+
+	results := make(map[string]Asset)
+	for path, obj := range metadata.Objects {
+		asset := Asset{pack, path, obj.Hash}
+		results[path] = asset
+	}
+
+	data <- map[int]map[string]Asset{index: results}
+}
+
+func Download_assets_async(
 	packs []string,
-	config Config,
+	config config.Config,
 	limiter chan struct{},
 	wg1 *sync.WaitGroup,
 ) {

@@ -1,4 +1,4 @@
-package main
+package launchers
 
 import (
 	"database/sql"
@@ -115,6 +115,20 @@ func get_prism_instance(
 	}
 
 	return instance, nil
+}
+
+func Get_minecraft_details(
+	path string,
+	launcher string,
+) (Minecraft, error) {
+	switch launcher {
+	case "prism":
+		return get_prism_details(path)
+	case "modrinth":
+		return get_modrinth_details(path)
+	default:
+		return Minecraft{}, errors.New("Minecraft details not found")
+	}
 }
 
 func get_prism_details(

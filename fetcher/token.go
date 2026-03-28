@@ -1,4 +1,4 @@
-package main
+package fetcher
 
 import (
 	"crypto/sha256"
@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"main/api"
+	"main/config"
 	"os"
 	"runtime"
 	"strings"
@@ -112,8 +114,8 @@ func write_token_to_file(
 	return nil
 }
 
-func get_token(
-	config Config,
+func Get_token(
+	config config.Config,
 	offline bool,
 ) (string, error) {
 	uuid := config.Minecraft.Uuid
@@ -144,11 +146,11 @@ func get_token(
 	}
 
 	log.Println("Requesting new token")
-	server_id, err := request_server_id()
+	server_id, err := api.Request_server_id()
 	if err != nil {
 		return "", err
 	}
-	err = join_server_session(config.Minecraft.Token, uuid, server_id)
+	err = api.Join_server_session(config.Minecraft.Token, uuid, server_id)
 	if err != nil {
 		return "", err
 	}
@@ -156,7 +158,7 @@ func get_token(
 	host, _ := os.Hostname()
 	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Launcher+"-"+os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
-	nrc_token, err = request_token(
+	nrc_token, err = api.Request_token(
 		config.Minecraft.Username,
 		server_id,
 		hex.EncodeToString(hash[:]),
