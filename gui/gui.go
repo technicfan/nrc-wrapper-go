@@ -61,7 +61,7 @@ func Gui() {
 				order = slices.Delete(order, i, i+1)
 			} else {
 				slices.SortFunc(inst, func(a launchers.Instance, b launchers.Instance) int {
-					return strings.Compare(a.Name, b.Name)
+					return strings.Compare(a.Name(), b.Name())
 				})
 				instances[l] = inst
 			}
@@ -75,21 +75,21 @@ func Gui() {
 		tabs := container.NewAppTabs()
 
 		for _, l := range order {
-			var open_configs []*launchers.Instance
+			var open_configs []launchers.Instance
 
 			lstack := container.NewStack()
 			cws := container.NewMultipleWindows()
 			list := container.NewVBox()
 			loading_bar := widget.NewProgressBarInfinite()
 			for i := range instances[l] {
-				instance := &instances[l][i]
+				instance := instances[l][i]
 
 				line := container.NewHBox()
 				line.Add(widget.NewLabel(fmt.Sprintf(
 					"%s - %s %s",
-					instance.Name,
-					strings.ToUpper(instance.Loader[:1]) + instance.Loader[1:],
-					instance.Version,
+					instance.Name(),
+					strings.ToUpper(instance.Loader()[:1]) + instance.Loader()[1:],
+					instance.Version(),
 				)))
 				line.Add(layout.NewSpacer())
 
@@ -98,14 +98,12 @@ func Gui() {
 					lstack.Add(loading_bar)
 					fyne.Do(func() {
 						var env []string
-						if instance.FlatpakId != "" {
-							env = append(env, "FLATPAK_ID=" + instance.FlatpakId)
+						if instance.FlatpakId() != "" {
+							env = append(env, "FLATPAK_ID=" + instance.FlatpakId())
 						}
-						for k, v := range instance.Env {
-							env = append(env, k + "=" + v)
-						}
+						env = append(env, instance.Env()...)
 						cmd := exec.Command(ex, "--refresh")
-						cmd.Dir = instance.McRoot
+						cmd.Dir = instance.Path()
 						cmd.Env = env
 						_, err := cmd.Output()
 						if err != nil {
@@ -120,7 +118,7 @@ func Gui() {
 						lstack.Remove(loading_bar)
 					})
 				}
-				if !instance.Config.Nrc {
+				if !instance.Nrc() {
 					main_button.Hide()
 					main_button.SetText("Download NRC")
 				}
@@ -128,18 +126,17 @@ func Gui() {
 
 				line.Add(widget.NewButton("Options", func() {
 					if !slices.Contains(open_configs, instance) {
-						cw := container.NewInnerWindow(instance.Name, nil)
+						cw := container.NewInnerWindow(instance.Name(), nil)
 
 						options, reference, has_main_pack := packs.Get_compatible_packs(
-							instance.Version, instance.Loader,
+							instance.Version(), instance.Loader(),
 						)
 						temp_ref := reference
 						pack_select := widget.NewSelect(options, func(s string) {})
-						selected := instance.Config.NrcPack
+						selected := instance.Pack()
 						if !has_main_pack {
 							selected = options[0]
-							instance.Config.NrcPack = selected
-							instance.NewConfig.NrcPack = selected
+							instance.FixPack(selected)
 						}
 						show_all := !slices.Contains(globals.MAIN_PACKS, selected)
 
@@ -165,9 +162,9 @@ func Gui() {
 							all_packs_toggle.Disable()
 						}
 
-						if v, e := packs.Packs[instance.Config.NrcPack]; e {
+						if v, e := packs.Packs[instance.Pack()]; e {
 							selected = utils.Make_unique(
-								v.Name, slices.Index(reference, instance.Config.NrcPack),
+								v.Name, slices.Index(reference, instance.Pack()),
 							)
 						}
 						pack_select.SetSelected(selected)
@@ -179,12 +176,12 @@ func Gui() {
 							selected := pack_select.SelectedIndex()
 							if selected != -1 {
 								if p, e := packs.Packs[reference[selected]]; e && utils.Cmp_versions(
-									instance.LoaderVersion, p.Loaders[instance.Loader],
+									instance.LoaderVersion(), p.Loaders[instance.Loader()],
 								) < 0 {
 									warn_label.SetText(fmt.Sprintf(
 										"Please update your %s%s loader to version %s to use this pack",
-										strings.ToUpper(instance.Loader[:1]),
-										instance.Loader[1:], p.Loaders[instance.Loader],
+										strings.ToUpper(instance.Loader()[:1]),
+										instance.Loader()[1:], p.Loaders[instance.Loader()],
 									))
 									warn_label.Show()
 								} else {
@@ -202,12 +199,12 @@ func Gui() {
 						}
 
 						notify_toggle := widget.NewCheck("Send notifications", func(b bool) {})
-						notify_toggle.SetChecked(instance.Config.Notify)
+						notify_toggle.SetChecked(instance.Notify())
 
 						neofd_toggle := widget.NewCheck(
 							"Disable crash on failed download", func(b bool) {},
 						)
-						neofd_toggle.SetChecked(instance.Config.Neofd)
+						neofd_toggle.SetChecked(instance.Neofd())
 
 						nrc_toggle := widget.NewCheck("Enable NRC", func(b bool) {
 							if b {
@@ -223,8 +220,8 @@ func Gui() {
 								neofd_toggle.Disable()
 							}
 						})
-						nrc_toggle.SetChecked(instance.Config.Nrc)
-						if !instance.Config.Nrc {
+						nrc_toggle.SetChecked(instance.Nrc())
+						if !instance.Nrc() {
 							pack_select.Disable()
 							notify_toggle.Disable()
 							neofd_toggle.Disable()
@@ -235,14 +232,18 @@ func Gui() {
 						})
 						save_button := widget.NewButton("Save", func() {})
 						save_button.OnTapped = func() {
-							instance.NewConfig.Nrc = nrc_toggle.Checked
-							instance.NewConfig.Notify = notify_toggle.Checked
-							instance.NewConfig.Neofd = neofd_toggle.Checked
-							pack := pack_select.SelectedIndex()
-							if pack != -1 {
-								instance.NewConfig.NrcPack = reference[pack]
+							var pack string
+							pack_index := pack_select.SelectedIndex()
+							if pack_index != -1 {
+								pack = reference[pack_index]
 							}
-							err := instance.Save(ex)
+							err := instance.Save(
+								nrc_toggle.Checked,
+								notify_toggle.Checked,
+								neofd_toggle.Checked,
+								pack,
+								ex,
+							)
 							if err != nil {
 								warn_label.SetText(
 									"An error occurred while saving\nSee log (stdout) for more details",
@@ -257,7 +258,7 @@ func Gui() {
 								time.Sleep(time.Millisecond * 350)
 								if err == nil {
 									cw.CloseIntercept()
-									if instance.Config.Nrc {
+									if instance.Nrc() {
 										if main_button.Hidden {
 											main_button.Show()
 										}
@@ -292,7 +293,6 @@ func Gui() {
 						cw.CloseIntercept = func() {
 							index := slices.Index(open_configs, instance)
 							open_configs = slices.Delete(open_configs, index, index+1)
-							instance.NewConfig = instance.Config
 							cw.Close()
 							for i := range cws.Windows {
 								if cws.Windows[i] == cw {
@@ -317,14 +317,14 @@ func Gui() {
 					}
 				}))
 				line.Add(widget.NewButton("NRC Mods", func() {
-					mods, _, err := fetcher.Get_installed_mods(instance.McRoot, instance.Config.ModDir)
+					mods, _, err := fetcher.Get_installed_mods(instance.Path(), instance.ModDir())
 					var mods_to_toggle []string
 
 					var mod_list *fyne.Container
 					if err == nil && len(mods) != 0 {
 						mod_list = container.NewVBox()
 						mod_names := make(map[string]string)
-						if pack, e := v.Packs[instance.Config.NrcPack]; e {
+						if pack, e := v.Packs[instance.Pack()]; e {
 							mod_names = pack.Mods.Get_names(mods)
 						}
 						for _, id := range slices.Sorted(maps.Keys(mods)) {
@@ -371,7 +371,7 @@ func Gui() {
 						if err != nil {
 							log.Printf(
 								"Getting installed mods for %s failed: %s",
-								instance.Name, err.Error(),
+								instance.Name(), err.Error(),
 							)
 						}
 					}
@@ -404,8 +404,8 @@ func Gui() {
 									new_name = strings.TrimSuffix(mods[id].Filename(), ".disabled")
 								}
 								err := os.Rename(
-									filepath.Join(instance.McRoot, mods[id].Path()),
-									filepath.Join(instance.McRoot, filepath.Dir(mods[id].Path()), new_name),
+									filepath.Join(instance.Path(), mods[id].Path()),
+									filepath.Join(instance.Path(), filepath.Dir(mods[id].Path()), new_name),
 								)
 								if err != nil {
 									log.Printf(

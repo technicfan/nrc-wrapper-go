@@ -75,14 +75,14 @@ func (data PrismData) get_active() (string, string, string, error) {
 	return data.get(nil)
 }
 
-type PrismInstance struct {
+type prism_instance_config struct {
 	Components []struct {
 		Uid     string `json:"uid"`
 		Version string `json:"version"`
 	} `json:"components"`
 }
 
-func (instance *PrismInstance) get_details() (string, string, string) {
+func (instance *prism_instance_config) get_details() (string, string, string) {
 	var version, loader, loader_version string
 	for _, entry := range instance.Components {
 		switch entry.Uid {
@@ -163,51 +163,57 @@ func get_prism_details(
 
 func get_prism_instance(
 	path string,
-) (PrismInstance, error) {
+) (prism_instance_config, error) {
 	file, err := os.OpenFile(filepath.Join(path, "mmc-pack.json"), os.O_RDONLY, os.ModePerm)
 	if err != nil {
-		return PrismInstance{}, err
+		return prism_instance_config{}, err
 	}
 	content, err := io.ReadAll(file)
 	if err != nil {
-		return PrismInstance{}, err
+		return prism_instance_config{}, err
 	}
 	defer file.Close()
 
-	var instance PrismInstance
+	var instance prism_instance_config
 	err = json.Unmarshal(content, &instance)
 	if err != nil {
-		return PrismInstance{}, err
+		return prism_instance_config{}, err
 	}
 
 	return instance, nil
 }
 
-func save_prism_instance(
-	instance *Instance,
-) error {
-	if instance.Config.Command != "" {
-		instance.Cfg["General"]["OverrideCommands"] = "true"
-		instance.Cfg["General"]["WrapperCommand"] = instance.Config.Command
-	} else {
-		instance.Cfg["General"]["OverrideCommands"] = "false"
-		instance.Cfg["General"]["WrapperCommand"] = ""
+type prism_instance struct {
+	*instance_data
+	cfg cfg
+}
+
+func (instance *prism_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
+	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
+		if instance.config.command != "" {
+			instance.cfg["General"]["OverrideCommands"] = "true"
+			instance.cfg["General"]["WrapperCommand"] = instance.config.command
+		} else {
+			instance.cfg["General"]["OverrideCommands"] = "false"
+			instance.cfg["General"]["WrapperCommand"] = ""
+		}
+		if len(instance.env) != 0 {
+			instance.cfg["General"]["OverrideEnv"] = "true"
+		} else {
+			instance.cfg["General"]["OverrideEnv"] = "false"
+		}
+		raw_env, err := json.Marshal(instance.env)
+		if err != nil {
+			return err
+		}
+		env := strings.ReplaceAll(strings.Trim(string(raw_env), `"`), `"`, `\"`)
+		if len(instance.env) >= 2 {
+			env = `"` + env + `"`
+		}
+		instance.cfg["General"]["Env"] = env
+		return instance.cfg.write(filepath.Join(instance.path, "instance.cfg"))
 	}
-	if len(instance.Env) != 0 {
-		instance.Cfg["General"]["OverrideEnv"] = "true"
-	} else {
-		instance.Cfg["General"]["OverrideEnv"] = "false"
-	}
-	raw_env, err := json.Marshal(instance.Env)
-	if err != nil {
-		return err
-	}
-	env := strings.ReplaceAll(strings.Trim(string(raw_env), `"`), `"`, `\"`)
-	if len(instance.Env) >= 2 {
-		env = `"` + env + `"`
-	}
-	instance.Cfg["General"]["Env"] = env
-	return instance.Cfg.write(filepath.Join(instance.Path, "instance.cfg"))
+	return nil
 }
 
 func get_prism_instances(
@@ -273,24 +279,24 @@ func get_prism_instances(
 			if (e && v != "") || (e2 && v2 != "") {
 				neofd = true
 			}
-			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, neofd}
+			nrc_config := nrc_config{nrc, wrapper, pack, mod_path, notify, neofd}
 			mc_root := filepath.Join(instance_path, "minecraft")
 			_, err = os.Stat(mc_root)
 			if err != nil && errors.Is(err, fs.ErrNotExist) {
 				mc_root = filepath.Join(instance_path, ".minecraft")
 			}
-			instances = append(instances, Instance{
+			instances = append(instances, &prism_instance{&instance_data{
 				name, version, loader, loader_version, instance_path, mc_root,
-				"prism", config, vars, flatpak, nrc_config, nrc_config,
-			})
+				vars, flatpak, nrc_config,
+			}, config})
 		}
 	}
 	return instances, nil
 }
 
-type Cfg map[string]map[string]string
+type cfg map[string]map[string]string
 
-func (cfg *Cfg) write(
+func (cfg cfg) write(
 	filename string,
 ) error {
 	file, err := os.OpenFile(filename, os.O_TRUNC|os.O_RDWR, os.ModePerm)
@@ -302,7 +308,7 @@ func (cfg *Cfg) write(
 	}
 	defer file.Close()
 	writer := bufio.NewWriter(file)
-	for s, kv := range *cfg {
+	for s, kv := range cfg {
 		fmt.Fprintf(writer, "[%s]\n", s)
 		for k, v := range kv {
 			fmt.Fprintf(writer, "%s=%s\n", k, v)
@@ -314,7 +320,7 @@ func (cfg *Cfg) write(
 
 func parse_cfg(
 	filename string,
-) (Cfg, error) {
+) (cfg, error) {
 	file, err := os.OpenFile(filename, os.O_RDONLY, os.ModePerm)
 	if err != nil {
 		return nil, err

@@ -13,133 +13,189 @@ import (
 	"strings"
 )
 
-type NrcConfig struct {
-	Nrc     bool
-	Command string
-	NrcPack string
-	ModDir  string
-	Notify  bool
-	Neofd   bool
+type Instance interface {
+	Name() string
+	Version() string
+	Loader() string
+	LoaderVersion() string
+	Path() string
+	Env() []string
+	FlatpakId() string
+	Nrc() bool
+	Notify() bool
+	Neofd() bool
+	Pack() string
+	ModDir() string
+	FixPack(string)
+	Save(bool, bool, bool, string, string) error
 }
 
-type TestInstance interface {
-	Save() error
+type nrc_config struct {
+	nrc     bool
+	command string
+	pack string
+	mod_dir  string
+	notify  bool
+	neofd   bool
 }
 
-type Instance struct {
-	Name          string
-	Version       string
-	Loader        string
-	LoaderVersion string
-	Path          string
-	McRoot        string
-	Launcher      string
-	Cfg           Cfg
-	Env           map[string]string
-	FlatpakId     string
-	Config        NrcConfig
-	NewConfig     NrcConfig
+type instance_data struct {
+	name           string
+	version        string
+	loader         string
+	loader_version string
+	path           string
+	root           string
+	env            map[string]string
+	flatpak_id     string
+	config         nrc_config
 }
 
-func (instance *Instance) Save(ex string) error {
-	if instance.Config != instance.NewConfig {
-		if instance.Config.Nrc != instance.NewConfig.Nrc {
-			instance.Config.Nrc = instance.NewConfig.Nrc
-			if instance.Config.Nrc {
-				if instance.Config.Command == "" {
-					instance.Config.Command = ex
-				} else {
-					instance.Config.Command += " " + ex
-				}
-				if instance.FlatpakId != "" {
-					cmd := exec.Command(
-						"flatpak", "override", "--user", "--show", instance.FlatpakId,
-					)
-					if o, err := cmd.Output(); err == nil &&
-						!strings.Contains(string(o), instance.Config.Command) {
-						cmd = exec.Command(
-							"flatpak", "override", "--user",
-							fmt.Sprintf("--filesystem=%s", ex), instance.FlatpakId,
-						)
-						cmd.Run()
-					}
-				}
-			} else {
-				if instance.Config.Command == ex || instance.Config.Command == filepath.Base(ex) {
-					instance.Config.Command = ""
-				} else {
-					cmd := ex
-					if !strings.Contains(instance.Config.Command, ex) {
-						cmd = filepath.Base(ex)
-					}
-					instance.Config.Command = strings.TrimSpace(
-						strings.ReplaceAll(instance.Config.Command, cmd, ""),
-					)
-				}
-				delete(instance.Env, "NRC_PACK")
-				instance.Config.NrcPack = ""
-				delete(instance.Env, "NRC_MOD_DIR")
-				instance.Config.ModDir = ""
-				delete(instance.Env, "NOTIFY")
-				instance.Config.Notify = instance.Launcher == "modrinth"
-				delete(instance.Env, "NEOFD")
-				delete(instance.Env, "NO_ERROR_ON_FAILED_DOWNLOAD")
-				instance.Config.Neofd = false
-			}
-		}
-		if instance.Config.Nrc {
-			if instance.Config.NrcPack != instance.NewConfig.NrcPack {
-				instance.Config.NrcPack = instance.NewConfig.NrcPack
-				if instance.Config.NrcPack == "" || instance.Config.NrcPack == globals.DEFAULT_PACK {
-					delete(instance.Env, "NRC_PACK")
-				} else {
-					instance.Env["NRC_PACK"] = instance.Config.NrcPack
-				}
-			}
-			if instance.Config.ModDir != instance.NewConfig.ModDir {
-				instance.Config.ModDir = instance.NewConfig.ModDir
-				if instance.Config.ModDir != "" && instance.Config.ModDir != globals.DEFAULT_MOD_DIR {
-					instance.Env["NRC_MOD_DIR"] = instance.Config.ModDir
-				} else {
-					delete(instance.Env, "NRC_MOD_DIR")
-				}
-			}
-			if instance.Config.Notify != instance.NewConfig.Notify {
-				instance.Config.Notify = instance.NewConfig.Notify
-				if instance.Config.Notify {
-					if instance.Launcher == "modrinth" {
-						delete(instance.Env, "NOTIFY")
-					} else {
-						instance.Env["NOTIFY"] = "true"
-					}
-				} else {
-					instance.Env["NOTIFY"] = "false"
-				}
-			}
-			if instance.Config.Neofd != instance.NewConfig.Neofd {
-				instance.Config.Neofd = instance.NewConfig.Neofd
-				if instance.Config.Neofd {
-					instance.Env["NO_ERROR_ON_FAILED_DOWNLOAD"] = "true"
-				} else {
-					delete(instance.Env, "NO_ERROR_ON_FAILED_DOWNLOAD")
-				}
-			}
-		}
-		var err error
-		switch instance.Launcher {
-		case "prism":
-			err = save_prism_instance(instance)
-		case "modrinth":
-			err = save_modrinth_instance(instance)
-		default:
-			return fmt.Errorf("%s is an invalid launcher", instance.Launcher)
-		}
-		if err != nil {
-			return err
-		}
-		instance.NewConfig = instance.Config
+func (instance instance_data) Name() string {
+	return instance.name
+}
+
+func (instance instance_data) Version() string {
+	return instance.version
+}
+
+func (instance instance_data) Loader() string {
+	return instance.loader
+}
+
+func (instance instance_data) LoaderVersion() string {
+	return instance.loader_version
+}
+
+func (instance instance_data) Path() string {
+	return instance.root
+}
+
+func (instance instance_data) Env() []string {
+	var env []string
+	for k, v := range instance.env {
+		env = append(env, k + "=" + v)
 	}
-	return nil
+	return env
+}
+
+func (instance instance_data) FlatpakId() string {
+	return instance.flatpak_id
+}
+
+func (instance *instance_data) FixPack(pack string) {
+	instance.config.pack = pack
+}
+
+func (instance instance_data) Nrc() bool {
+	return instance.config.nrc
+}
+
+func (instance instance_data) Notify() bool {
+	return instance.config.notify
+}
+
+func (instance instance_data) Neofd() bool {
+	return instance.config.neofd
+}
+
+func (instance instance_data) Pack() string {
+	return instance.config.pack
+}
+
+func (instance instance_data) ModDir() string {
+	return instance.config.mod_dir
+}
+
+func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack string, ex string) bool {
+	var changed bool
+	if instance.config.nrc != nrc {
+		instance.config.nrc = nrc
+		changed = true
+		if instance.config.nrc {
+			if instance.config.command == "" {
+				instance.config.command = ex
+			} else {
+				instance.config.command += " " + ex
+			}
+			if instance.flatpak_id != "" {
+				cmd := exec.Command(
+					"flatpak", "override", "--user", "--show", instance.flatpak_id,
+				)
+				if o, err := cmd.Output(); err == nil &&
+					!strings.Contains(string(o), instance.config.command) {
+					cmd = exec.Command(
+						"flatpak", "override", "--user",
+						fmt.Sprintf("--filesystem=%s", ex), instance.flatpak_id,
+					)
+					cmd.Run()
+				}
+			}
+		} else {
+			if instance.config.command == ex || instance.config.command == filepath.Base(ex) {
+				instance.config.command = ""
+			} else {
+				cmd := ex
+				if !strings.Contains(instance.config.command, ex) {
+					cmd = filepath.Base(ex)
+				}
+				instance.config.command = strings.TrimSpace(
+					strings.ReplaceAll(instance.config.command, cmd, ""),
+				)
+			}
+			delete(instance.env, "NRC_PACK")
+			instance.config.pack = ""
+			delete(instance.env, "NRC_MOD_DIR")
+			instance.config.mod_dir = ""
+			delete(instance.env, "NOTIFY")
+			// instance.config.Notify = instance.Launcher == "modrinth"
+			delete(instance.env, "NEOFD")
+			delete(instance.env, "NO_ERROR_ON_FAILED_DOWNLOAD")
+			instance.config.neofd = false
+		}
+	}
+	if instance.config.nrc {
+		if instance.config.pack != pack {
+			instance.config.pack = pack
+			changed = true
+			if instance.config.pack == "" || instance.config.pack == globals.DEFAULT_PACK {
+				delete(instance.env, "NRC_PACK")
+			} else {
+				instance.env["NRC_PACK"] = instance.config.pack
+			}
+		}
+		// if instance.config.ModDir != instance.NewConfig.ModDir {
+		// 	instance.config.ModDir = instance.NewConfig.ModDir
+		// 	if instance.config.ModDir != "" && instance.Config.ModDir != globals.DEFAULT_MOD_DIR {
+		// 		instance.Env["NRC_MOD_DIR"] = instance.config.ModDir
+		// 	} else {
+		// 		delete(instance.Env, "NRC_MOD_DIR")
+		// 	}
+		// }
+		if instance.config.notify != notify {
+			instance.config.notify = notify
+			changed = true
+			if instance.config.notify {
+				// if instance.Launcher == "modrinth" {
+				// 	delete(instance.Env, "NOTIFY")
+				// } else {
+					instance.env["NOTIFY"] = "true"
+				// }
+			} else {
+				instance.env["NOTIFY"] = "false"
+			}
+		}
+		if instance.config.neofd != neofd {
+			instance.config.neofd = neofd
+			changed = true
+			if instance.config.neofd {
+				instance.env["NO_ERROR_ON_FAILED_DOWNLOAD"] = "true"
+			} else {
+				delete(instance.env, "NO_ERROR_ON_FAILED_DOWNLOAD")
+			}
+		}
+	}
+	return changed
 }
 
 func Get_instances(

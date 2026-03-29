@@ -64,27 +64,32 @@ func get_modrinth_details(
 	return Minecraft{profile, version, loader, loader_version, username, uuid, token}, nil
 }
 
-func save_modrinth_instance(
-	instance *Instance,
-) error {
-	var env [][]string
-	for k, v := range instance.Env {
-		env = append(env, []string{k, v})
-	}
-	raw, err := json.Marshal(env)
-	if err != nil {
+type modrinth_instance struct {
+	*instance_data
+}
+
+func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
+	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
+		var env [][]string
+		for k, v := range instance.env {
+			env = append(env, []string{k, v})
+		}
+		raw, err := json.Marshal(env)
+		if err != nil {
+			return err
+		}
+		db, err := sql.Open(
+			"sqlite3", fmt.Sprintf("%s/app.db", filepath.Dir(filepath.Dir(instance.path))),
+		)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		sql_cmd := `UPDATE profiles SET override_hook_wrapper = ?, override_custom_env_vars = jsonb(?) WHERE path = ?;`
+		_, err = db.Exec(sql_cmd, instance.config.command, raw, filepath.Base(instance.path))
 		return err
 	}
-	db, err := sql.Open(
-		"sqlite3", fmt.Sprintf("%s/app.db", filepath.Dir(filepath.Dir(instance.Path))),
-	)
-	if err != nil {
-		return err
-	}
-	defer db.Close()
-	sql_cmd := `UPDATE profiles SET override_hook_wrapper = ?, override_custom_env_vars = jsonb(?) WHERE path = ?;`
-	_, err = db.Exec(sql_cmd, instance.Config.Command, raw, filepath.Base(instance.Path))
-	return err
+	return nil
 }
 
 func get_modrinth_instances(
@@ -149,12 +154,12 @@ func get_modrinth_instances(
 			if (e && v != "") || (e2 && v2 != "") {
 				neofd = true
 			}
-			nrc_config := NrcConfig{nrc, wrapper, pack, mod_path, notify, neofd}
+			nrc_config := nrc_config{nrc, wrapper, pack, mod_path, notify, neofd}
 			path := filepath.Join(path, "profiles", instance_path)
-			instances = append(instances, Instance{
+			instances = append(instances, &modrinth_instance{&instance_data{
 				name, version, loader, loader_version, path, path,
-				"modrinth", nil, vars, flatpak, nrc_config, nrc_config,
-			})
+				vars, flatpak, nrc_config,
+			}})
 		}
 	}
 	return instances, nil
