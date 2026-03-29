@@ -57,7 +57,7 @@ func (asset Asset) Download() error {
 }
 
 func (asset Asset) IndexPair() utils.Pair {
-	return utils.Pair{asset.path, map[string]string{"hash": asset.hash}}
+	return utils.Pair{Key: asset.path, Value: map[string]string{"hash": asset.hash}}
 }
 
 func (asset Asset) Type() int {
@@ -108,7 +108,7 @@ func get_asset_metadata_async(
 func Get_assets(
 	packs []string,
 	config config.Config,
-) ([]utils.Resource, utils.Index, bool) {
+) ([]utils.NrcResource, utils.Index, bool) {
 	var wg sync.WaitGroup
 	data := make(chan map[int]map[string]Asset, len(packs))
 	for i, pack := range packs {
@@ -133,7 +133,7 @@ func Get_assets(
 	}
 
 	index_updated := false
-	var missing_assets []utils.Resource
+	var missing_assets []utils.NrcResource
 	for _, asset := range merged {
 		missing, untracked := asset.IsMissing(existing_index)
 		if missing {

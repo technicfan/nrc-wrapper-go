@@ -1,16 +1,10 @@
 package packs
 
 import (
-	"errors"
-	"io/fs"
 	"main/globals"
-	"main/launchers"
-	"main/platform"
 	"main/utils"
 	"maps"
-	"os"
 	"slices"
-	"strings"
 )
 
 type MetaPack struct {
@@ -51,29 +45,4 @@ func (packs MetaPacks) Get_compatible_packs(version string, loader string) ([]st
 		}
 	}
 	return unique_pack_names, pack_ids, has_main_pack
-}
-
-func Get_launcher_dirs() (map[string][]string, []string) {
-	dirs, order := platform.Get_const_dirs()
-	for i, l := range order {
-		if l == "" {
-			continue
-		}
-		_, err := os.Stat(dirs[l][0])
-		if err != nil && errors.Is(err, fs.ErrNotExist) {
-			order = slices.Delete(order, i, i+1)
-		} else if err == nil && strings.HasPrefix(l, "Prism") {
-			dir, err := launchers.Get_prism_instance_dir(dirs[l][0])
-			if dirs["Prism Launcher"][0] == dir {
-				i := slices.Index(order, "Prism Launcher")
-				order = slices.Delete(order, i, i+1)
-			}
-			if err != nil {
-				order = slices.Delete(order, i, i+1)
-			}
-			dirs[l][0] = dir
-		}
-	}
-
-	return dirs, order
 }

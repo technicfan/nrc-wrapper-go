@@ -117,7 +117,10 @@ func (mod ModEntry) Download() error {
 
 func (mod ModEntry) IndexPair() utils.Pair {
 	hash, _ := utils.Calc_hash(mod.Path())
-	return utils.Pair{mod.filename, map[string]string{"id": mod.id, "hash": hash, "version": mod.version}}
+	return utils.Pair{
+		Key: mod.filename,
+		Value: map[string]string{"id": mod.id, "hash": hash, "version": mod.version},
+	}
 }
 
 func (mod ModEntry) Type() int {

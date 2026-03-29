@@ -65,7 +65,7 @@ func Get_installed_mods(
 func Get_Mods(
 	mods mod_entry.ModEntries,
 	config config.Config,
-) ([]utils.Resource, utils.Index, bool) {
+) ([]utils.NrcResource, utils.Index, bool) {
 	os.Mkdir(config.ModDir, os.ModePerm)
 
 	installed_mods, updated, err := Get_installed_mods("./", config.ModDir)
@@ -78,10 +78,10 @@ func Get_Mods(
 	)
 
 	if len(mods_to_download) == 0 {
-		return []utils.Resource{}, already_installed.Convert_to_index(), updated
+		return []utils.NrcResource{}, already_installed.Convert_to_index(), updated
 	}
 
-	var result []utils.Resource
+	var result []utils.NrcResource
 	for id := range mods_to_download {
 		result = append(result, mods_to_download[id])
 	}

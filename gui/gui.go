@@ -7,7 +7,6 @@ import (
 	"main/fetcher"
 	"main/globals"
 	"main/launchers"
-	"main/packs"
 	"main/platform"
 	"main/utils"
 	"maps"
@@ -51,7 +50,7 @@ func Gui() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		launchers_dirs, order := packs.Get_launcher_dirs()
+		launchers_dirs, order := launchers.Get_launcher_dirs()
 		packs := v.Packs.To_meta_packs()
 		versions := packs.Versions
 		loaders := packs.Loaders

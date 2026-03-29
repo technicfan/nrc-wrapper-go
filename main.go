@@ -25,7 +25,7 @@ func main() {
 		globals.REFRESH = true
 	} else if len(os.Args) < 3 {
 		gui.Gui()
-		os.Exit(0)
+		return
 	}
 
 	var token string
