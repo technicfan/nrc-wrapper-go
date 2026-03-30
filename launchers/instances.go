@@ -20,6 +20,7 @@ type Instance interface {
 	Path() string
 	Env() []string
 	FlatpakId() string
+	LauncherClass() string
 	Nrc() bool
 	Notify() bool
 	DefaultNotify() bool

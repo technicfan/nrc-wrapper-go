@@ -222,6 +222,10 @@ type prism_instance struct {
 	cfg cfg
 }
 
+func (instance prism_instance) LauncherClass() string {
+	return globals.PRISM_CLASS
+}
+
 func (instance *prism_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
 	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
 		if instance.config.command != "" {

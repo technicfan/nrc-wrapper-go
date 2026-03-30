@@ -95,7 +95,7 @@ func Gui() {
 								env = append(env, "FLATPAK_ID=" + instance.FlatpakId())
 							}
 							env = append(env, instance.Env()...)
-							cmd := exec.Command(ex, "--refresh")
+							cmd := exec.Command(ex, "--refresh", instance.LauncherClass())
 							cmd.Dir = instance.Path()
 							cmd.Env = env
 							_, err := cmd.Output()

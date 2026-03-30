@@ -102,8 +102,8 @@ type modrinth_instance struct {
 	*instance_data
 }
 
-func (instance modrinth_instance) DefaultNotify() bool {
-	return true
+func (instance modrinth_instance) LauncherClass() string {
+	return globals.MODRINTH_CLASS
 }
 
 func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {

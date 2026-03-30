@@ -21,7 +21,7 @@ func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--packs" {
 		launch = false
 		platform.Cli()
-	} else if len(os.Args) == 2 && os.Args[1] == "--refresh" {
+	} else if len(os.Args) == 3 && os.Args[1] == "--refresh" {
 		globals.REFRESH = true
 	} else if len(os.Args) < 3 {
 		gui.Gui()
