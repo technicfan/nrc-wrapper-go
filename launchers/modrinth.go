@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"main/globals"
+	"main/platform"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,12 +14,45 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func get_modrinth_details(
-	path string,
-) (Minecraft, error) {
+type ModrinthApp struct {
+	launcher_data
+}
+
+func (launcher ModrinthApp) Exists() bool {
+	_, err := os.Stat(filepath.Join(launcher.path, "app.db"))
+	return err == nil
+}
+
+func (launcher ModrinthApp) Id() string {
+	return "modrinth"
+}
+
+func NewModrinthApp(home string, path string, flatpak bool) Launcher {
+	var name, flatpak_id string
+	data_home := os.Getenv("XDG_DATA_HOME")
+	if path == "" {
+		if data_home == "" {
+			if flatpak {
+				data_home = filepath.Join(".var/app", globals.MODRINTH_FLATPAK, "data")
+			} else {
+				data_home = platform.DATA_HOME
+			}
+		}
+		path = filepath.Join(home, data_home, globals.MODRINTH_DIR)
+	}
+	if flatpak {
+		flatpak_id = globals.MODRINTH_FLATPAK
+		name = "Modrinth App (Flatpak)"
+	} else {
+		name = "Modrinth App"
+	}
+	return ModrinthApp{launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id}}
+}
+
+func (launcher ModrinthApp) GetDetails() (Minecraft, error) {
 	var profile, version, loader, loader_version, token, username, uuid string
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/app.db", path))
+	db, err := sql.Open("sqlite3", filepath.Join(launcher.path, "app.db"))
 	if err != nil {
 		return Minecraft{}, err
 	}
@@ -68,6 +102,10 @@ type modrinth_instance struct {
 	*instance_data
 }
 
+func (instance modrinth_instance) DefaultNotify() bool {
+	return true
+}
+
 func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
 	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
 		var env [][]string
@@ -92,16 +130,14 @@ func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack 
 	return nil
 }
 
-func get_modrinth_instances(
-	path string,
-	flatpak string,
+func (launcher ModrinthApp) GetInstances(
 	versions []string,
 	loaders []string,
 	ex string,
 ) ([]Instance, error) {
 	var instances []Instance
 
-	db, err := sql.Open("sqlite3", fmt.Sprintf("%s/app.db", path))
+	db, err := sql.Open("sqlite3", filepath.Join(launcher.path, "app.db"))
 	if err != nil {
 		return nil, err
 	}
@@ -155,10 +191,10 @@ func get_modrinth_instances(
 				neofd = true
 			}
 			nrc_config := nrc_config{nrc, wrapper, pack, mod_path, notify, neofd}
-			path := filepath.Join(path, "profiles", instance_path)
+			path := filepath.Join(launcher.instance_dir, instance_path)
 			instances = append(instances, &modrinth_instance{&instance_data{
 				name, version, loader, loader_version, path, path,
-				vars, flatpak, nrc_config,
+				vars, launcher.flatpak_id, nrc_config, true,
 			}})
 		}
 	}

@@ -1,9 +1,5 @@
 package launchers
 
-import (
-	"errors"
-)
-
 type Minecraft struct {
 	Profile       string
 	Version       string
@@ -14,16 +10,31 @@ type Minecraft struct {
 	Token         string
 }
 
-func Get_minecraft_details(
-	path string,
-	launcher string,
-) (Minecraft, error) {
-	switch launcher {
-	case "prism":
-		return get_prism_details(path)
-	case "modrinth":
-		return get_modrinth_details(path)
-	default:
-		return Minecraft{}, errors.New("Minecraft details not found")
-	}
+type Launcher interface {
+	Id() string
+	Name() string
+	Dir() string
+	InstanceDir() string
+	GetDetails() (Minecraft, error)
+	GetInstances([]string, []string, string) ([]Instance, error)
+	Exists() bool
+}
+
+type launcher_data struct {
+	name string
+	path string
+	instance_dir string
+	flatpak_id string
+}
+
+func (data launcher_data) Name() string {
+	return data.name
+}
+
+func (data launcher_data) Dir() string {
+	return data.path
+}
+
+func (data launcher_data) InstanceDir() string {
+	return data.instance_dir
 }

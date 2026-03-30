@@ -192,30 +192,29 @@ func (nrc_mods NoriskMods) Get_compatible_mods(
 	config config.Config,
 	repos map[string]string,
 ) mod_entry.ModEntries {
-	mc_version, loader := config.Minecraft.Version, config.Minecraft.Loader
 	mods := make(mod_entry.ModEntries)
 	for _, mod := range nrc_mods {
-		if _, exists := mod.Compatibility[mc_version]; exists {
-			if _, exists := mod.Compatibility[mc_version][loader]; exists {
-				if mod.Compatibility[mc_version][loader]["source"] != nil {
-					source := mod.Compatibility[mc_version][loader]["source"].(map[string]any)
+		if _, exists := mod.Compatibility[config.Version]; exists {
+			if compatibility, exists := mod.Compatibility[config.Version][config.Loader]; exists {
+				if compatibility["source"] != nil {
+					source := compatibility["source"].(map[string]any)
 					for k, v := range source {
 						mod.Source[k] = v.(string)
 					}
 				}
 				url, alt_url, filename := mod.build_url(
-					mod.Compatibility[mc_version][loader]["identifier"].(string),
+					compatibility["identifier"].(string),
 					repos,
 				)
-				if mod.Compatibility[mc_version][loader]["filename"] != nil {
-					filename = mod.Compatibility[mc_version][loader]["filename"].(string)
+				if compatibility["filename"] != nil {
+					filename = compatibility["filename"].(string)
 				}
 				mods[mod.Id] = mod_entry.New(
 					"",
-					mod.Compatibility[mc_version][loader]["identifier"].(string),
+					compatibility["identifier"].(string),
 					mod.Id,
 					filename,
-					config.ModDir,
+					config.ModDir(),
 					url,
 					alt_url,
 					mod.Source["type"] != "url",

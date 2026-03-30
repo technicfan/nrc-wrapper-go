@@ -15,6 +15,7 @@ import (
 
 const (
 	DATA_HOME = "AppData/Roaming"
+	WINDOWS = true
 )
 
 func Cli() {
@@ -26,17 +27,6 @@ func Cli() {
 	stderrHandle, _ := windows.GetStdHandle(windows.STD_ERROR_HANDLE)
 	os.Stdout = os.NewFile(uintptr(stdoutHandle), "/dev/stdout")
 	os.Stderr = os.NewFile(uintptr(stderrHandle), "/dev/stderr")
-}
-
-func Get_const_dirs() (map[string][]string, []string) {
-	usr, _ := user.Current()
-	home := usr.HomeDir
-	dirs := map[string][]string{
-		"Prism Launcher": {filepath.Join(home, DATA_HOME, "PrismLauncher"), ""},
-		"Modrinth App": {filepath.Join(home, DATA_HOME, "ModrinthApp"), ""},
-	}
-
-	return dirs, []string{"Prism Launcher", "Modrinth App"}
 }
 
 func Exec(command string, args []string) error {

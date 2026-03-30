@@ -55,11 +55,9 @@ func New(
 }
 
 func (mod ModEntry) Url() string {
-	if mod.use_alt_url && mod.alt_url != "" {
-		mod.use_alt_url = false
+	if mod.use_alt_url {
 		return mod.alt_url
 	}
-	mod.use_alt_url = true
 	return mod.url
 }
 
@@ -102,7 +100,8 @@ func (mod ModEntry) HashObj() hash.Hash {
 
 func (mod ModEntry) Download() error {
 	err := utils.Download(mod)
-	if err != nil && err.Error() == "HTTP 404" {
+	if err != nil && err.Error() == "HTTP 404" && mod.alt_url != "" {
+		mod.use_alt_url = true
 		err = utils.Download(mod)
 	}
 	if err == nil {

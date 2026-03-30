@@ -14,4 +14,13 @@ const (
 
 	MOD_INDEX = ".nrc-mod-index.json"
 	ASSET_INDEX = ".nrc-asset-index.json"
+
+	// Launchers
+	PRISM_DIR = "PrismLauncher"
+	PRISM_FLATPAK = "org.prismlauncher.PrismLauncher"
+	PRISM_CLASS = "org.prismlauncher.EntryPoint"
+
+	MODRINTH_DIR = "ModrinthApp"
+	MODRINTH_FLATPAK = "com.modrinth.ModrinthApp"
+	MODRINTH_CLASS = "com.modrinth.theseus.MinecraftLaunch"
 )

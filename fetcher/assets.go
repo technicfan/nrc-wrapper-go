@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hash"
 	"log"
-	"main/config"
 	"main/globals"
 	"main/utils"
 	"maps"
@@ -105,10 +104,7 @@ func get_asset_metadata_async(
 	data <- map[int]map[string]Asset{index: results}
 }
 
-func Get_assets(
-	packs []string,
-	config config.Config,
-) ([]utils.NrcResource, utils.Index, bool) {
+func Get_assets(packs []string) ([]utils.NrcResource, utils.Index, bool) {
 	var wg sync.WaitGroup
 	data := make(chan map[int]map[string]Asset, len(packs))
 	for i, pack := range packs {
@@ -116,7 +112,7 @@ func Get_assets(
 		go get_asset_metadata_async(i, pack, &wg, data)
 	}
 
-	existing_index := utils.Read_index(".nrc-asset-index.json")
+	existing_index := utils.Read_index(globals.ASSET_INDEX)
 
 	go func() {
 		wg.Wait()

@@ -118,7 +118,7 @@ func Get_token(
 	config config.Config,
 	offline bool,
 ) (string, error) {
-	uuid := config.Minecraft.Uuid
+	uuid := config.Uuid
 	if !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
 			uuid[0:8],
@@ -129,11 +129,11 @@ func Get_token(
 		)
 	}
 
-	if config.Minecraft.Token == "offline" {
-		return config.Minecraft.Token, nil
+	if config.Token == "offline" {
+		return config.Token, nil
 	}
 
-	nrc_token, err := read_token_from_file(config.LauncherDir, uuid)
+	nrc_token, err := read_token_from_file(config.Dir(), uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			log.Println("Stored token is valid")
@@ -150,16 +150,16 @@ func Get_token(
 	if err != nil {
 		return "", err
 	}
-	err = api.Join_server_session(config.Minecraft.Token, uuid, server_id)
+	err = api.Join_server_session(config.Token, uuid, server_id)
 	if err != nil {
 		return "", err
 	}
 
 	host, _ := os.Hostname()
-	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Launcher+"-"+os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
+	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Id()+"-"+os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
 	nrc_token, err = api.Request_token(
-		config.Minecraft.Username,
+		config.Username,
 		server_id,
 		hex.EncodeToString(hash[:]),
 	)
@@ -167,7 +167,7 @@ func Get_token(
 		return "", err
 	}
 
-	err = write_token_to_file(config.LauncherDir, uuid, nrc_token)
+	err = write_token_to_file(config.Dir(), uuid, nrc_token)
 	if err != nil {
 		return "", err
 	}

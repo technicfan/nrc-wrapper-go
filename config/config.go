@@ -5,109 +5,110 @@ import (
 	"log"
 	"main/globals"
 	"main/launchers"
-	"main/platform"
 	"main/utils"
 	"os"
 	"os/user"
-	"path/filepath"
 )
 
 type Config struct {
-	Launcher              string
-	LauncherDir           string
-	NrcPack               string
-	Minecraft             launchers.Minecraft
-	ModDir                string
-	ErrorOnFailedDownload bool
-	Notify                bool
+	launchers.Launcher
+	launchers.Minecraft
+	pack    string
+	mod_dir string
+	eofd    bool
+	notify  bool
+}
+
+func (config Config) Pack() string {
+	return config.pack
+}
+
+func (config Config) ModDir() string {
+	return config.mod_dir
+}
+
+func (config Config) ErrorOnFailedDownload() bool {
+	return config.eofd
+}
+
+func (config Config) Notify() bool {
+	return config.notify
 }
 
 func Get_config() Config {
 	var config Config
+	var launcher, dir string
 	usr, _ := user.Current()
 	home := usr.HomeDir
-	data_home := os.Getenv("XDG_DATA_HOME")
 
 	if value := os.Getenv("LAUNCHER"); value != "" {
 		log.Printf("Set %s manually", value)
-		config.Launcher = value
-	} else if _, err := os.Open("../mmc-pack.json"); err == nil {
-		log.Println("Detected Prism Launcher")
-		config.Launcher = "prism"
-	} else if _, err := os.Open("../../app.db"); err == nil {
-		log.Println("Detected Modrinth Launcher")
-		config.Launcher = "modrinth"
+		launcher = value
+	} else {
+		for i := len(os.Args) - 1; i >= 0; i-- {
+			if os.Args[i] == globals.PRISM_CLASS {
+				log.Println("Detected Prism Launcher")
+				launcher = "prism"
+				break
+			}
+			if os.Args[i] == globals.MODRINTH_CLASS {
+				log.Println("Detected Modrinth Launcher")
+				launcher = "modrinth"
+				break
+			}
+		}
 	}
 
 	switch os.Getenv("NOTIFY") {
 	case "true", "True", "1":
-		config.Notify = true
+		config.notify = true
 	case "false", "False", "0":
-		config.Notify = false
+		config.notify = false
 	default:
-		config.Notify = config.Launcher == "modrinth"
+		config.notify = launcher == "modrinth"
 	}
-	config.Notify = config.Notify || globals.REFRESH
+	config.notify = config.notify || globals.REFRESH
 
-	if data_home == "" {
-		if os.Getenv("container") == "flatpak" {
-			app_id := os.Getenv("FLATPAK_ID")
-			if app_id != "" {
-				data_home = filepath.Join(home, ".var/app", app_id, "data")
-			} else {
-				utils.Notify(
-					"Flatpak ID not set - you have to manually set the launcher directory",
-					true,
-					config.Notify,
-				)
-			}
-		} else {
-			data_home = filepath.Join(home, platform.DATA_HOME)
-		}
-	}
-
-	switch config.Launcher {
+	switch launcher {
 	case "prism":
 		if value := os.Getenv("PRISM_DIR"); value != "" {
-			config.LauncherDir = value
-		} else {
-			config.LauncherDir = filepath.Join(data_home, "PrismLauncher")
+			dir = value
 		}
+		config.Launcher = launchers.NewPrismLauncher(home, dir, os.Getenv("FLATPAK_ID") != "")
 	case "modrinth":
 		if value := os.Getenv("MODRINTH_DIR"); value != "" {
-			config.LauncherDir = value
-		} else {
-			config.LauncherDir = filepath.Join(data_home, "ModrinthApp")
+			dir = value
 		}
+		config.Launcher = launchers.NewModrinthApp(home, dir, os.Getenv("container") == "flatpak")
 	default:
-		utils.Notify("No valid launcher detected or set manually", true, config.Notify)
+		utils.Notify("No valid launcher detected or set manually", true, config.notify)
 	}
 
 	if value := os.Getenv("NRC_PACK"); value != "" {
-		config.NrcPack = value
+		config.pack = value
 	} else {
-		config.NrcPack = globals.DEFAULT_PACK
+		config.pack = globals.DEFAULT_PACK
 	}
 
-	minecraft, err := launchers.Get_minecraft_details(config.LauncherDir, config.Launcher)
+	minecraft, err := config.Launcher.GetDetails()
 	if err != nil {
 		utils.Notify(
 			fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()),
 			true,
-			config.Notify,
+			config.notify,
 		)
 	}
 	config.Minecraft = minecraft
 
 	if value := os.Getenv("NRC_MOD_DIR"); value != "" {
-		config.ModDir = value
+		config.mod_dir = value
 	} else if config.Minecraft.Loader == "fabric" {
-		config.ModDir = globals.DEFAULT_MOD_DIR
+		config.mod_dir = globals.DEFAULT_MOD_DIR
 	} else {
-		config.ModDir = "mods"
+		config.mod_dir = "mods"
 	}
 
-	config.ErrorOnFailedDownload = os.Getenv("NO_ERROR_ON_FAILED_DOWNLOAD") == "" && os.Getenv("NEOFD") == ""
+	config.eofd = os.Getenv("NO_ERROR_ON_FAILED_DOWNLOAD") == "" && os.Getenv("NEOFD") == ""
 
 	return config
 }

@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"main/globals"
+	"main/platform"
 	"main/utils"
 	"os"
 	"path/filepath"
@@ -16,20 +17,55 @@ import (
 	"strings"
 )
 
-func Get_prism_instance_dir(
-	path string,
-) (string, error) {
-	config, err := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
-	if err != nil {
-		return "", err
-	}
-	if instances, exists := config["General"]["InstanceDir"]; exists {
-		if regexp.MustCompile("^([A-Z]:|/).*").MatchString(instances) {
-			return instances, nil
+type PrismLauncher struct {
+	launcher_data
+	config cfg
+}
+
+func (launcher PrismLauncher) Exists() bool {
+	return launcher.config != nil
+}
+
+func (launcher PrismLauncher) Id() string {
+	return "prism"
+}
+
+func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
+	var name, flatpak_id string
+	data_home := os.Getenv("XDG_DATA_HOME")
+	if path == "" {
+		if data_home == "" {
+			if flatpak {
+				data_home = filepath.Join(".var/app", globals.PRISM_FLATPAK, "data")
+			} else {
+				data_home = platform.DATA_HOME
+			}
 		}
-		return filepath.Join(path, instances), nil
+		path = filepath.Join(home, data_home, globals.PRISM_DIR)
 	}
-	return filepath.Join(path, "instances"), nil
+	if flatpak {
+		flatpak_id = globals.PRISM_FLATPAK
+		name = "Prism Launcher (Flatpak)"
+	} else {
+		name = "Prism Launcher"
+	}
+	cfg, _ := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
+	launcher := PrismLauncher{launcher_data{name, path, "", flatpak_id}, cfg}
+	launcher.instance_dir = launcher.get_instance_dir()
+	return launcher
+}
+
+func (launcher PrismLauncher) get_instance_dir() string {
+	if launcher.config == nil {
+		return ""
+	}
+	if instances, exists := launcher.config["General"]["InstanceDir"]; exists {
+		if regexp.MustCompile("^([A-Z]:|/).*").MatchString(instances) {
+			return instances
+		}
+		return filepath.Join(launcher.path, instances)
+	}
+	return filepath.Join(launcher.path, "instances")
 }
 
 type PrismData struct {
@@ -105,12 +141,10 @@ func (instance *prism_instance_config) get_details() (string, string, string) {
 	return version, loader, loader_version
 }
 
-func get_prism_details(
-	path string,
-) (Minecraft, error) {
+func (launcher PrismLauncher) GetDetails() (Minecraft, error) {
 	var profile, version, loader, loader_version, token, username, uuid string
 
-	instance, err := get_prism_instance("../")
+	instance, err := get_prism_instance_config("../")
 	if err != nil {
 		return Minecraft{}, err
 	}
@@ -125,7 +159,7 @@ func get_prism_details(
 		profile = name
 	}
 
-	file, err := os.Open(fmt.Sprintf("%s/accounts.json", path))
+	file, err := os.Open(filepath.Join(launcher.path, "accounts.json"))
 	if err != nil {
 		return Minecraft{}, err
 	}
@@ -161,7 +195,7 @@ func get_prism_details(
 	}, nil
 }
 
-func get_prism_instance(
+func get_prism_instance_config(
 	path string,
 ) (prism_instance_config, error) {
 	file, err := os.OpenFile(filepath.Join(path, "mmc-pack.json"), os.O_RDONLY, os.ModePerm)
@@ -216,27 +250,25 @@ func (instance *prism_instance) Save(nrc bool, notify bool, neofd bool, pack str
 	return nil
 }
 
-func get_prism_instances(
-	path string,
-	flatpak string,
+func (launcher PrismLauncher) GetInstances(
 	versions []string,
 	loaders []string,
 	ex string,
 ) ([]Instance, error) {
 	var instances []Instance
 
-	files, err := os.ReadDir(path)
+	dirs, err := os.ReadDir(launcher.instance_dir)
 	if err != nil {
 		return nil, err
 	}
-	for _, dir := range files {
+	for _, dir := range dirs {
 		if dir.IsDir() {
 			var vars map[string]string
 			var notify, neofd bool
 			var wrapper string
 
-			instance_path := filepath.Join(path, dir.Name())
-			instance, err := get_prism_instance(instance_path)
+			instance_path := filepath.Join(launcher.instance_dir, dir.Name())
+			instance, err := get_prism_instance_config(instance_path)
 			if err != nil {
 				continue
 			}
@@ -287,7 +319,7 @@ func get_prism_instances(
 			}
 			instances = append(instances, &prism_instance{&instance_data{
 				name, version, loader, loader_version, instance_path, mc_root,
-				vars, flatpak, nrc_config,
+				vars, launcher.flatpak_id, nrc_config, false,
 			}, config})
 		}
 	}
@@ -327,7 +359,7 @@ func parse_cfg(
 	}
 	defer file.Close()
 	var current_section string
-	config := make(map[string]map[string]string)
+	config := make(cfg)
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {

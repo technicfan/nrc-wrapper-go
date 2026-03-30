@@ -47,15 +47,15 @@ func main() {
 			return
 		}
 
-		pack, exists := versions.Packs[cfg.NrcPack]
+		pack, exists := versions.Packs[cfg.Pack()]
 		if !exists {
-			utils.Notify(fmt.Sprintf("%s is not a valid NRC pack", cfg.NrcPack), true, cfg.Notify)
+			utils.Notify(fmt.Sprintf("%s is not a valid NRC pack", cfg.Pack()), true, cfg.Notify())
 		}
 		pack_mods, assets, _, loaders := pack.Get_details(versions.Packs)
 
 		if !globals.REFRESH && len(loaders) > 0 {
-			if version, exists := loaders[cfg.Minecraft.Loader]; exists {
-				if utils.Cmp_versions(cfg.Minecraft.LoaderVersion, version) < 0 {
+			if version, exists := loaders[cfg.Loader]; exists {
+				if utils.Cmp_versions(cfg.LoaderVersion, version) < 0 {
 					utils.Notify(
 						fmt.Sprintf(
 							"Please update %s to version %s",
@@ -63,7 +63,7 @@ func main() {
 							version,
 						),
 						true,
-						cfg.Notify,
+						cfg.Notify(),
 					)
 				}
 			} else {
@@ -78,11 +78,11 @@ func main() {
 				utils.Notify(
 					fmt.Sprintf(
 						"%s requires one of the following modloaders: %s",
-						cfg.NrcPack,
+						cfg.Pack(),
 						strings.Join(loaders_str, ", "),
 					),
 					true,
-					cfg.Notify,
+					cfg.Notify(),
 				)
 			}
 		}
@@ -92,16 +92,16 @@ func main() {
 			utils.Notify(
 				fmt.Sprintf(
 					"There are no NRC mods for %s in %s",
-					cfg.Minecraft.Version,
-					cfg.NrcPack,
+					cfg.Version,
+					cfg.Pack(),
 				),
 				true,
-				cfg.Notify,
+				cfg.Notify(),
 			)
 		}
 		maps.Copy(mods, pack_mods.Get_compatible_mods(cfg, versions.Repositories))
 
-		asset_resources, asset_index, update_assets := fetcher.Get_assets(assets, cfg)
+		asset_resources, asset_index, update_assets := fetcher.Get_assets(assets)
 		mod_resources, mod_index, update_mods := fetcher.Get_Mods(mods, cfg)
 		resources := append(asset_resources, mod_resources...)
 
@@ -112,8 +112,8 @@ func main() {
 			wg.Add(1)
 			go utils.DownloadAsync(
 				resources[i],
-				cfg.ErrorOnFailedDownload,
-				cfg.Notify,
+				cfg.ErrorOnFailedDownload(),
+				cfg.Notify(),
 				mod_index_chan,
 				asset_index_chan,
 				&wg,
@@ -137,12 +137,12 @@ func main() {
 			log.Println("No connection to the API")
 			return
 		}
-		utils.Notify("No connection to the API\nLaunching without doing anything", false, cfg.Notify)
+		utils.Notify("No connection to the API\nLaunching without doing anything", false, cfg.Notify())
 		token, err = fetcher.Get_token(cfg, true)
 	}
 
 	if err != nil {
-		utils.Notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, cfg.Notify)
+		utils.Notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, cfg.Notify())
 	}
 
 	if !globals.REFRESH {
@@ -150,14 +150,14 @@ func main() {
 		args := append(
 			[]string{
 				command, fmt.Sprintf("-Dnorisk.token=%s", token),
-				fmt.Sprintf("-Dnorisk.profile.name=%s", cfg.Minecraft.Profile),
-				fmt.Sprintf("-Dfabric.addMods=%s", cfg.ModDir),
+				fmt.Sprintf("-Dnorisk.profile.name=%s", cfg.Profile),
+				fmt.Sprintf("-Dfabric.addMods=%s", cfg.ModDir()),
 			}, os.Args[2:]...,
 		)
 
 		err = platform.Exec(command, args)
 		if err != nil {
-			utils.Notify(fmt.Sprintf("Command failed with: %s", err.Error()), true, cfg.Notify)
+			utils.Notify(fmt.Sprintf("Command failed with: %s", err.Error()), true, cfg.Notify())
 		}
 	}
 }
