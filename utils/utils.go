@@ -6,7 +6,9 @@ import (
 	"io"
 	"log"
 	"main/globals"
+	"main/platform"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -44,6 +46,24 @@ func Unique(str string, index int) string {
 		builder.WriteRune('\u200d')
 	}
 	return builder.String()
+}
+
+func LauncherDir(
+	home string,
+	flatpak bool,
+	id string,
+	dir string,
+) string {
+	data_home := os.Getenv("XDG_DATA_HOME")
+	if data_home == "" {
+		if flatpak {
+			data_home = filepath.Join(".var/app", id, "data")
+		} else {
+			data_home = platform.DATA_HOME
+		}
+		data_home = filepath.Join(home, data_home)
+	}
+	return filepath.Join(data_home, dir)
 }
 
 func CmpVersions(

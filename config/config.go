@@ -90,7 +90,7 @@ func GetConfig() Config {
 		config.pack = globals.DEFAULT_PACK
 	}
 
-	minecraft, err := config.Launcher.GetDetails()
+	minecraft, err := config.GetDetails()
 	if err != nil {
 		utils.Notify(
 			fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()),

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"main/globals"
-	"main/platform"
+	"main/utils"
 	"os"
 	"path/filepath"
 	"slices"
@@ -29,16 +29,8 @@ func (launcher ModrinthApp) Id() string {
 
 func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	var name, flatpak_id string
-	data_home := os.Getenv("XDG_DATA_HOME")
 	if path == "" {
-		if data_home == "" {
-			if flatpak {
-				data_home = filepath.Join(".var/app", globals.MODRINTH_FLATPAK, "data")
-			} else {
-				data_home = platform.DATA_HOME
-			}
-		}
-		path = filepath.Join(home, data_home, globals.MODRINTH_DIR)
+		path = utils.LauncherDir(home, flatpak, globals.MODRINTH_FLATPAK, globals.MODRINTH_DIR)
 	}
 	if flatpak {
 		flatpak_id = globals.MODRINTH_FLATPAK
