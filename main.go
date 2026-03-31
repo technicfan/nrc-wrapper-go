@@ -54,12 +54,12 @@ func main() {
 		pack_mods, assets, _, loaders := pack.Details(versions.Packs)
 
 		if !globals.REFRESH && len(loaders) > 0 {
-			if version, exists := loaders[cfg.Loader]; exists {
-				if utils.CmpVersions(cfg.LoaderVersion, version) < 0 {
+			if version, exists := loaders[cfg.Loader()]; exists {
+				if utils.CmpVersions(cfg.LoaderVersion(), version) < 0 {
 					utils.Notify(
 						fmt.Sprintf(
 							"Please update %s to version %s",
-							cfg.Minecraft.Loader,
+							cfg.Loader(),
 							version,
 						),
 						true,
@@ -92,7 +92,7 @@ func main() {
 			utils.Notify(
 				fmt.Sprintf(
 					"There are no NRC mods for %s in %s",
-					cfg.Version,
+					cfg.Version(),
 					cfg.Pack(),
 				),
 				true,
@@ -155,7 +155,7 @@ func main() {
 		args := append(
 			[]string{
 				command, fmt.Sprintf("-Dnorisk.token=%s", token),
-				fmt.Sprintf("-Dnorisk.profile.name=%s", cfg.Profile),
+				fmt.Sprintf("-Dnorisk.profile.name=%s", cfg.Profile()),
 				fmt.Sprintf("-Dfabric.addMods=%s", cfg.ModDir()),
 			}, os.Args[2:]...,
 		)
