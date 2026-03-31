@@ -105,6 +105,8 @@ func main() {
 		mod_resources, mod_index, update_mods := fetcher.GetMods(mods, cfg)
 		resources := append(asset_resources, mod_resources...)
 
+		token, err = fetcher.Get_token(cfg, false)
+
 		if len(resources) > 0 {
 			log.Println("Downloading missing/updated resources")
 		}
@@ -124,7 +126,6 @@ func main() {
 				limiter,
 			)
 		}
-		token, err = fetcher.Get_token(cfg, false)
 
 		wg.Wait()
 		close(asset_index_chan)

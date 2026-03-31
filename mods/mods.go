@@ -172,11 +172,11 @@ func (mods ModResources) GetMissing(
 func (mods ModResources) Index() utils.Index {
 	results := make(utils.Index)
 	for _, mod := range mods {
-		info := make(map[string]string)
-		info["hash"] = mod.hash
-		info["version"] = mod.version
-		results[mod.id] = info
+		results[mod.filename] = map[string]string{
+			"hash": mod.hash,
+			"version": mod.version,
+			"id": mod.id,
+		}
 	}
-
 	return results
 }

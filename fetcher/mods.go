@@ -7,6 +7,7 @@ import (
 	"main/utils"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func GetInstalledMods(
@@ -16,41 +17,38 @@ func GetInstalledMods(
 	files, _ := os.ReadDir(filepath.Join(root, mod_dir))
 	index := utils.ReadIndex(filepath.Join(root, globals.MOD_INDEX))
 
-	hashes := make(map[string]string)
+	updated := false
+	results := make(map[string]mods.Mod)
 	for _, f := range files {
 		if !f.IsDir() &&
 			(filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
-			entry, e := index[f.Name()]
-			var hash string
-			var err error
-			if e {
-				hash = entry["hash"]
-			} else {
-				hash, err = utils.Hash(filepath.Join(root, mod_dir, f.Name()))
+			name := f.Name()
+			entry, e := index[name]
+			if !e {
+				switch filepath.Ext(f.Name()) {
+				case ".jar": name = f.Name() + ".disabled"
+				case ".disabled": name = strings.TrimSuffix(f.Name(), ".disabled")
+				}
+				entry, e = index[name]
+				if e {
+					updated = true
+				}
 			}
-			if err == nil {
-				hashes[hash] = f.Name()
+			if e {
+				results[entry["id"]] = mods.NewMod(
+					entry["hash"],
+					entry["version"],
+					entry["id"],
+					f.Name(),
+					mod_dir,
+				)
+				delete(index, name)
 			}
 		}
 	}
-
-	updated := false
-	results := make(map[string]mods.Mod)
-	for entry_name, entry := range index {
-		if name, exists := hashes[entry["hash"]]; exists {
-			results[entry["id"]] = mods.NewMod(
-				entry["hash"],
-				entry["version"],
-				entry["id"],
-				name,
-				mod_dir,
-			)
-			if entry_name != name {
-				updated = true
-			}
-		} else {
-			updated = true
-		}
+	
+	if len(index) != 0 {
+		updated = true
 	}
 
 	return results, updated
