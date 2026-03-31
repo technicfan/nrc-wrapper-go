@@ -49,18 +49,3 @@ func IsRunning(pname string) bool {
 	out, err := cmd.Output()
 	return err == nil && strings.Contains(string(out), pname)
 }
-
-func RunningLaunchers() []string {
-	var running []string
-	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq prismlauncher.exe")
-	out, err := cmd.Output()
-	if err == nil && strings.Contains(string(out), "prismlauncher.exe") {
-		running = append(running, "Prism Launcher")
-	}
-	cmd = exec.Command("tasklist", "/FI", "IMAGENAME eq Modrinth App.exe")
-	out, err = cmd.Output()
-	if err == nil && strings.Contains(string(out), "Modrinth App.exe") {
-		running = append(running, "Modrinth App")
-	}
-	return running
-}

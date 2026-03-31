@@ -25,18 +25,3 @@ func IsRunning(pname string) bool {
 	cmd := exec.Command("pgrep", "-x", pname)
 	return cmd.Run() == nil
 }
-
-func RunningLaunchers() []string {
-	var running []string
-	cmd := exec.Command("pgrep", "-x", "prismlauncher")
-	err := cmd.Run()
-	if err == nil {
-		running = append(running, "Prism Launcher")
-	}
-	cmd = exec.Command("pgrep", "-x", "modrinth-app")
-	err = cmd.Run()
-	if err == nil {
-		running = append(running, "Modrinth App")
-	}
-	return running
-}
