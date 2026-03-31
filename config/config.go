@@ -79,7 +79,7 @@ func GetConfig() Config {
 		if value := os.Getenv("MODRINTH_DIR"); value != "" {
 			dir = value
 		}
-		config.Launcher = launchers.NewModrinthApp(home, dir, os.Getenv("container") == "flatpak")
+		config.Launcher = launchers.NewModrinthApp(home, dir, os.Getenv("FLATPAK_ID") != "")
 	default:
 		utils.Notify("No valid launcher detected or set manually", true, config.notify)
 	}
