@@ -46,6 +46,8 @@ type Launcher interface {
 	GetDetails() (Minecraft, error)
 	GetInstances([]string, []string, string) ([]Instance, error)
 	Exists() bool
+	IsRunning() bool
+	ReplaceNormal()
 }
 
 type launcher_data struct {
@@ -53,6 +55,7 @@ type launcher_data struct {
 	path string
 	instance_dir string
 	flatpak_id string
+	replaced bool
 }
 
 func (data launcher_data) Name() string {
@@ -65,4 +68,10 @@ func (data launcher_data) Dir() string {
 
 func (data launcher_data) InstanceDir() string {
 	return data.instance_dir
+}
+
+func (data *launcher_data) ReplaceNormal() {
+	if data.flatpak_id != "" {
+		data.replaced = true
+	}
 }

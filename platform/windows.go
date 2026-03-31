@@ -44,6 +44,12 @@ func Exec(command string, args []string) error {
 	return err
 }
 
+func IsRunning(pname string) bool {
+	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq " + pname)
+	out, err := cmd.Output()
+	return err == nil && strings.Contains(string(out), pname)
+}
+
 func RunningLaunchers() []string {
 	var running []string
 	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq prismlauncher.exe")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"main/globals"
+	"main/platform"
 	"main/utils"
 	"os"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 )
 
 type modrinthapp struct /*implements Launcher*/ {
-	launcher_data
+	*launcher_data
 }
 
 func NewModrinthApp(home string, path string, flatpak bool) Launcher {
@@ -29,7 +30,7 @@ func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	} else {
 		name = "Modrinth App"
 	}
-	return modrinthapp{launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id}}
+	return modrinthapp{&launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id, false}}
 }
 
 func (launcher modrinthapp) Exists() bool {
@@ -39,6 +40,18 @@ func (launcher modrinthapp) Exists() bool {
 
 func (launcher modrinthapp) Id() string {
 	return "modrinth"
+}
+
+func (launcher modrinthapp) IsRunning() bool {
+	var pname string
+	if platform.WINDOWS {
+		pname = "Modrinth App.exe"
+	} else if launcher.flatpak_id != "" {
+		pname = "modrinth-app-wrapped"
+	} else {
+		pname = "modrinth-app"
+	}
+	return platform.IsRunning(pname)
 }
 
 func (launcher modrinthapp) GetDetails() (Minecraft, error) {

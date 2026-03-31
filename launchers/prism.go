@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"main/globals"
+	"main/platform"
 	"main/utils"
 	"os"
 	"path/filepath"
@@ -17,7 +18,7 @@ import (
 )
 
 type prismlauncher struct /*implements Launcher*/ {
-	launcher_data
+	*launcher_data
 	config cfg
 }
 
@@ -33,7 +34,7 @@ func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
 		name = "Prism Launcher"
 	}
 	cfg, _ := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
-	launcher := prismlauncher{launcher_data{name, path, "", flatpak_id}, cfg}
+	launcher := prismlauncher{&launcher_data{name, path, "", flatpak_id, false}, cfg}
 	launcher.instance_dir = launcher.get_instance_dir()
 	return launcher
 }
@@ -44,6 +45,22 @@ func (launcher prismlauncher) Exists() bool {
 
 func (launcher prismlauncher) Id() string {
 	return "prism"
+}
+
+func (launcher prismlauncher) IsRunning() bool {
+	var pname string
+	if platform.WINDOWS {
+		pname = "prismlauncher.exe"
+	} else if launcher.flatpak_id != "" {
+		pname = "prismrun"
+	} else {
+		pname = "prismlauncher"
+	}
+	if launcher.replaced {
+		return platform.IsRunning(pname) || platform.IsRunning("prismlauncher")
+	} else {
+		return platform.IsRunning(pname)
+	}
 }
 
 func (launcher prismlauncher) get_instance_dir() string {

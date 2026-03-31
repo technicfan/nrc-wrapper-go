@@ -21,6 +21,11 @@ func Exec(command string, args []string) error {
 	return err
 }
 
+func IsRunning(pname string) bool {
+	cmd := exec.Command("pgrep", "-x", pname)
+	return cmd.Run() == nil
+}
+
 func RunningLaunchers() []string {
 	var running []string
 	cmd := exec.Command("pgrep", "-x", "prismlauncher")

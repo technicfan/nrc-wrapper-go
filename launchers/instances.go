@@ -150,9 +150,9 @@ func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack stri
 				)
 			}
 			delete(instance.env, "NRC_PACK")
-			instance.config.pack = ""
+			instance.config.pack = globals.DEFAULT_PACK
 			delete(instance.env, "NRC_MOD_DIR")
-			instance.config.mod_dir = ""
+			instance.config.mod_dir = globals.DEFAULT_MOD_DIR
 			delete(instance.env, "NOTIFY")
 			instance.config.notify = instance.DefaultNotify()
 			delete(instance.env, "NEOFD")
@@ -213,6 +213,7 @@ func appendLaunchers(
 	} else {
 		flatpak := ctor(home, "", true)
 		if regular.Exists() && flatpak.Exists() && regular.InstanceDir() == flatpak.InstanceDir() {
+			flatpak.ReplaceNormal()
 			launchers = append(launchers, flatpak)
 		} else {
 			if regular.Exists() {
@@ -230,7 +231,7 @@ func GetInstances(
 	versions []string,
 	loaders []string,
 	ex string,
-) (map[string][]Instance, []string, error) {
+) (map[string][]Instance, []Launcher, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return nil, nil, err
@@ -238,18 +239,20 @@ func GetInstances(
 	var launchers []Launcher
 	launchers = appendLaunchers(launchers, NewPrismLauncher, home)
 	launchers = appendLaunchers(launchers, NewModrinthApp, home)
-	var order []string
+	var order []Launcher
 	instances := make(map[string][]Instance)
 	for i := range launchers {
-		inst, err := launchers[i].GetInstances(versions, loaders, ex)
-		if err != nil {
-			continue
+		if !launchers[i].IsRunning() {
+			inst, err := launchers[i].GetInstances(versions, loaders, ex)
+			if err != nil || len(inst) == 0 {
+				continue
+			}
+			slices.SortFunc(inst, func(a Instance, b Instance) int {
+				return strings.Compare(a.Name(), b.Name())
+			})
+			instances[launchers[i].Name()] = inst
 		}
-		order = append(order, launchers[i].Name())
-		slices.SortFunc(inst, func(a Instance, b Instance) int {
-			return strings.Compare(a.Name(), b.Name())
-		})
-		instances[launchers[i].Name()] = inst
+		order = append(order, launchers[i])
 	}
 	if len(order) == 0 {
 		return nil, nil, errors.New("No instances found")
