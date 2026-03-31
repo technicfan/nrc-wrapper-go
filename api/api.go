@@ -12,7 +12,7 @@ import (
 )
 
 type Versions struct {
-	Packs        packs.Packs             `json:"packs"`
+	Packs        packs.Packs       `json:"packs"`
 	Repositories map[string]string `json:"repositories"`
 }
 
@@ -20,7 +20,7 @@ type ServerId struct {
 	Id string `json:"serverId"`
 }
 
-func Request_token(
+func RequestToken(
 	username string,
 	server_id string,
 	hwid string,
@@ -62,7 +62,7 @@ func Request_token(
 	return "", errors.New("got no token")
 }
 
-func Request_server_id() (string, error) {
+func RequestServerId() (string, error) {
 	response, err := http.Post(
 		fmt.Sprintf("%s/launcher/auth/request-server-id", globals.NORISK_API_URL),
 		"",
@@ -84,7 +84,7 @@ func Request_server_id() (string, error) {
 	return data.Id, nil
 }
 
-func Join_server_session(
+func JoinServerSession(
 	token string,
 	selected_profile string,
 	server_id string,
@@ -114,7 +114,7 @@ func Join_server_session(
 	return nil
 }
 
-func Get_norisk_versions() (Versions, error) {
+func GetVersions() (Versions, error) {
 	response, err := http.Get(fmt.Sprintf("%s/launcher/modpacks-v3", globals.NORISK_API_URL))
 	if err != nil {
 		return Versions{}, err

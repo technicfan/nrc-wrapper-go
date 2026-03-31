@@ -21,7 +21,7 @@ type MetaPacks struct {
 	Names    []string
 }
 
-func (packs MetaPacks) Get_compatible_packs(version string, loader string) ([]string, []string, bool) {
+func (packs MetaPacks) CompatiblePacks(version string, loader string) ([]string, []string, bool) {
 	has_main_pack := false
 	var pack_ids, unique_pack_names []string
 	for _, p := range globals.MAIN_PACKS {
@@ -30,7 +30,7 @@ func (packs MetaPacks) Get_compatible_packs(version string, loader string) ([]st
 			pack_ids = append(pack_ids, p)
 			unique_pack_names = append(
 				unique_pack_names,
-				utils.Make_unique(packs.Packs[p].Name, len(unique_pack_names)),
+				utils.Unique(packs.Packs[p].Name, len(unique_pack_names)),
 			)
 		}
 	}
@@ -39,7 +39,7 @@ func (packs MetaPacks) Get_compatible_packs(version string, loader string) ([]st
 			slices.Contains(packs.Packs[i].Versions, version) && !slices.Contains(globals.MAIN_PACKS, i) {
 			unique_pack_names = append(
 				unique_pack_names,
-				utils.Make_unique(packs.Packs[i].Name, len(unique_pack_names)),
+				utils.Unique(packs.Packs[i].Name, len(unique_pack_names)),
 			)
 			pack_ids = append(pack_ids, i)
 		}

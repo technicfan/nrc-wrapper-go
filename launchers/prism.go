@@ -17,7 +17,7 @@ import (
 	"strings"
 )
 
-type PrismLauncher struct {
+type PrismLauncher struct /*implements Launcher*/ {
 	launcher_data
 	config cfg
 }
@@ -68,7 +68,7 @@ func (launcher PrismLauncher) get_instance_dir() string {
 	return filepath.Join(launcher.path, "instances")
 }
 
-type PrismData struct {
+type prism_data struct {
 	Accounts []struct {
 		Active  any `json:"active"`
 		Profile struct {
@@ -83,7 +83,7 @@ type PrismData struct {
 	FormatVersion int `json:"formatVersion"`
 }
 
-func (data PrismData) get(
+func (data prism_data) get(
 	id *string,
 ) (string, string, string, error) {
 	var token string
@@ -107,7 +107,7 @@ func (data PrismData) get(
 	return "", "", "", err
 }
 
-func (data PrismData) get_active() (string, string, string, error) {
+func (data prism_data) get_active() (string, string, string, error) {
 	return data.get(nil)
 }
 
@@ -170,7 +170,7 @@ func (launcher PrismLauncher) GetDetails() (Minecraft, error) {
 		return Minecraft{}, err
 	}
 
-	var data PrismData
+	var data prism_data
 	err = json.Unmarshal(content, &data)
 	if err != nil {
 		return Minecraft{}, err
@@ -217,7 +217,7 @@ func get_prism_instance_config(
 	return instance, nil
 }
 
-type prism_instance struct {
+type prism_instance struct /*implements Instance*/ {
 	*instance_data
 	cfg cfg
 }
@@ -382,7 +382,7 @@ func parse_cfg(
 		}
 	}
 
-	if v, e := config["General"]["ConfigVersion"]; !e || utils.Cmp_versions(v, "1.3") < 0 {
+	if v, e := config["General"]["ConfigVersion"]; !e || utils.CmpVersions(v, "1.3") < 0 {
 		return nil, fmt.Errorf("%s is too old. Only config version >= 1.3 compatible", v)
 	}
 

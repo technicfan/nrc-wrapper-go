@@ -32,7 +32,7 @@ func Gui() {
 	w.Resize(fyne.NewSize(800, 500))
 	w.CenterOnScreen()
 
-	running_launchers := platform.Get_running_launchers()
+	running_launchers := platform.RunningLaunchers()
 
 	if len(running_launchers) == 0 {
 		ex, err := os.Executable()
@@ -46,15 +46,15 @@ func Gui() {
 		if strings.Contains(ex, `\`) {
 			ex = strings.ReplaceAll(ex, `\`, `\\`)
 		}
-		v, err := api.Get_norisk_versions()
+		v, err := api.GetVersions()
 		if err != nil {
 			log.Fatal(err)
 		}
-		packs := v.Packs.To_meta_packs()
+		packs := v.Packs.MetaPacks()
 		var unique_main []string
 		for i := range globals.MAIN_PACKS {
 			name := packs.Packs[globals.MAIN_PACKS[i]].Name
-			unique_main = append(unique_main, utils.Make_unique(name, i))
+			unique_main = append(unique_main, utils.Unique(name, i))
 		}
 		instances, order, err := launchers.GetInstances(packs.Versions, packs.Loaders, ex)
 
@@ -121,7 +121,7 @@ func Gui() {
 						if !slices.Contains(open_configs, instance) {
 							cw := container.NewInnerWindow(instance.Name(), nil)
 
-							options, reference, has_main_pack := packs.Get_compatible_packs(
+							options, reference, has_main_pack := packs.CompatiblePacks(
 								instance.Version(), instance.Loader(),
 							)
 							temp_ref := reference
@@ -156,9 +156,7 @@ func Gui() {
 							}
 
 							if v, e := packs.Packs[instance.Pack()]; e {
-								selected = utils.Make_unique(
-									v.Name, slices.Index(reference, instance.Pack()),
-								)
+								selected = utils.Unique(v.Name, slices.Index(reference, instance.Pack()))
 							}
 							pack_select.SetSelected(selected)
 
@@ -168,7 +166,7 @@ func Gui() {
 							loader_warn_update := func() {
 								selected := pack_select.SelectedIndex()
 								if selected != -1 {
-									if p, e := packs.Packs[reference[selected]]; e && utils.Cmp_versions(
+									if p, e := packs.Packs[reference[selected]]; e && utils.CmpVersions(
 										instance.LoaderVersion(), p.Loaders[instance.Loader()],
 									) < 0 {
 										warn_label.SetText(fmt.Sprintf(
@@ -310,7 +308,7 @@ func Gui() {
 						}
 					}))
 					line.Add(widget.NewButton("NRC Mods", func() {
-						mods, _ := fetcher.Get_installed_mods(instance.Path(), instance.ModDir())
+						mods, _ := fetcher.GetInstalledMods(instance.Path(), instance.ModDir())
 						var mods_to_toggle []string
 
 						var mod_list *fyne.Container
@@ -318,7 +316,7 @@ func Gui() {
 							mod_list = container.NewVBox()
 							mod_names := make(map[string]string)
 							if pack, e := v.Packs[instance.Pack()]; e {
-								mod_names = pack.Mods.Get_names(mods)
+								mod_names = pack.Mods.DisplayNames(mods)
 							}
 							for _, id := range slices.Sorted(maps.Keys(mods)) {
 								line := container.NewGridWithColumns(2)

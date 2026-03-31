@@ -35,7 +35,7 @@ func (config Config) Notify() bool {
 	return config.notify
 }
 
-func Get_config() Config {
+func GetConfig() Config {
 	var config Config
 	var launcher, dir string
 	usr, _ := user.Current()

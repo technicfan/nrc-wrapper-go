@@ -3,7 +3,7 @@ package packs
 import (
 	"fmt"
 	"main/config"
-	"main/mod_entry"
+	"main/mods"
 	"main/utils"
 	"maps"
 	"slices"
@@ -22,7 +22,7 @@ type Pack struct {
 	// not used right know but here for good measure
 	Exclude []any `json:"excludeMods"`
 	// mods of the pack
-	Mods NoriskMods `json:"mods"`
+	Mods NrcMods `json:"mods"`
 	// asset packs needed for this pack
 	Assets []string `json:"assets"`
 	// the loader needed
@@ -32,9 +32,9 @@ type Pack struct {
 	} `json:"loaderPolicy"`
 }
 
-func (pack Pack) Get_details(
+func (pack Pack) Details(
 	packs map[string]Pack,
-) (NoriskMods, []string, []string, map[string]string) {
+) (NrcMods, []string, []string, map[string]string) {
 	loaders := make(map[string]string)
 	for name, loader := range pack.Loader["default"] {
 		loaders[name] = loader.Version
@@ -45,14 +45,14 @@ func (pack Pack) Get_details(
 			exclude = append(exclude, id.(string))
 		}
 	}
-	var mods []NoriskMod
+	var mods []NrcMod
 	var assets, versions []string
 	for _, inherited_pack := range pack.Inherits {
 		for i := range packs[inherited_pack].Mods {
 			mod := &packs[inherited_pack].Mods[i]
 			if !(slices.Contains(exclude, mod.Id) ||
 				slices.ContainsFunc(
-					pack.Mods, func(entry NoriskMod) bool { return entry.Id == mod.Id },
+					pack.Mods, func(entry NrcMod) bool { return entry.Id == mod.Id },
 				)) {
 				mods = append(mods, *mod)
 			}
@@ -84,7 +84,7 @@ func (pack Pack) Get_details(
 
 type Packs map[string]Pack
 
-func (packs Packs) To_meta_packs() MetaPacks {
+func (packs Packs) MetaPacks() MetaPacks {
 	var global_versions []string
 	var global_loaders []string
 	var pack_names []string
@@ -93,8 +93,8 @@ func (packs Packs) To_meta_packs() MetaPacks {
 		var mc_versions []string
 		pack := packs[i]
 		pack_names = append(pack_names, i)
-		_, _, mc_versions, loaders := pack.Get_details(packs)
-		slices.SortFunc(mc_versions, utils.Cmp_versions)
+		_, _, mc_versions, loaders := pack.Details(packs)
+		slices.SortFunc(mc_versions, utils.CmpVersions)
 		for l := range loaders {
 			if !slices.Contains(global_loaders, l) {
 				global_loaders = append(global_loaders, l)
@@ -113,7 +113,7 @@ func (packs Packs) To_meta_packs() MetaPacks {
 
 func (packs Packs) Print() {
 	fmt.Println("Available NRC packs:")
-	meta := packs.To_meta_packs().Packs
+	meta := packs.MetaPacks().Packs
 	for _, key := range slices.Sorted(maps.Keys(meta)) {
 		var loaders_string string
 		var loaders_list []string
@@ -142,7 +142,7 @@ func (packs Packs) Print() {
 // NoriskMod(s)
 // The mods that come from the api
 
-type NoriskMod struct {
+type NrcMod struct {
 	// Mod identifier
 	Id string `json:"id"`
 	// Pretty name
@@ -154,7 +154,7 @@ type NoriskMod struct {
 	Compatibility map[string]map[string]map[string]any `json:"compatibility"`
 }
 
-func (mod NoriskMod) build_url(
+func (mod NrcMod) build_url(
 	mod_version string,
 	repos map[string]string,
 ) (string, string, string) {
@@ -186,13 +186,13 @@ func (mod NoriskMod) build_url(
 	return url, alt_url, fmt.Sprintf("%s-%s.jar", mod.Id, mod_version)
 }
 
-type NoriskMods []NoriskMod
+type NrcMods []NrcMod
 
-func (nrc_mods NoriskMods) Get_compatible_mods(
+func (nrc_mods NrcMods) CompatibleMods(
 	config config.Config,
 	repos map[string]string,
-) mod_entry.ModEntries {
-	mods := make(mod_entry.ModEntries)
+) mods.ModResources {
+	result := make(mods.ModResources)
 	for _, mod := range nrc_mods {
 		if _, exists := mod.Compatibility[config.Version]; exists {
 			if compatibility, exists := mod.Compatibility[config.Version][config.Loader]; exists {
@@ -209,7 +209,7 @@ func (nrc_mods NoriskMods) Get_compatible_mods(
 				if compatibility["filename"] != nil {
 					filename = compatibility["filename"].(string)
 				}
-				mods[mod.Id] = mod_entry.New(
+				result[mod.Id] = mods.NewModResource(
 					"",
 					compatibility["identifier"].(string),
 					mod.Id,
@@ -223,10 +223,10 @@ func (nrc_mods NoriskMods) Get_compatible_mods(
 		}
 	}
 
-	return mods
+	return result
 }
 
-func (nrc_mods NoriskMods) Get_names(mods mod_entry.ModEntries) map[string]string {
+func (nrc_mods NrcMods) DisplayNames(mods map[string]mods.Mod) map[string]string {
 	result := make(map[string]string)
 	for i := range nrc_mods {
 		if _, e := mods[nrc_mods[i].Id]; e {

@@ -13,7 +13,7 @@ type Pair struct {
 	Value map[string]string
 }
 
-func Read_index(path string) Index {
+func ReadIndex(path string) Index {
 	data := make(Index)
 	file, err := os.Open(path)
 	if err != nil {

@@ -146,11 +146,11 @@ func Get_token(
 	}
 
 	log.Println("Requesting new token")
-	server_id, err := api.Request_server_id()
+	server_id, err := api.RequestServerId()
 	if err != nil {
 		return "", err
 	}
-	err = api.Join_server_session(config.Token, uuid, server_id)
+	err = api.JoinServerSession(config.Token, uuid, server_id)
 	if err != nil {
 		return "", err
 	}
@@ -158,7 +158,7 @@ func Get_token(
 	host, _ := os.Hostname()
 	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Id()+"-"+os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
-	nrc_token, err = api.Request_token(
+	nrc_token, err = api.RequestToken(
 		config.Username,
 		server_id,
 		hex.EncodeToString(hash[:]),

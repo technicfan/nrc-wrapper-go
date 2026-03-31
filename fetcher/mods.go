@@ -3,18 +3,18 @@ package fetcher
 import (
 	"main/config"
 	"main/globals"
-	"main/mod_entry"
+	"main/mods"
 	"main/utils"
 	"os"
 	"path/filepath"
 )
 
-func Get_installed_mods(
+func GetInstalledMods(
 	root string,
 	mod_dir string,
-) (mod_entry.ModEntries, bool) {
+) (map[string]mods.Mod, bool) {
 	files, _ := os.ReadDir(filepath.Join(root, mod_dir))
-	index := utils.Read_index(filepath.Join(root, globals.MOD_INDEX))
+	index := utils.ReadIndex(filepath.Join(root, globals.MOD_INDEX))
 
 	hashes := make(map[string]string)
 	for _, f := range files {
@@ -26,7 +26,7 @@ func Get_installed_mods(
 			if e {
 				hash = entry["hash"]
 			} else {
-				hash, err = utils.Calc_hash(filepath.Join(root, mod_dir, f.Name()))
+				hash, err = utils.Hash(filepath.Join(root, mod_dir, f.Name()))
 			}
 			if err == nil {
 				hashes[hash] = f.Name()
@@ -35,18 +35,15 @@ func Get_installed_mods(
 	}
 
 	updated := false
-	results := make(mod_entry.ModEntries)
+	results := make(map[string]mods.Mod)
 	for entry_name, entry := range index {
 		if name, exists := hashes[entry["hash"]]; exists {
-			results[entry["id"]] = mod_entry.New(
+			results[entry["id"]] = mods.NewMod(
 				entry["hash"],
 				entry["version"],
 				entry["id"],
 				name,
 				mod_dir,
-				"",
-				"",
-				false,
 			)
 			if entry_name != name {
 				updated = true
@@ -59,24 +56,20 @@ func Get_installed_mods(
 	return results, updated
 }
 
-func Get_Mods(
-	mods mod_entry.ModEntries,
+func GetMods(
+	mods mods.ModResources,
 	config config.Config,
 ) ([]utils.NrcResource, utils.Index, bool) {
-	installed_mods, updated := Get_installed_mods("./", config.ModDir())
-	mods_to_download, already_installed := mods.Get_missing_mods(
+	installed_mods, updated := GetInstalledMods("./", config.ModDir())
+	mods_to_download, already_installed := mods.GetMissing(
 		installed_mods,
 		config.ModDir(),
 	)
-
-	if len(mods_to_download) == 0 {
-		return []utils.NrcResource{}, already_installed.Convert_to_index(), updated
-	}
 
 	var result []utils.NrcResource
 	for id := range mods_to_download {
 		result = append(result, mods_to_download[id])
 	}
 
-	return result, already_installed.Convert_to_index(), updated
+	return result, already_installed.Index(), updated
 }

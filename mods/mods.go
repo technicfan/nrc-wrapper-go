@@ -1,4 +1,4 @@
-package mod_entry
+package mods
 
 import (
 	"crypto/sha1"
@@ -13,24 +13,46 @@ import (
 	"strings"
 )
 
-type ModEntry struct {
-	// SHA1 Hash
+type Mod struct {
 	hash string
-	// Version number
 	version string
-	// id
-	id       string
+	id string
 	filename string
-	// old file if it was replaced
+	path string
+}
+
+func NewMod(
+	hash string,
+	version string,
+	id string,
+	filename string,
+	path string,
+) Mod {
+	return Mod{hash, version, id, filename, path}
+}
+
+func (mod Mod) Path() string {
+	return filepath.Join(mod.path, mod.filename)
+}
+
+func (mod Mod) Filename() string {
+	return mod.filename
+}
+
+func (mod Mod) Enabled() bool {
+	return strings.HasSuffix(mod.filename, ".jar")
+}
+
+type ModResource struct /*implements NewModResource*/ {
+	*Mod
 	old_file      string
-	path          string
 	url           string
 	alt_url       string
 	use_alt_url   bool
 	check_hash    bool
 }
 
-func New(
+func NewModResource(
 	hash string,
 	version string,
 	id string,
@@ -39,14 +61,10 @@ func New(
 	url string,
 	alt_url string,
 	check_hash bool,
-) ModEntry {
-	return ModEntry{
-		hash,
-		version,
-		id,
-		filename,
+) ModResource {
+	return ModResource{
+		&Mod{hash, version, id, filename, path},
 		"",
-		path,
 		url,
 		alt_url,
 		false,
@@ -54,33 +72,21 @@ func New(
 	}
 }
 
-func (mod ModEntry) Url() string {
+func (mod ModResource) Url() string {
 	if mod.use_alt_url {
 		return mod.alt_url
 	}
 	return mod.url
 }
 
-func (mod ModEntry) Path() string {
-	return filepath.Join(mod.path, mod.filename)
-}
-
-func (mod ModEntry) Filename() string {
-	return mod.filename
-}
-
-func (mod ModEntry) Enabled() bool {
-	return strings.HasSuffix(mod.filename, ".jar")
-}
-
-func (mod ModEntry) ExpectedHash() string {
+func (mod ModResource) ExpectedHash() string {
 	if mod.check_hash {
 		hash_response, err := http.Get(fmt.Sprintf("%s.sha1", mod.Url()))
 		if err != nil {
 			return ""
 		}
 		if hash_response.StatusCode != http.StatusOK {
-			log.Printf("Maven does not provide a sha1 hash for %s", mod.Filename)
+			log.Printf("Maven does not provide a sha1 hash for %s", mod.filename)
 		} else {
 			defer hash_response.Body.Close()
 
@@ -94,11 +100,11 @@ func (mod ModEntry) ExpectedHash() string {
 	return ""
 }
 
-func (mod ModEntry) HashObj() hash.Hash {
+func (mod ModResource) HashObj() hash.Hash {
 	return sha1.New()
 }
 
-func (mod ModEntry) Download() error {
+func (mod ModResource) Download() error {
 	err := utils.Download(mod)
 	if err != nil && err.Error() == "HTTP 404" && mod.alt_url != "" {
 		mod.use_alt_url = true
@@ -114,44 +120,44 @@ func (mod ModEntry) Download() error {
 	return err
 }
 
-func (mod ModEntry) IndexPair() utils.Pair {
-	hash, _ := utils.Calc_hash(mod.Path())
+func (mod ModResource) IndexPair() utils.Pair {
+	hash, _ := utils.Hash(mod.Path())
 	return utils.Pair{
 		Key: mod.filename,
 		Value: map[string]string{"id": mod.id, "hash": hash, "version": mod.version},
 	}
 }
 
-func (mod ModEntry) Type() int {
+func (mod ModResource) Type() int {
 	return 0
 }
 
-func (mod *ModEntry) SetOldFile(name string) {
+func (mod *ModResource) SetOldFile(name string) {
 	mod.old_file = name
 	if strings.HasSuffix(name, ".disabled") && mod.Enabled() {
 		mod.filename += ".disabled"
 	}
 }
 
-type ModEntries map[string]ModEntry
+type ModResources map[string]ModResource
 
-func (mods ModEntries) Get_missing_mods(
-	installed_mods ModEntries,
+func (mods ModResources) GetMissing(
+	installed_mods map[string]Mod,
 	path string,
-) (ModEntries, ModEntries) {
-	result, removed := make(ModEntries), make(ModEntries)
+) (ModResources, ModResources) {
+	missing, installed := make(ModResources), make(ModResources)
 	for _, mod := range mods {
 		if installed_mod, exists := installed_mods[mod.id]; exists {
 			if mod.version != installed_mod.version {
 				mod.SetOldFile(installed_mod.Filename())
-				result[mod.id] = mod
+				missing[mod.id] = mod
 			} else {
 				mod.hash = installed_mod.hash
-				removed[mod.id] = mod
+				installed[mod.id] = mod
 			}
 			delete(installed_mods, mod.id)
 		} else {
-			result[mod.id] = mod
+			missing[mod.id] = mod
 		}
 	}
 
@@ -160,10 +166,10 @@ func (mods ModEntries) Get_missing_mods(
 		log.Printf("Removed left over file %s", mod.Filename())
 	}
 
-	return result, removed
+	return missing, installed
 }
 
-func (mods ModEntries) Convert_to_index() utils.Index {
+func (mods ModResources) Index() utils.Index {
 	results := make(utils.Index)
 	for _, mod := range mods {
 		info := make(map[string]string)

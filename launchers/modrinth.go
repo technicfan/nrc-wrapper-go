@@ -14,7 +14,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type ModrinthApp struct {
+type ModrinthApp struct /*implements Launcher*/ {
 	launcher_data
 }
 
@@ -98,7 +98,7 @@ func (launcher ModrinthApp) GetDetails() (Minecraft, error) {
 	return Minecraft{profile, version, loader, loader_version, username, uuid, token}, nil
 }
 
-type modrinth_instance struct {
+type modrinth_instance struct /*implements Instance*/ {
 	*instance_data
 }
 

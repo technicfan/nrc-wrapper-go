@@ -5,8 +5,6 @@ package platform
 import (
 	"os"
 	"os/exec"
-	"os/user"
-	"path/filepath"
 	"strings"
 
 	"github.com/kolesnikovae/go-winjob"
@@ -46,7 +44,7 @@ func Exec(command string, args []string) error {
 	return err
 }
 
-func Get_running_launchers() []string {
+func RunningLaunchers() []string {
 	var running []string
 	cmd := exec.Command("tasklist", "/FI", "IMAGENAME eq prismlauncher.exe")
 	out, err := cmd.Output()

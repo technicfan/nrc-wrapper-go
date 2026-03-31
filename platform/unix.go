@@ -21,7 +21,7 @@ func Exec(command string, args []string) error {
 	return err
 }
 
-func Get_running_launchers() []string {
+func RunningLaunchers() []string {
 	var running []string
 	cmd := exec.Command("pgrep", "-x", "prismlauncher")
 	err := cmd.Run()

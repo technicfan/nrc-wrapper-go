@@ -33,14 +33,14 @@ func main() {
 	var wg sync.WaitGroup
 	if launch {
 		log.Println("Loading NoRiskClient...")
-		cfg = config.Get_config()
+		cfg = config.GetConfig()
 	}
 
 	if os.Getenv("STAGING") != "" {
 		globals.NORISK_API_URL = globals.NORISK_API_STAGING_URL
 	}
 
-	versions, err := api.Get_norisk_versions()
+	versions, err := api.GetVersions()
 	if err == nil {
 		if !launch {
 			versions.Packs.Print()
@@ -51,11 +51,11 @@ func main() {
 		if !exists {
 			utils.Notify(fmt.Sprintf("%s is not a valid NRC pack", cfg.Pack()), true, cfg.Notify())
 		}
-		pack_mods, assets, _, loaders := pack.Get_details(versions.Packs)
+		pack_mods, assets, _, loaders := pack.Details(versions.Packs)
 
 		if !globals.REFRESH && len(loaders) > 0 {
 			if version, exists := loaders[cfg.Loader]; exists {
-				if utils.Cmp_versions(cfg.LoaderVersion, version) < 0 {
+				if utils.CmpVersions(cfg.LoaderVersion, version) < 0 {
 					utils.Notify(
 						fmt.Sprintf(
 							"Please update %s to version %s",
@@ -87,7 +87,7 @@ func main() {
 			}
 		}
 
-		mods := pack.Mods.Get_compatible_mods(cfg, versions.Repositories)
+		mods := pack.Mods.CompatibleMods(cfg, versions.Repositories)
 		if len(mods) == 0 {
 			utils.Notify(
 				fmt.Sprintf(
@@ -99,11 +99,15 @@ func main() {
 				cfg.Notify(),
 			)
 		}
-		maps.Copy(mods, pack_mods.Get_compatible_mods(cfg, versions.Repositories))
+		maps.Copy(mods, pack_mods.CompatibleMods(cfg, versions.Repositories))
 
-		asset_resources, asset_index, update_assets := fetcher.Get_assets(assets)
-		mod_resources, mod_index, update_mods := fetcher.Get_Mods(mods, cfg)
+		asset_resources, asset_index, update_assets := fetcher.GetAssets(assets)
+		mod_resources, mod_index, update_mods := fetcher.GetMods(mods, cfg)
 		resources := append(asset_resources, mod_resources...)
+
+		if len(resources) > 0 {
+			log.Println("Downloading missing/updated resources")
+		}
 
 		limiter := make(chan struct{}, 10)
 		asset_index_chan := make(chan utils.Pair, len(asset_resources))

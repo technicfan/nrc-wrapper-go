@@ -13,7 +13,7 @@ import (
 	"github.com/gen2brain/beeep"
 )
 
-func Calc_hash(
+func Hash(
 	path string,
 ) (string, error) {
 	var file, err = os.Open(path)
@@ -37,7 +37,7 @@ func Calc_hash(
 	return hex.EncodeToString(bytesHash[:]), nil
 }
 
-func Make_unique(str string, index int) string {
+func Unique(str string, index int) string {
 	var builder strings.Builder
 	builder.WriteString(str)
 	for range index {
@@ -46,7 +46,7 @@ func Make_unique(str string, index int) string {
 	return builder.String()
 }
 
-func Cmp_versions(
+func CmpVersions(
 	a string,
 	b string,
 ) int {
