@@ -118,7 +118,7 @@ func Get_token(
 	config config.Config,
 	offline bool,
 ) (string, error) {
-	uuid := config.Uuid
+	uuid := config.Uuid()
 	if !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
 			uuid[0:8],
@@ -129,8 +129,8 @@ func Get_token(
 		)
 	}
 
-	if config.Token == "offline" {
-		return config.Token, nil
+	if config.Token() == "offline" {
+		return config.Token(), nil
 	}
 
 	nrc_token, err := read_token_from_file(config.Dir(), uuid)
@@ -150,7 +150,7 @@ func Get_token(
 	if err != nil {
 		return "", err
 	}
-	err = api.JoinServerSession(config.Token, uuid, server_id)
+	err = api.JoinServerSession(config.Token(), uuid, server_id)
 	if err != nil {
 		return "", err
 	}
@@ -159,7 +159,7 @@ func Get_token(
 	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Id()+"-"+os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
 	nrc_token, err = api.RequestToken(
-		config.Username,
+		config.Username(),
 		server_id,
 		hex.EncodeToString(hash[:]),
 	)

@@ -16,17 +16,9 @@ import (
 	"strings"
 )
 
-type PrismLauncher struct /*implements Launcher*/ {
+type prismlauncher struct /*implements Launcher*/ {
 	launcher_data
 	config cfg
-}
-
-func (launcher PrismLauncher) Exists() bool {
-	return launcher.config != nil
-}
-
-func (launcher PrismLauncher) Id() string {
-	return "prism"
 }
 
 func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
@@ -41,12 +33,20 @@ func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
 		name = "Prism Launcher"
 	}
 	cfg, _ := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
-	launcher := PrismLauncher{launcher_data{name, path, "", flatpak_id}, cfg}
+	launcher := prismlauncher{launcher_data{name, path, "", flatpak_id}, cfg}
 	launcher.instance_dir = launcher.get_instance_dir()
 	return launcher
 }
 
-func (launcher PrismLauncher) get_instance_dir() string {
+func (launcher prismlauncher) Exists() bool {
+	return launcher.config != nil
+}
+
+func (launcher prismlauncher) Id() string {
+	return "prism"
+}
+
+func (launcher prismlauncher) get_instance_dir() string {
 	if launcher.config == nil {
 		return ""
 	}
@@ -57,6 +57,136 @@ func (launcher PrismLauncher) get_instance_dir() string {
 		return filepath.Join(launcher.path, instances)
 	}
 	return filepath.Join(launcher.path, "instances")
+}
+
+func (launcher prismlauncher) GetDetails() (Minecraft, error) {
+	var profile, version, loader, loader_version, token, username, uuid string
+
+	instance, err := get_prism_instance_config("../")
+	if err != nil {
+		return Minecraft{}, err
+	}
+	version, loader, loader_version = instance.get_details()
+
+	config, err := parse_cfg("../instance.cfg")
+	if err != nil {
+		return Minecraft{}, err
+	}
+
+	if name, e := config["General"]["name"]; e {
+		profile = name
+	}
+
+	file, err := os.Open(filepath.Join(launcher.path, "accounts.json"))
+	if err != nil {
+		return Minecraft{}, err
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return Minecraft{}, err
+	}
+
+	var data prism_data
+	err = json.Unmarshal(content, &data)
+	if err != nil {
+		return Minecraft{}, err
+	}
+	if id, e := config["General"]["InstanceAccountId"]; e && config["General"]["UseAccountForInstance"] == "true" {
+		token, username, uuid, err = data.get(&id)
+	} else {
+		token, username, uuid, err = data.get_active()
+	}
+	if err != nil {
+		return Minecraft{}, err
+	}
+
+	return Minecraft{
+		profile,
+		version,
+		loader,
+		loader_version,
+		username,
+		uuid,
+		token,
+	}, nil
+}
+
+func (launcher prismlauncher) GetInstances(
+	versions []string,
+	loaders []string,
+	ex string,
+) ([]Instance, error) {
+	var instances []Instance
+
+	dirs, err := os.ReadDir(launcher.instance_dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, dir := range dirs {
+		if dir.IsDir() {
+			var vars map[string]string
+			var notify, neofd bool
+			var wrapper string
+
+			instance_path := filepath.Join(launcher.instance_dir, dir.Name())
+			instance, err := get_prism_instance_config(instance_path)
+			if err != nil {
+				continue
+			}
+			version, loader, loader_version := instance.get_details()
+			if !slices.Contains(versions, version) || !slices.Contains(loaders, loader) {
+				continue
+			}
+			config, err := parse_cfg(filepath.Join(instance_path, "instance.cfg"))
+			if err != nil {
+				continue
+			}
+			if config["General"]["OverrideCommands"] == "true" {
+				wrapper = config["General"]["WrapperCommand"]
+			}
+			name := config["General"]["name"]
+			env := strings.Trim(strings.ReplaceAll(config["General"]["Env"], `\"`, `"`), `"`)
+			if config["General"]["OverrideEnv"] == "true" {
+				err = json.Unmarshal([]byte(env), &vars)
+				if err != nil {
+					continue
+				}
+			} else {
+				vars = make(map[string]string)
+			}
+
+			pack := globals.DEFAULT_PACK
+			mod_path := globals.DEFAULT_MOD_DIR
+			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
+			if v, e := vars["NRC_PACK"]; e {
+				pack = v
+			}
+			if v, e := vars["NRC_MOD_DIR"]; e {
+				mod_path = v
+			}
+			if v, e := vars["NOTIFY"]; e {
+				notify = !(v == "False" || v == "false" || v == "0")
+			}
+			v, e := vars["NEOFD"]
+			v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
+			if (e && v != "") || (e2 && v2 != "") {
+				neofd = true
+			}
+			nrc_config := nrc_config{nrc, wrapper, pack, mod_path, notify, neofd}
+			mc_root := filepath.Join(instance_path, "minecraft")
+			_, err = os.Stat(mc_root)
+			if err != nil && errors.Is(err, fs.ErrNotExist) {
+				mc_root = filepath.Join(instance_path, ".minecraft")
+			}
+			instances = append(instances, &prism_instance{&instance_data{
+				name, version, loader, loader_version, instance_path, mc_root,
+				vars, launcher.flatpak_id, nrc_config, false,
+			}, config})
+		}
+	}
+	return instances, nil
 }
 
 type prism_data struct {
@@ -132,60 +262,6 @@ func (instance *prism_instance_config) get_details() (string, string, string) {
 	return version, loader, loader_version
 }
 
-func (launcher PrismLauncher) GetDetails() (Minecraft, error) {
-	var profile, version, loader, loader_version, token, username, uuid string
-
-	instance, err := get_prism_instance_config("../")
-	if err != nil {
-		return Minecraft{}, err
-	}
-	version, loader, loader_version = instance.get_details()
-
-	config, err := parse_cfg("../instance.cfg")
-	if err != nil {
-		return Minecraft{}, err
-	}
-
-	if name, e := config["General"]["name"]; e {
-		profile = name
-	}
-
-	file, err := os.Open(filepath.Join(launcher.path, "accounts.json"))
-	if err != nil {
-		return Minecraft{}, err
-	}
-	defer file.Close()
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return Minecraft{}, err
-	}
-
-	var data prism_data
-	err = json.Unmarshal(content, &data)
-	if err != nil {
-		return Minecraft{}, err
-	}
-	if id, e := config["General"]["InstanceAccountId"]; e && config["General"]["UseAccountForInstance"] == "true" {
-		token, username, uuid, err = data.get(&id)
-	} else {
-		token, username, uuid, err = data.get_active()
-	}
-	if err != nil {
-		return Minecraft{}, err
-	}
-
-	return Minecraft{
-		profile,
-		version,
-		loader,
-		loader_version,
-		username,
-		uuid,
-		token,
-	}, nil
-}
-
 func get_prism_instance_config(
 	path string,
 ) (prism_instance_config, error) {
@@ -243,82 +319,6 @@ func (instance *prism_instance) Save(nrc bool, notify bool, neofd bool, pack str
 		return instance.cfg.write(filepath.Join(instance.path, "instance.cfg"))
 	}
 	return nil
-}
-
-func (launcher PrismLauncher) GetInstances(
-	versions []string,
-	loaders []string,
-	ex string,
-) ([]Instance, error) {
-	var instances []Instance
-
-	dirs, err := os.ReadDir(launcher.instance_dir)
-	if err != nil {
-		return nil, err
-	}
-	for _, dir := range dirs {
-		if dir.IsDir() {
-			var vars map[string]string
-			var notify, neofd bool
-			var wrapper string
-
-			instance_path := filepath.Join(launcher.instance_dir, dir.Name())
-			instance, err := get_prism_instance_config(instance_path)
-			if err != nil {
-				continue
-			}
-			version, loader, loader_version := instance.get_details()
-			if !slices.Contains(versions, version) || !slices.Contains(loaders, loader) {
-				continue
-			}
-			config, err := parse_cfg(filepath.Join(instance_path, "instance.cfg"))
-			if err != nil {
-				continue
-			}
-			if config["General"]["OverrideCommands"] == "true" {
-				wrapper = config["General"]["WrapperCommand"]
-			}
-			name := config["General"]["name"]
-			env := strings.Trim(strings.ReplaceAll(config["General"]["Env"], `\"`, `"`), `"`)
-			if config["General"]["OverrideEnv"] == "true" {
-				err = json.Unmarshal([]byte(env), &vars)
-				if err != nil {
-					continue
-				}
-			} else {
-				vars = make(map[string]string)
-			}
-
-			pack := globals.DEFAULT_PACK
-			mod_path := globals.DEFAULT_MOD_DIR
-			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
-			if v, e := vars["NRC_PACK"]; e {
-				pack = v
-			}
-			if v, e := vars["NRC_MOD_DIR"]; e {
-				mod_path = v
-			}
-			if v, e := vars["NOTIFY"]; e {
-				notify = !(v == "False" || v == "false" || v == "0")
-			}
-			v, e := vars["NEOFD"]
-			v2, e2 := vars["NO_ERROR_ON_FAILED_DOWNLOAD"]
-			if (e && v != "") || (e2 && v2 != "") {
-				neofd = true
-			}
-			nrc_config := nrc_config{nrc, wrapper, pack, mod_path, notify, neofd}
-			mc_root := filepath.Join(instance_path, "minecraft")
-			_, err = os.Stat(mc_root)
-			if err != nil && errors.Is(err, fs.ErrNotExist) {
-				mc_root = filepath.Join(instance_path, ".minecraft")
-			}
-			instances = append(instances, &prism_instance{&instance_data{
-				name, version, loader, loader_version, instance_path, mc_root,
-				vars, launcher.flatpak_id, nrc_config, false,
-			}, config})
-		}
-	}
-	return instances, nil
 }
 
 type cfg map[string]map[string]string

@@ -1,13 +1,41 @@
 package launchers
 
 type Minecraft struct {
-	Profile       string
-	Version       string
-	Loader        string
-	LoaderVersion string
-	Username      string
-	Uuid          string
-	Token         string
+	profile       string
+	version       string
+	loader        string
+	loader_version string
+	username      string
+	uuid          string
+	token         string
+}
+
+func (minecraft Minecraft) Profile() string {
+	return minecraft.profile
+}
+
+func (minecraft Minecraft) Version() string {
+	return minecraft.version
+}
+
+func (minecraft Minecraft) Loader() string {
+	return minecraft.loader
+}
+
+func (minecraft Minecraft) LoaderVersion() string {
+	return minecraft.loader_version
+}
+
+func (minecraft Minecraft) Username() string {
+	return minecraft.username
+}
+
+func (minecraft Minecraft) Uuid() string {
+	return minecraft.uuid
+}
+
+func (minecraft Minecraft) Token() string {
+	return minecraft.token
 }
 
 type Launcher interface {

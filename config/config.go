@@ -102,7 +102,7 @@ func GetConfig() Config {
 
 	if value := os.Getenv("NRC_MOD_DIR"); value != "" {
 		config.mod_dir = value
-	} else if config.Minecraft.Loader == "fabric" {
+	} else if config.Loader() == "fabric" {
 		config.mod_dir = globals.DEFAULT_MOD_DIR
 	} else {
 		config.mod_dir = "mods"

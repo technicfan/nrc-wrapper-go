@@ -194,8 +194,8 @@ func (nrc_mods NrcMods) CompatibleMods(
 ) mods.ModResources {
 	result := make(mods.ModResources)
 	for _, mod := range nrc_mods {
-		if _, exists := mod.Compatibility[config.Version]; exists {
-			if compatibility, exists := mod.Compatibility[config.Version][config.Loader]; exists {
+		if _, e := mod.Compatibility[config.Version()]; e {
+			if compatibility, e := mod.Compatibility[config.Version()][config.Loader()]; e {
 				if compatibility["source"] != nil {
 					source := compatibility["source"].(map[string]any)
 					for k, v := range source {

@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-type Resource interface {
+type resource interface {
 	Url() string
 	Path() string
 	Filename() string
@@ -21,13 +21,7 @@ type Resource interface {
 	Download() error
 }
 
-type NrcResource interface {
-	Resource
-	Type() int
-	IndexPair() Pair
-}
-
-func Download(resource Resource) error {
+func Download(resource resource) error {
 	os.MkdirAll(filepath.Dir(resource.Path()), os.ModePerm)
 
 	response, err := http.Get(resource.Url())
@@ -68,6 +62,12 @@ func Download(resource Resource) error {
 	}
 
 	return nil
+}
+
+type NrcResource interface {
+	resource
+	Type() int
+	IndexPair() Pair
 }
 
 func DownloadAsync(

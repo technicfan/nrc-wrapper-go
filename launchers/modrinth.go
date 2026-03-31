@@ -14,17 +14,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-type ModrinthApp struct /*implements Launcher*/ {
+type modrinthapp struct /*implements Launcher*/ {
 	launcher_data
-}
-
-func (launcher ModrinthApp) Exists() bool {
-	_, err := os.Stat(filepath.Join(launcher.path, "app.db"))
-	return err == nil
-}
-
-func (launcher ModrinthApp) Id() string {
-	return "modrinth"
 }
 
 func NewModrinthApp(home string, path string, flatpak bool) Launcher {
@@ -38,10 +29,19 @@ func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	} else {
 		name = "Modrinth App"
 	}
-	return ModrinthApp{launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id}}
+	return modrinthapp{launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id}}
 }
 
-func (launcher ModrinthApp) GetDetails() (Minecraft, error) {
+func (launcher modrinthapp) Exists() bool {
+	_, err := os.Stat(filepath.Join(launcher.path, "app.db"))
+	return err == nil
+}
+
+func (launcher modrinthapp) Id() string {
+	return "modrinth"
+}
+
+func (launcher modrinthapp) GetDetails() (Minecraft, error) {
 	var profile, version, loader, loader_version, token, username, uuid string
 
 	db, err := sql.Open("sqlite3", filepath.Join(launcher.path, "app.db"))
@@ -90,39 +90,7 @@ func (launcher ModrinthApp) GetDetails() (Minecraft, error) {
 	return Minecraft{profile, version, loader, loader_version, username, uuid, token}, nil
 }
 
-type modrinth_instance struct /*implements Instance*/ {
-	*instance_data
-}
-
-func (instance modrinth_instance) LauncherClass() string {
-	return globals.MODRINTH_CLASS
-}
-
-func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
-	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
-		var env [][]string
-		for k, v := range instance.env {
-			env = append(env, []string{k, v})
-		}
-		raw, err := json.Marshal(env)
-		if err != nil {
-			return err
-		}
-		db, err := sql.Open(
-			"sqlite3", fmt.Sprintf("%s/app.db", filepath.Dir(filepath.Dir(instance.path))),
-		)
-		if err != nil {
-			return err
-		}
-		defer db.Close()
-		sql_cmd := `UPDATE profiles SET override_hook_wrapper = ?, override_custom_env_vars = jsonb(?) WHERE path = ?;`
-		_, err = db.Exec(sql_cmd, instance.config.command, raw, filepath.Base(instance.path))
-		return err
-	}
-	return nil
-}
-
-func (launcher ModrinthApp) GetInstances(
+func (launcher modrinthapp) GetInstances(
 	versions []string,
 	loaders []string,
 	ex string,
@@ -192,3 +160,36 @@ func (launcher ModrinthApp) GetInstances(
 	}
 	return instances, nil
 }
+
+type modrinth_instance struct /*implements Instance*/ {
+	*instance_data
+}
+
+func (instance modrinth_instance) LauncherClass() string {
+	return globals.MODRINTH_CLASS
+}
+
+func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
+	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
+		var env [][]string
+		for k, v := range instance.env {
+			env = append(env, []string{k, v})
+		}
+		raw, err := json.Marshal(env)
+		if err != nil {
+			return err
+		}
+		db, err := sql.Open(
+			"sqlite3", fmt.Sprintf("%s/app.db", filepath.Dir(filepath.Dir(instance.path))),
+		)
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		sql_cmd := `UPDATE profiles SET override_hook_wrapper = ?, override_custom_env_vars = jsonb(?) WHERE path = ?;`
+		_, err = db.Exec(sql_cmd, instance.config.command, raw, filepath.Base(instance.path))
+		return err
+	}
+	return nil
+}
+
