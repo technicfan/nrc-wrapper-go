@@ -15,6 +15,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	MODRINTH_DIR     = "ModrinthApp"
+	MODRINTH_FLATPAK = "com.modrinth.ModrinthApp"
+	MODRINTH_CLASS   = "com.modrinth.theseus.MinecraftLaunch"
+)
+
 type modrinthapp struct /*implements Launcher*/ {
 	*launcher_data
 }
@@ -22,10 +28,10 @@ type modrinthapp struct /*implements Launcher*/ {
 func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	var name, flatpak_id string
 	if path == "" {
-		path = utils.LauncherDir(home, flatpak, globals.MODRINTH_FLATPAK, globals.MODRINTH_DIR)
+		path = utils.LauncherDir(home, flatpak, MODRINTH_FLATPAK, MODRINTH_DIR)
 	}
 	if flatpak {
-		flatpak_id = globals.MODRINTH_FLATPAK
+		flatpak_id = MODRINTH_FLATPAK
 		name = "Modrinth App (Flatpak)"
 	} else {
 		name = "Modrinth App"
@@ -54,7 +60,7 @@ func (launcher modrinthapp) IsRunning() bool {
 	return platform.IsRunning(pname)
 }
 
-func (launcher modrinthapp) GetDetails() (Minecraft, error) {
+func (launcher modrinthapp) GetCurrentInstanceDetails() (Minecraft, error) {
 	var profile, version, loader, loader_version, token, username, uuid string
 
 	db, err := sql.Open("sqlite3", filepath.Join(launcher.path, "app.db"))
@@ -171,6 +177,9 @@ func (launcher modrinthapp) GetInstances(
 			}})
 		}
 	}
+	slices.SortFunc(instances, func(a Instance, b Instance) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 	return instances, nil
 }
 
@@ -179,11 +188,11 @@ type modrinth_instance struct /*implements Instance*/ {
 }
 
 func (instance modrinth_instance) LauncherClass() string {
-	return globals.MODRINTH_CLASS
+	return MODRINTH_CLASS
 }
 
 func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
-	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
+	if instance.instance_data.save(nrc, notify, neofd, pack, ex) {
 		var env [][]string
 		for k, v := range instance.env {
 			env = append(env, []string{k, v})
@@ -205,4 +214,3 @@ func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack 
 	}
 	return nil
 }
-

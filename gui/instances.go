@@ -25,19 +25,34 @@ import (
 )
 
 func addInstances(
-	instances []launchers.Instance,
 	l launchers.Launcher,
+	versions []string,
+	loaders []string,
 	unique_main []string,
 	packs packs.MetaPacks,
 	v api.Versions,
 	lstack *fyne.Container,
+	info_box *fyne.Container,
 	w fyne.Window,
 	ex string,
-) {
+) bool {
+	instances, err := l.GetInstances(versions, loaders, ex)
+	if (len(instances) == 0) {
+		heading := info_box.Objects[0].(*fyne.Container).Objects[0].(*widget.RichText)
+		desc := info_box.Objects[1].(*widget.Label)
+		if err != nil {
+			heading.ParseMarkdown("## An error occurred while getting instances")
+			desc.SetText(err.Error())
+		} else {
+			heading.ParseMarkdown("## No compatible instances found")
+			desc.SetText("See the \"NRC Packs\" tabs for compatibility info")
+		}
+		lstack.Add(container.NewCenter(info_box))
+		return false
+	}
 	var open_configs []launchers.Instance
 	cws := container.NewMultipleWindows()
 	list := container.NewVBox()
-	loading_bar := widget.NewProgressBarInfinite()
 	for i := range instances {
 		instance := instances[i]
 
@@ -52,8 +67,10 @@ func addInstances(
 
 		main_button := widget.NewButton("Refresh NRC", func() {})
 		main_button.OnTapped = func() {
-			lstack.Add(loading_bar)
-			fyne.Do(func() {
+			text := main_button.Text
+			main_button.SetText("Loading...")
+			main_button.Disable()
+			go func ()  {
 				var env []string
 				if instance.FlatpakId() != "" {
 					env = append(env, "FLATPAK_ID=" + instance.FlatpakId())
@@ -64,16 +81,23 @@ func addInstances(
 				cmd.Env = env
 				_, err := cmd.Output()
 				if err != nil {
-					utils.Notify(
-						fmt.Sprintf("%s failed: %s", main_button.Text, err.Error()),
-						false, true,
-					)
+					fyne.Do(func() {
+						main_button.SetText("Failed")
+				    })
+					log.Printf("%s failed: %s\n", text, err.Error())
 				} else {
-					main_button.SetText("Refresh NRC")
-					utils.Notify("Finished!", false, true)
+					fyne.Do(func() {
+						main_button.SetText("Finished")
+				    })
 				}
-				lstack.Remove(loading_bar)
-			})
+				fyne.Do(func() {
+					main_button.Enable()
+				})
+				time.Sleep(time.Second)
+				fyne.Do(func() {
+					main_button.SetText("Refresh NRC")
+				})
+			}()
 		}
 		if !instance.Nrc() {
 			main_button.Hide()
@@ -213,21 +237,23 @@ func addInstances(
 						warn_label.SetText("Your settings have been saved successfully")
 						warn_label.Show()
 					}
-					fyne.Do(func() {
-						time.Sleep(time.Millisecond * 350)
-						if err == nil {
-							cw.CloseIntercept()
-							if instance.Nrc() {
-								if main_button.Hidden {
-									main_button.Show()
+					if err == nil {
+						go func ()  {
+							time.Sleep(time.Millisecond * 350)
+							fyne.Do(func () {
+								cw.CloseIntercept()
+								if instance.Nrc() {
+									if main_button.Hidden {
+										main_button.Show()
+									}
+								} else {
+									if !main_button.Hidden {
+										main_button.Hide()
+									}
 								}
-							} else {
-								if !main_button.Hidden {
-									main_button.Hide()
-								}
-							}
-						}
-					})
+							})
+						}()
+					}
 				}
 
 				content := container.New(
@@ -384,4 +410,5 @@ func addInstances(
 	))
 	lstack.Add(cws)
 	cws.Hide()
+	return true
 }

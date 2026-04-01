@@ -17,12 +17,15 @@ import (
 )
 
 func main() {
+	var print, refresh bool
 	launch := true
 	if len(os.Args) == 2 && os.Args[1] == "--packs" {
 		launch = false
+		print = true
 		platform.Cli()
 	} else if len(os.Args) == 3 && os.Args[1] == "--refresh" {
-		globals.REFRESH = true
+		launch = false
+		refresh = true
 	} else if len(os.Args) < 3 {
 		gui.Gui()
 		return
@@ -31,9 +34,9 @@ func main() {
 	var token string
 	var cfg config.Config
 	var wg sync.WaitGroup
-	if launch {
+	if !print {
 		log.Println("Loading NoRiskClient...")
-		cfg = config.GetConfig()
+		cfg = config.GetConfig(refresh)
 	}
 
 	if os.Getenv("STAGING") != "" {
@@ -42,7 +45,7 @@ func main() {
 
 	versions, err := api.GetVersions()
 	if err == nil {
-		if !launch {
+		if print {
 			versions.Packs.Print()
 			return
 		}
@@ -53,7 +56,7 @@ func main() {
 		}
 		pack_mods, assets, _, loaders := pack.Details(versions.Packs)
 
-		if !globals.REFRESH && len(loaders) > 0 {
+		if !refresh && len(loaders) > 0 {
 			if version, exists := loaders[cfg.Loader()]; exists {
 				if utils.CmpVersions(cfg.LoaderVersion(), version) < 0 {
 					utils.Notify(
@@ -139,7 +142,7 @@ func main() {
 		}
 	} else {
 		if !launch {
-			log.Println("No connection to the API")
+			log.Fatalln("No connection to the API")
 			return
 		}
 		utils.Notify("No connection to the API\nLaunching without doing anything", false, cfg.Notify())
@@ -150,7 +153,7 @@ func main() {
 		utils.Notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, cfg.Notify())
 	}
 
-	if !globals.REFRESH {
+	if launch {
 		command := os.Args[1]
 		args := append(
 			[]string{

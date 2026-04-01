@@ -22,6 +22,9 @@ func Exec(command string, args []string) error {
 }
 
 func IsRunning(pname string) bool {
+	if len(pname) > 15 {
+		pname = pname[:15]
+	}
 	cmd := exec.Command("pgrep", "-x", pname)
 	return cmd.Run() == nil
 }

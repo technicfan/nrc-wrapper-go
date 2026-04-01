@@ -10,11 +10,18 @@ import (
 	"main/globals"
 	"main/platform"
 	"main/utils"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
+)
+
+const (
+	PRISM_DIR     = "PrismLauncher"
+	PRISM_FLATPAK = "org.prismlauncher.PrismLauncher"
+	PRISM_CLASS   = "org.prismlauncher.EntryPoint"
 )
 
 type prismlauncher struct /*implements Launcher*/ {
@@ -25,10 +32,10 @@ type prismlauncher struct /*implements Launcher*/ {
 func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
 	var name, flatpak_id string
 	if path == "" {
-		path = utils.LauncherDir(home, flatpak, globals.PRISM_FLATPAK, globals.PRISM_DIR)
+		path = utils.LauncherDir(home, flatpak, PRISM_FLATPAK, PRISM_DIR)
 	}
 	if flatpak {
-		flatpak_id = globals.PRISM_FLATPAK
+		flatpak_id = PRISM_FLATPAK
 		name = "Prism Launcher (Flatpak)"
 	} else {
 		name = "Prism Launcher"
@@ -76,7 +83,7 @@ func (launcher prismlauncher) get_instance_dir() string {
 	return filepath.Join(launcher.path, "instances")
 }
 
-func (launcher prismlauncher) GetDetails() (Minecraft, error) {
+func (launcher prismlauncher) GetCurrentInstanceDetails() (Minecraft, error) {
 	var profile, version, loader, loader_version, token, username, uuid string
 
 	instance, err := get_prism_instance_config("../")
@@ -203,6 +210,9 @@ func (launcher prismlauncher) GetInstances(
 			}, config})
 		}
 	}
+	slices.SortFunc(instances, func(a Instance, b Instance) int {
+		return strings.Compare(a.Name(), b.Name())
+	})
 	return instances, nil
 }
 
@@ -307,11 +317,11 @@ type prism_instance struct /*implements Instance*/ {
 }
 
 func (instance prism_instance) LauncherClass() string {
-	return globals.PRISM_CLASS
+	return PRISM_CLASS
 }
 
 func (instance *prism_instance) Save(nrc bool, notify bool, neofd bool, pack string, ex string) error {
-	if (instance.instance_data.save(nrc, notify, neofd, pack, ex)) {
+	if instance.instance_data.save(nrc, notify, neofd, pack, ex) {
 		if instance.config.command != "" {
 			instance.cfg["General"]["OverrideCommands"] = "true"
 			instance.cfg["General"]["WrapperCommand"] = instance.config.command
@@ -351,11 +361,21 @@ func (cfg cfg) write(
 		}
 	}
 	defer file.Close()
+	var current_section int
+	var current_key int
 	writer := bufio.NewWriter(file)
-	for s, kv := range cfg {
-		fmt.Fprintf(writer, "[%s]\n", s)
-		for k, v := range kv {
-			fmt.Fprintf(writer, "%s=%s\n", k, v)
+	sections := len(cfg)
+	for _, section := range slices.Sorted(maps.Keys(cfg)) {
+		keys := len(cfg[section])
+		current_section++
+		current_key = 0
+		fmt.Fprintf(writer, "[%s]\n", section)
+		for _, key := range slices.Sorted(maps.Keys(cfg[section])) {
+			current_key++
+			fmt.Fprintf(writer, "%s=%s\n", key, cfg[section][key])
+			if current_section != sections && current_key == keys {
+				writer.WriteString("\n")
+			}
 		}
 	}
 	writer.Flush()

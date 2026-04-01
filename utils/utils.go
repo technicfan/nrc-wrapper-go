@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"io"
 	"log"
-	"main/globals"
 	"main/platform"
 	"os"
 	"path/filepath"
@@ -119,11 +118,7 @@ func Notify(
 				log.Fatalf("Notify failed: %s", err.Error())
 			}
 		}
-		if globals.REFRESH {
-			log.Println(msg)
-		} else {
-			log.Fatal(msg)
-		}
+		log.Fatalln(msg)
 	} else {
 		if notify {
 			err := beeep.Notify("Info", msg, "")

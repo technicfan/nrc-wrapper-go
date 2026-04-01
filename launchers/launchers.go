@@ -43,7 +43,7 @@ type Launcher interface {
 	Name() string
 	Dir() string
 	InstanceDir() string
-	GetDetails() (Minecraft, error)
+	GetCurrentInstanceDetails() (Minecraft, error)
 	GetInstances([]string, []string, string) ([]Instance, error)
 	Exists() bool
 	IsRunning() bool

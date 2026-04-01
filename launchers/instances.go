@@ -259,3 +259,17 @@ func GetInstances(
 	}
 	return instances, order, nil
 }
+
+func GetLaunchers() ([]Launcher, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	var launchers []Launcher
+	launchers = appendLaunchers(launchers, NewPrismLauncher, home)
+	launchers = appendLaunchers(launchers, NewModrinthApp, home)
+	if len(launchers) == 0 {
+		return nil, errors.New("No launchers installed")
+	}
+	return launchers, nil
+}

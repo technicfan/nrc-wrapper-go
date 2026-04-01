@@ -35,7 +35,7 @@ func (config Config) Notify() bool {
 	return config.notify
 }
 
-func GetConfig() Config {
+func GetConfig(refresh bool) Config {
 	var config Config
 	var launcher, dir string
 	usr, _ := user.Current()
@@ -46,15 +46,17 @@ func GetConfig() Config {
 		launcher = value
 	} else {
 		for i := len(os.Args) - 1; i >= 0; i-- {
-			if os.Args[i] == globals.PRISM_CLASS {
+			switch os.Args[i] {
+			case launchers.PRISM_CLASS: {
 				log.Println("Detected Prism Launcher")
 				launcher = "prism"
 				break
 			}
-			if os.Args[i] == globals.MODRINTH_CLASS {
+			case launchers.MODRINTH_CLASS: {
 				log.Println("Detected Modrinth Launcher")
 				launcher = "modrinth"
 				break
+			}
 			}
 		}
 	}
@@ -67,7 +69,7 @@ func GetConfig() Config {
 	default:
 		config.notify = launcher == "modrinth"
 	}
-	config.notify = config.notify || globals.REFRESH
+	config.notify = config.notify || refresh
 
 	switch launcher {
 	case "prism":
@@ -90,7 +92,7 @@ func GetConfig() Config {
 		config.pack = globals.DEFAULT_PACK
 	}
 
-	minecraft, err := config.GetDetails()
+	minecraft, err := config.GetCurrentInstanceDetails()
 	if err != nil {
 		utils.Notify(
 			fmt.Sprintf("Failed to get Minecraft details: %s", err.Error()),
