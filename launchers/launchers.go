@@ -47,7 +47,8 @@ type Launcher interface {
 	GetInstances([]string, []string, string) ([]Instance, error)
 	Exists() bool
 	IsRunning() bool
-	ReplaceNormal()
+	ReplaceNormal(string)
+	NormalDir() string
 }
 
 type launcher_data struct {
@@ -56,6 +57,7 @@ type launcher_data struct {
 	instance_dir string
 	flatpak_id string
 	replaced bool
+	normal_dir string
 }
 
 func (data launcher_data) Name() string {
@@ -70,8 +72,13 @@ func (data launcher_data) InstanceDir() string {
 	return data.instance_dir
 }
 
-func (data *launcher_data) ReplaceNormal() {
+func (data *launcher_data) ReplaceNormal(normal string) {
 	if data.flatpak_id != "" {
 		data.replaced = true
+		data.normal_dir = normal
 	}
+}
+
+func (data *launcher_data) NormalDir() string {
+	return data.normal_dir
 }

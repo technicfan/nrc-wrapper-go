@@ -36,7 +36,7 @@ func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	} else {
 		name = "Modrinth App"
 	}
-	return modrinthapp{&launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id, false}}
+	return modrinthapp{&launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id, false, ""}}
 }
 
 func (launcher modrinthapp) Exists() bool {

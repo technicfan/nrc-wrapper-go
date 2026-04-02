@@ -10,7 +10,9 @@ import (
 	"log"
 	"main/api"
 	"main/config"
+	"main/globals"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -42,7 +44,7 @@ func read_token_from_file(
 	path string,
 	uuid string,
 ) (string, error) {
-	file, err := os.Open(fmt.Sprintf("%s/norisk_data.json", path))
+	file, err := os.Open(filepath.Join(path, globals.TOKEN_STORE))
 	if err != nil {
 		return "", err
 	}
@@ -71,9 +73,9 @@ func write_token_to_file(
 	var file *os.File
 	var err error
 	var data map[string]string
-	file, err = os.Open(fmt.Sprintf("%s/norisk_data.json", path))
+	file, err = os.Open(filepath.Join(path, globals.TOKEN_STORE))
 	if err != nil {
-		file, err = os.Create(fmt.Sprintf("%s/norisk_data.json", path))
+		file, err = os.Create(filepath.Join(path, globals.TOKEN_STORE))
 		if err != nil {
 			return err
 		}
@@ -99,7 +101,7 @@ func write_token_to_file(
 	}
 
 	file, err = os.OpenFile(
-		fmt.Sprintf("%s/norisk_data.json", path), os.O_RDWR|os.O_TRUNC, os.ModePerm,
+		filepath.Join(path, globals.TOKEN_STORE), os.O_RDWR|os.O_TRUNC, os.ModePerm,
 	)
 	if err != nil {
 		return err
@@ -114,9 +116,10 @@ func write_token_to_file(
 	return nil
 }
 
-func Get_token(
+func get_token(
 	config config.Config,
 	offline bool,
+	normal bool,
 ) (string, error) {
 	uuid := config.Uuid()
 	if !strings.Contains(uuid, "-") {
@@ -133,7 +136,12 @@ func Get_token(
 		return config.Token(), nil
 	}
 
-	nrc_token, err := read_token_from_file(config.Dir(), uuid)
+	dir := config.Dir()
+	if normal {
+		dir = config.NormalDir()
+	}
+
+	nrc_token, err := read_token_from_file(dir, uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			log.Println("Stored token is valid")
@@ -167,9 +175,22 @@ func Get_token(
 		return "", err
 	}
 
-	err = write_token_to_file(config.Dir(), uuid, nrc_token)
+	err = write_token_to_file(dir, uuid, nrc_token)
 	if err != nil {
 		return "", err
 	}
 	return nrc_token, nil
+}
+
+func GetToken(
+	config config.Config,
+	offline bool,
+) (string, error, error) {
+	token, err := get_token(config, offline, false)
+	if config.NormalDir() == "" {
+		return token, err, nil
+	} else {
+		_, err2 := get_token(config, offline, true)
+		return token, err, err2
+	}
 }

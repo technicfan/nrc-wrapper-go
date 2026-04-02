@@ -31,6 +31,7 @@ func main() {
 		return
 	}
 
+	var err2 error
 	var token string
 	var cfg config.Config
 	var wg sync.WaitGroup
@@ -108,7 +109,7 @@ func main() {
 		mod_resources, mod_index, update_mods := fetcher.GetMods(mods, cfg)
 		resources := append(asset_resources, mod_resources...)
 
-		token, err = fetcher.Get_token(cfg, false)
+		token, err, err2 = fetcher.GetToken(cfg, false)
 
 		if len(resources) > 0 {
 			log.Println("Downloading missing/updated resources")
@@ -146,11 +147,19 @@ func main() {
 			return
 		}
 		utils.Notify("No connection to the API\nLaunching without doing anything", false, cfg.Notify())
-		token, err = fetcher.Get_token(cfg, true)
+		token, err, err2 = fetcher.GetToken(cfg, true)
 	}
 
 	if err != nil {
-		utils.Notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, cfg.Notify())
+		if err2 == nil {
+			utils.Notify(fmt.Sprintf("Failed to get nrc token: %s", err.Error()), true, cfg.Notify())
+		} else {
+			utils.Notify(fmt.Sprintf("Failed to get nrc token: %s", err2.Error()), false, cfg.Notify())
+			utils.Notify(fmt.Sprintf("Failed to get nrc token for flatpak: %s", err.Error()), true, cfg.Notify())
+		}
+	}
+	if err2 != nil {
+		utils.Notify(fmt.Sprintf("Failed to get nrc token: %s", err2.Error()), false, cfg.Notify())
 	}
 
 	if launch {

@@ -41,7 +41,7 @@ func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
 		name = "Prism Launcher"
 	}
 	cfg, _ := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
-	launcher := prismlauncher{&launcher_data{name, path, "", flatpak_id, false}, cfg}
+	launcher := prismlauncher{&launcher_data{name, path, "", flatpak_id, false, ""}, cfg}
 	launcher.instance_dir = launcher.get_instance_dir()
 	return launcher
 }

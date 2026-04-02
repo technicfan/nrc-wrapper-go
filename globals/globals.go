@@ -13,4 +13,5 @@ const (
 
 	MOD_INDEX   = ".nrc-mod-index.json"
 	ASSET_INDEX = ".nrc-asset-index.json"
+	TOKEN_STORE = "norisk_data.json"
 )

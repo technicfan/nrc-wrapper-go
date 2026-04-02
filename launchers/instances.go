@@ -110,7 +110,11 @@ func (instance instance_data) Pack() string {
 }
 
 func (instance instance_data) ModDir() string {
-	return instance.config.mod_dir
+	if instance.loader == "fabric" {
+		return instance.config.mod_dir
+	} else {
+		return "mods"
+	}
 }
 
 func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack string, ex string) bool {
@@ -213,7 +217,7 @@ func appendLaunchers(
 	} else {
 		flatpak := ctor(home, "", true)
 		if regular.Exists() && flatpak.Exists() && regular.InstanceDir() == flatpak.InstanceDir() {
-			flatpak.ReplaceNormal()
+			flatpak.ReplaceNormal(regular.Dir())
 			launchers = append(launchers, flatpak)
 		} else {
 			if regular.Exists() {
