@@ -137,6 +137,7 @@ func GetVersions(api_endpoint string) (Versions, error) {
 func GetAssets(
 	index int,
 	pack string,
+	root string,
 	api_endpoint string,
 	wg *sync.WaitGroup,
 	data chan<- map[int]map[string]assets.Asset,
@@ -157,5 +158,5 @@ func GetAssets(
 		return
 	}
 
-	data <- map[int]map[string]assets.Asset{index: pack_data.Assets(pack)}
+	data <- map[int]map[string]assets.Asset{index: pack_data.Assets(pack, root)}
 }

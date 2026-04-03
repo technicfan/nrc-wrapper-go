@@ -14,6 +14,7 @@ type Asset struct /*implements NrcResource*/ {
 	pack string
 	path string
 	hash string
+	root string
 }
 
 func (asset Asset) Url() string {
@@ -21,7 +22,7 @@ func (asset Asset) Url() string {
 }
 
 func (asset Asset) Path() string {
-	return filepath.Join("NoRiskClient/assets", asset.path)
+	return filepath.Join(asset.root, globals.ASSETS_PATH, asset.path)
 }
 
 func (asset Asset) AssetPath() string {
@@ -73,10 +74,10 @@ type Assets struct {
 	} `json:"objects"`
 }
 
-func (assets Assets) Assets(pack string) map[string]Asset {
+func (assets Assets) Assets(pack string, root string) map[string]Asset {
 	result := make(map[string]Asset)
 	for path, asset := range assets.Objects {
-		result[path] = Asset{pack, path, asset.Hash}
+		result[path] = Asset{pack, path, asset.Hash, root}
 	}
 	return result
 }

@@ -63,37 +63,37 @@ func addInstances(
 		)))
 		line.Add(layout.NewSpacer())
 
-		main_button := widget.NewButton("Refresh NRC", func() {})
-		main_button.OnTapped = func() {
-			text := main_button.Text
-			main_button.SetText("Loading...")
-			main_button.Disable()
+		download_button := widget.NewButton("Refresh NRC", func() {})
+		download_button.OnTapped = func() {
+			text := download_button.Text
+			download_button.SetText("Loading...")
+			download_button.Disable()
 			go func ()  {
 				err = fetcher.Fetch(v, config.NewConfigFromGui(l, instance))
 				if err != nil {
 					fyne.Do(func() {
-						main_button.SetText("Failed")
+						download_button.SetText("Failed")
 				    })
 					log.Printf("%s failed: %s\n", text, err.Error())
 				} else {
 					fyne.Do(func() {
-						main_button.SetText("Finished")
+						download_button.SetText("Finished")
 				    })
 				}
 				fyne.Do(func() {
-					main_button.Enable()
+					download_button.Enable()
 				})
 				time.Sleep(time.Second)
 				fyne.Do(func() {
-					main_button.SetText("Refresh NRC")
+					download_button.SetText("Refresh NRC")
 				})
 			}()
 		}
 		if !instance.Nrc() {
-			main_button.Hide()
-			main_button.SetText("Download NRC")
+			download_button.Hide()
+			download_button.SetText("Download NRC")
 		}
-		line.Add(main_button)
+		line.Add(download_button)
 
 		line.Add(widget.NewButton("Options", func() {
 			if !slices.Contains(open_configs, instance) {
@@ -233,12 +233,12 @@ func addInstances(
 							fyne.Do(func () {
 								cw.CloseIntercept()
 								if instance.Nrc() {
-									if main_button.Hidden {
-										main_button.Show()
+									if download_button.Hidden {
+										download_button.Show()
 									}
 								} else {
-									if !main_button.Hidden {
-										main_button.Hide()
+									if !download_button.Hidden {
+										download_button.Hide()
 									}
 								}
 							})

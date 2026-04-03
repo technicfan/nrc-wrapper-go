@@ -10,6 +10,7 @@ const (
 
 	DEFAULT_PACK    = "norisk-prod"
 	DEFAULT_MOD_DIR = "mods/NoRiskClient"
+	ASSETS_PATH     = "NoRiskClient/assets"
 
 	MOD_INDEX   = ".nrc-mod-index.json"
 	ASSET_INDEX = ".nrc-asset-index.json"

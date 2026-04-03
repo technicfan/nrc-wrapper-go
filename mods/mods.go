@@ -44,7 +44,7 @@ func (mod Mod) Enabled() bool {
 	return strings.HasSuffix(mod.filename, ".jar")
 }
 
-type ModResource struct /*implements NewModResource*/ {
+type ModResource struct /*implements NrcResource*/ {
 	*Mod
 	old_file      string
 	url           string
@@ -212,7 +212,7 @@ func GetInstalledMods(
 					entry["version"],
 					entry["id"],
 					f.Name(),
-					mod_dir,
+					filepath.Join(root, mod_dir),
 				}
 				delete(index, name)
 			}

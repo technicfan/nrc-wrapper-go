@@ -5,6 +5,7 @@ import (
 	"main/config"
 	"main/mods"
 	"main/utils"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -193,7 +194,7 @@ func (nrc_mods NrcMods) CompatibleMods(
 					compatibility["identifier"].(string),
 					mod.Id,
 					filename,
-					config.ModDir(),
+					filepath.Join(config.Root(), config.ModDir()),
 					url,
 					alt_url,
 					mod.Source["type"] != "url",

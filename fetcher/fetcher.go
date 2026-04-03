@@ -9,6 +9,7 @@ import (
 	"main/mods"
 	"main/utils"
 	"maps"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -59,8 +60,8 @@ func Fetch(
 	}
 	maps.Copy(pack_mods, inherited_mods.CompatibleMods(config, versions.Repositories))
 
-	resources, asset_index, update_assets := get_assets(assets, config.ApiEndpoint())
-	installed_mods, update_mods := mods.GetInstalledMods("./", config.ModDir())
+	resources, asset_index, update_assets := get_assets(config.Root(), assets, config.ApiEndpoint())
+	installed_mods, update_mods := mods.GetInstalledMods(config.Root(), config.ModDir())
 	mods_to_download, already_installed := pack_mods.GetMissing(
 		installed_mods,
 		config.ModDir(),
@@ -95,10 +96,10 @@ func Fetch(
 	close(mod_index_chan)
 
 	if update_assets || len(asset_index_chan) > 0 {
-		asset_index.Merge(asset_index_chan).Write(globals.ASSET_INDEX)
+		asset_index.Merge(asset_index_chan).Write(filepath.Join(config.Root(), globals.ASSET_INDEX))
 	}
 	if update_mods || len(mod_index_chan) > 0 {
-		already_installed.Index().Merge(mod_index_chan).Write(globals.MOD_INDEX)
+		already_installed.Index().Merge(mod_index_chan).Write(filepath.Join(config.Root(), globals.MOD_INDEX))
 	}
 
 	return nil

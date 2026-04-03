@@ -6,10 +6,12 @@ import (
 	"main/globals"
 	"main/utils"
 	"maps"
+	"path/filepath"
 	"sync"
 )
 
 func get_assets(
+	root string,
 	packs []string,
 	api_endpoint string,
 ) ([]utils.NrcResource, utils.Index, bool) {
@@ -17,10 +19,10 @@ func get_assets(
 	data := make(chan map[int]map[string]assets.Asset, len(packs))
 	for i, pack := range packs {
 		wg.Add(1)
-		go api.GetAssets(i, pack, api_endpoint, &wg, data)
+		go api.GetAssets(i, pack, root, api_endpoint, &wg, data)
 	}
 
-	existing_index := utils.ReadIndex(globals.ASSET_INDEX)
+	existing_index := utils.ReadIndex(filepath.Join(root, globals.ASSET_INDEX))
 
 	go func() {
 		wg.Wait()

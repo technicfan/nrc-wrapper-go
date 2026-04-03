@@ -14,10 +14,11 @@ type Config struct {
 	launchers.Launcher
 	launchers.Minecraft
 	api_endpoint string
-	pack    string
-	mod_dir string
-	eofd    bool
-	notify  bool
+	root         string
+	pack         string
+	mod_dir      string
+	eofd         bool
+	notify       bool
 }
 
 func NewConfigFromGui(
@@ -34,6 +35,7 @@ func NewConfigFromGui(
 		launcher,
 		launchers.NewMinecraft(instance),
 		api_endpoint,
+		instance.Path(),
 		instance.Pack(),
 		instance.ModDir(),
 		false,
@@ -43,6 +45,10 @@ func NewConfigFromGui(
 
 func (config Config) ApiEndpoint() string {
 	return config.api_endpoint
+}
+
+func (config Config) Root() string {
+	return config.root
 }
 
 func (config Config) Pack() string {
@@ -79,16 +85,18 @@ func GetConfig() Config {
 	} else {
 		for i := len(os.Args) - 1; i >= 0; i-- {
 			switch os.Args[i] {
-			case launchers.PRISM_CLASS: {
-				log.Println("Detected Prism Launcher")
-				launcher = "prism"
-				break
-			}
-			case launchers.MODRINTH_CLASS: {
-				log.Println("Detected Modrinth Launcher")
-				launcher = "modrinth"
-				break
-			}
+			case launchers.PRISM_CLASS:
+				{
+					log.Println("Detected Prism Launcher")
+					launcher = "prism"
+					break
+				}
+			case launchers.MODRINTH_CLASS:
+				{
+					log.Println("Detected Modrinth Launcher")
+					launcher = "modrinth"
+					break
+				}
 			}
 		}
 	}
