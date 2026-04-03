@@ -13,10 +13,36 @@ import (
 type Config struct {
 	launchers.Launcher
 	launchers.Minecraft
+	api_endpoint string
 	pack    string
 	mod_dir string
 	eofd    bool
 	notify  bool
+}
+
+func NewConfigFromGui(
+	launcher launchers.Launcher,
+	instance launchers.Instance,
+) Config {
+	var api_endpoint string
+	if instance.Staging() {
+		api_endpoint = globals.STAGING_NORISK_API_ENDPOINT
+	} else {
+		api_endpoint = globals.NORISK_API_ENDPOINT
+	}
+	return Config{
+		launcher,
+		launchers.NewMinecraft(instance),
+		api_endpoint,
+		instance.Pack(),
+		instance.ModDir(),
+		false,
+		true,
+	}
+}
+
+func (config Config) ApiEndpoint() string {
+	return config.api_endpoint
 }
 
 func (config Config) Pack() string {
@@ -35,11 +61,17 @@ func (config Config) Notify() bool {
 	return config.notify
 }
 
-func GetConfig(refresh bool) Config {
+func GetConfig() Config {
 	var config Config
 	var launcher, dir string
 	usr, _ := user.Current()
 	home := usr.HomeDir
+
+	if value := os.Getenv("STAGING"); value != "" {
+		config.api_endpoint = globals.STAGING_NORISK_API_ENDPOINT
+	} else {
+		config.api_endpoint = globals.NORISK_API_ENDPOINT
+	}
 
 	if value := os.Getenv("LAUNCHER"); value != "" {
 		log.Printf("Set %s manually", value)
@@ -69,7 +101,6 @@ func GetConfig(refresh bool) Config {
 	default:
 		config.notify = launcher == "modrinth"
 	}
-	config.notify = config.notify || refresh
 
 	switch launcher {
 	case "prism":

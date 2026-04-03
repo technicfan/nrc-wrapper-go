@@ -29,7 +29,7 @@ type prismlauncher struct /*implements Launcher*/ {
 	config cfg
 }
 
-func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
+func NewPrismLauncher(home string, path string, flatpak bool) mutable_launcher {
 	var name, flatpak_id string
 	if path == "" {
 		path = utils.LauncherDir(home, flatpak, PRISM_FLATPAK, PRISM_DIR)
@@ -41,7 +41,7 @@ func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
 		name = "Prism Launcher"
 	}
 	cfg, _ := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
-	launcher := prismlauncher{&launcher_data{name, path, "", flatpak_id, false, ""}, cfg}
+	launcher := prismlauncher{&launcher_data{name, path, "", flatpak_id, false}, cfg}
 	launcher.instance_dir = launcher.get_instance_dir()
 	return launcher
 }
@@ -151,7 +151,7 @@ func (launcher prismlauncher) GetInstances(
 	for _, dir := range dirs {
 		if dir.IsDir() {
 			var vars map[string]string
-			var notify, neofd bool
+			var notify, neofd, staging bool
 			var wrapper string
 
 			instance_path := filepath.Join(launcher.instance_dir, dir.Name())
@@ -187,6 +187,9 @@ func (launcher prismlauncher) GetInstances(
 			if v, e := vars["NRC_PACK"]; e {
 				pack = v
 			}
+			if v, e := vars["STAGING"]; e && v != "" {
+				staging = true
+			}
 			if v, e := vars["NRC_MOD_DIR"]; e {
 				mod_path = v
 			}
@@ -198,7 +201,7 @@ func (launcher prismlauncher) GetInstances(
 			if (e && v != "") || (e2 && v2 != "") {
 				neofd = true
 			}
-			nrc_config := nrc_config{nrc, wrapper, pack, mod_path, notify, neofd}
+			nrc_config := nrc_config{nrc, wrapper, staging, pack, mod_path, notify, neofd}
 			mc_root := filepath.Join(instance_path, "minecraft")
 			_, err = os.Stat(mc_root)
 			if err != nil && errors.Is(err, fs.ErrNotExist) {

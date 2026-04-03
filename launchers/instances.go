@@ -22,6 +22,7 @@ type Instance interface {
 	FlatpakId() string
 	LauncherClass() string
 	Nrc() bool
+	Staging() bool
 	Notify() bool
 	DefaultNotify() bool
 	Neofd() bool
@@ -34,6 +35,7 @@ type Instance interface {
 type nrc_config struct {
 	nrc     bool
 	command string
+	staging bool
 	pack string
 	mod_dir  string
 	notify  bool
@@ -91,6 +93,10 @@ func (instance *instance_data) FixPack(pack string) {
 
 func (instance instance_data) Nrc() bool {
 	return instance.config.nrc
+}
+
+func (instance instance_data) Staging() bool {
+	return instance.config.staging
 }
 
 func (instance instance_data) Notify() bool {
@@ -157,6 +163,8 @@ func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack stri
 			instance.config.pack = globals.DEFAULT_PACK
 			delete(instance.env, "NRC_MOD_DIR")
 			instance.config.mod_dir = globals.DEFAULT_MOD_DIR
+			delete(instance.env, "STAGING")
+			instance.config.staging = false
 			delete(instance.env, "NOTIFY")
 			instance.config.notify = instance.DefaultNotify()
 			delete(instance.env, "NEOFD")
@@ -206,7 +214,7 @@ func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack stri
 
 func appendLaunchers(
 	launchers []Launcher,
-	ctor func(string, string, bool) Launcher,
+	ctor func(string, string, bool) mutable_launcher,
 	home string,
 ) []Launcher {
 	regular := ctor(home, "", false)
@@ -217,7 +225,7 @@ func appendLaunchers(
 	} else {
 		flatpak := ctor(home, "", true)
 		if regular.Exists() && flatpak.Exists() && regular.InstanceDir() == flatpak.InstanceDir() {
-			flatpak.ReplaceNormal(regular.Dir())
+			flatpak.ReplaceNormal()
 			launchers = append(launchers, flatpak)
 		} else {
 			if regular.Exists() {

@@ -25,7 +25,7 @@ type modrinthapp struct /*implements Launcher*/ {
 	*launcher_data
 }
 
-func NewModrinthApp(home string, path string, flatpak bool) Launcher {
+func NewModrinthApp(home string, path string, flatpak bool) mutable_launcher {
 	var name, flatpak_id string
 	if path == "" {
 		path = utils.LauncherDir(home, flatpak, MODRINTH_FLATPAK, MODRINTH_DIR)
@@ -36,7 +36,7 @@ func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	} else {
 		name = "Modrinth App"
 	}
-	return modrinthapp{&launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id, false, ""}}
+	return modrinthapp{&launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id, false}}
 }
 
 func (launcher modrinthapp) Exists() bool {
@@ -137,7 +137,7 @@ func (launcher modrinthapp) GetInstances(
 
 		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper_ptr, &env)
 		if err == nil && slices.Contains(versions, version) && slices.Contains(loaders, loader) {
-			var neofd bool
+			var neofd, staging bool
 			var data [][]string
 
 			pack := globals.DEFAULT_PACK
@@ -158,6 +158,9 @@ func (launcher modrinthapp) GetInstances(
 			if v, e := vars["NRC_PACK"]; e {
 				pack = v
 			}
+			if v, e := vars["STAGING"]; e && v != "" {
+				staging = true
+			}
 			if v, e := vars["NRC_MOD_DIR"]; e {
 				mod_path = v
 			}
@@ -169,7 +172,7 @@ func (launcher modrinthapp) GetInstances(
 			if (e && v != "") || (e2 && v2 != "") {
 				neofd = true
 			}
-			nrc_config := nrc_config{nrc, wrapper, pack, mod_path, notify, neofd}
+			nrc_config := nrc_config{nrc, wrapper, staging, pack, mod_path, notify, neofd}
 			path := filepath.Join(launcher.instance_dir, instance_path)
 			instances = append(instances, &modrinth_instance{&instance_data{
 				name, version, loader, loader_version, path, path,

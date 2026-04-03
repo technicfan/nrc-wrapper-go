@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"main/api"
+	"main/config"
 	"main/fetcher"
 	"main/globals"
 	"main/launchers"
@@ -11,7 +12,6 @@ import (
 	"main/utils"
 	"maps"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -71,15 +71,7 @@ func addInstances(
 			main_button.SetText("Loading...")
 			main_button.Disable()
 			go func ()  {
-				var env []string
-				if instance.FlatpakId() != "" {
-					env = append(env, "FLATPAK_ID=" + instance.FlatpakId())
-				}
-				env = append(env, instance.Env()...)
-				cmd := exec.Command(ex, "--refresh", instance.LauncherClass())
-				cmd.Dir = instance.Path()
-				cmd.Env = env
-				_, err := cmd.Output()
+				err = fetcher.Fetch(v, config.NewConfigFromGui(l, instance))
 				if err != nil {
 					fyne.Do(func() {
 						main_button.SetText("Failed")

@@ -1,12 +1,12 @@
 package globals
 
-var NORISK_API_URL = "https://api.norisk.gg/api/v1"
 var MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter", "norisk-development"}
 
 const (
-	NORISK_API_STAGING_URL = "https://api-staging.norisk.gg/api/v1"
-	NORISK_ASSETS_URL      = "https://cdn.norisk.gg/assets"
-	MOJANG_SESSION_URL     = "https://sessionserver.mojang.com"
+	NORISK_API_ENDPOINT         = "https://api.norisk.gg/api/v1"
+	STAGING_NORISK_API_ENDPOINT = "https://api-staging.norisk.gg/api/v1"
+	NORISK_ASSETS_ENDPOINT      = "https://cdn.norisk.gg/assets"
+	MOJANG_SESSION_ENDPOINT     = "https://sessionserver.mojang.com"
 
 	DEFAULT_PACK    = "norisk-prod"
 	DEFAULT_MOD_DIR = "mods/NoRiskClient"

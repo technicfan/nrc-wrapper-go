@@ -17,7 +17,7 @@ type Asset struct /*implements NrcResource*/ {
 }
 
 func (asset Asset) Url() string {
-	return fmt.Sprintf("%s/%s/assets/%s", globals.NORISK_ASSETS_URL, asset.pack, asset.path)
+	return fmt.Sprintf("%s/%s/assets/%s", globals.NORISK_ASSETS_ENDPOINT, asset.pack, asset.path)
 }
 
 func (asset Asset) Path() string {

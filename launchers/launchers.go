@@ -10,6 +10,18 @@ type Minecraft struct {
 	token         string
 }
 
+func NewMinecraft(
+	instance Instance,
+) Minecraft {
+	return Minecraft{
+		instance.Name(),
+		instance.Version(),
+		instance.Loader(),
+		instance.LoaderVersion(),
+		"", "", "",
+	}
+}
+
 func (minecraft Minecraft) Profile() string {
 	return minecraft.profile
 }
@@ -42,13 +54,17 @@ type Launcher interface {
 	Id() string
 	Name() string
 	Dir() string
+	Container() string
 	InstanceDir() string
 	GetCurrentInstanceDetails() (Minecraft, error)
 	GetInstances([]string, []string, string) ([]Instance, error)
 	Exists() bool
 	IsRunning() bool
-	ReplaceNormal(string)
-	NormalDir() string
+}
+
+type mutable_launcher interface {
+	Launcher
+	ReplaceNormal()
 }
 
 type launcher_data struct {
@@ -57,7 +73,6 @@ type launcher_data struct {
 	instance_dir string
 	flatpak_id string
 	replaced bool
-	normal_dir string
 }
 
 func (data launcher_data) Name() string {
@@ -68,17 +83,20 @@ func (data launcher_data) Dir() string {
 	return data.path
 }
 
+func (data launcher_data) Container() string {
+	if data.flatpak_id != "" {
+		return "flatpak"
+	} else {
+		return ""
+	}
+}
+
 func (data launcher_data) InstanceDir() string {
 	return data.instance_dir
 }
 
-func (data *launcher_data) ReplaceNormal(normal string) {
+func (data *launcher_data) ReplaceNormal() {
 	if data.flatpak_id != "" {
 		data.replaced = true
-		data.normal_dir = normal
 	}
-}
-
-func (data *launcher_data) NormalDir() string {
-	return data.normal_dir
 }

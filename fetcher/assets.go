@@ -14,12 +14,13 @@ import (
 func get_asset_metadata_async(
 	index int,
 	pack string,
+	api_endpoint string,
 	wg *sync.WaitGroup,
 	data chan<- map[int]map[string]assets.Asset,
 ) {
 	defer wg.Done()
 
-	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", globals.NORISK_API_URL, pack))
+	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", api_endpoint, pack))
 	if err != nil {
 		return
 	}
@@ -36,12 +37,15 @@ func get_asset_metadata_async(
 	data <- map[int]map[string]assets.Asset{index: pack_data.Assets(pack)}
 }
 
-func GetAssets(packs []string) ([]utils.NrcResource, utils.Index, bool) {
+func GetAssets(
+	packs []string,
+	api_endpoint string,
+) ([]utils.NrcResource, utils.Index, bool) {
 	var wg sync.WaitGroup
 	data := make(chan map[int]map[string]assets.Asset, len(packs))
 	for i, pack := range packs {
 		wg.Add(1)
-		go get_asset_metadata_async(i, pack, &wg, data)
+		go get_asset_metadata_async(i, pack, api_endpoint, &wg, data)
 	}
 
 	existing_index := utils.ReadIndex(globals.ASSET_INDEX)

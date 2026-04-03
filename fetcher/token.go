@@ -116,10 +116,9 @@ func write_token_to_file(
 	return nil
 }
 
-func get_token(
+func GetToken(
 	config config.Config,
 	offline bool,
-	normal bool,
 ) (string, error) {
 	uuid := config.Uuid()
 	if !strings.Contains(uuid, "-") {
@@ -136,12 +135,7 @@ func get_token(
 		return config.Token(), nil
 	}
 
-	dir := config.Dir()
-	if normal {
-		dir = config.NormalDir()
-	}
-
-	nrc_token, err := read_token_from_file(dir, uuid)
+	nrc_token, err := read_token_from_file(config.Dir(), uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			log.Println("Stored token is valid")
@@ -154,7 +148,7 @@ func get_token(
 	}
 
 	log.Println("Requesting new token")
-	server_id, err := api.RequestServerId()
+	server_id, err := api.RequestServerId(config.ApiEndpoint())
 	if err != nil {
 		return "", err
 	}
@@ -164,33 +158,21 @@ func get_token(
 	}
 
 	host, _ := os.Hostname()
-	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Id()+"-"+os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
+	system_id := fmt.Sprintf("%s-%s-%s-%s-%s", config.Id(), config.Container(), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
 	nrc_token, err = api.RequestToken(
 		config.Username(),
 		server_id,
 		hex.EncodeToString(hash[:]),
+		config.ApiEndpoint(),
 	)
 	if err != nil {
 		return "", err
 	}
 
-	err = write_token_to_file(dir, uuid, nrc_token)
+	err = write_token_to_file(config.Dir(), uuid, nrc_token)
 	if err != nil {
 		return "", err
 	}
 	return nrc_token, nil
-}
-
-func GetToken(
-	config config.Config,
-	offline bool,
-) (string, error, error) {
-	token, err := get_token(config, offline, false)
-	if config.NormalDir() == "" {
-		return token, err, nil
-	} else {
-		_, err2 := get_token(config, offline, true)
-		return token, err, err2
-	}
 }

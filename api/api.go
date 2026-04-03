@@ -24,11 +24,12 @@ func RequestToken(
 	username string,
 	server_id string,
 	hwid string,
+	api_endpoint string,
 ) (string, error) {
 	response, err := http.Post(
 		fmt.Sprintf(
 			"%s/launcher/auth/validate/v2?force=true&hwid=%s&username=%s&server_id=%s",
-			globals.NORISK_API_URL,
+			api_endpoint,
 			hwid,
 			username,
 			server_id,
@@ -62,9 +63,9 @@ func RequestToken(
 	return "", errors.New("got no token")
 }
 
-func RequestServerId() (string, error) {
+func RequestServerId(api_endpoint string) (string, error) {
 	response, err := http.Post(
-		fmt.Sprintf("%s/launcher/auth/request-server-id", globals.NORISK_API_URL),
+		fmt.Sprintf("%s/launcher/auth/request-server-id", api_endpoint),
 		"",
 		bytes.NewBuffer([]byte("")),
 	)
@@ -99,7 +100,7 @@ func JoinServerSession(
 	}
 
 	response, err := http.Post(
-		fmt.Sprintf("%s/session/minecraft/join", globals.MOJANG_SESSION_URL),
+		fmt.Sprintf("%s/session/minecraft/join", globals.MOJANG_SESSION_ENDPOINT),
 		"application/json",
 		bytes.NewBuffer(params_str),
 	)
@@ -114,8 +115,8 @@ func JoinServerSession(
 	return nil
 }
 
-func GetVersions() (Versions, error) {
-	response, err := http.Get(fmt.Sprintf("%s/launcher/modpacks-v3", globals.NORISK_API_URL))
+func GetVersions(api_endpoint string) (Versions, error) {
+	response, err := http.Get(fmt.Sprintf("%s/launcher/modpacks-v3", api_endpoint))
 	if err != nil {
 		return Versions{}, err
 	}

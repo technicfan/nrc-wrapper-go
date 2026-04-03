@@ -36,6 +36,13 @@ func Gui() {
 	}
 
 	go func() {
+		var api_endpoint string
+		if os.Getenv("STAGING") != "" {
+			api_endpoint = globals.STAGING_NORISK_API_ENDPOINT
+		} else {
+			api_endpoint = globals.NORISK_API_ENDPOINT
+		}
+
 		ex, err := os.Executable()
 		if err != nil {
 			set_error_text(err.Error())
@@ -47,7 +54,7 @@ func Gui() {
 		if strings.Contains(ex, `\`) {
 			ex = strings.ReplaceAll(ex, `\`, `\\`)
 		}
-		v, err := api.GetVersions()
+		v, err := api.GetVersions(api_endpoint)
 		if err != nil {
 			set_error_text(err.Error())
 		}
