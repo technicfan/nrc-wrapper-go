@@ -16,15 +16,11 @@ type MetaPack struct {
 	Name     string
 	Desc     string
 	Support map[string]LoaderSupport
-	// Versions []string
-	// Loaders  map[string]string
 }
 
 type MetaPacks struct {
 	Packs    map[string]MetaPack
 	Support map[string]LoaderSupport
-	// Versions []string
-	// Loaders  []string
 	Names    []string
 }
 

@@ -35,9 +35,7 @@ func (pack Pack) Details(
 	packs map[string]Pack,
 ) (NrcMods, []string, map[string]LoaderSupport) {
 	supported_versions := make(map[string]LoaderSupport)
-	// loaders := make(map[string]string)
 	for name, loader := range pack.Loader["default"] {
-		// loaders[name] = loader.Version
 		supported_versions[name] = LoaderSupport{loader.Version, []string{}}
 	}
 	var exclude []string
@@ -69,9 +67,6 @@ func (pack Pack) Details(
 
 	for _, mod := range pack.Mods {
 		for version := range mod.Compatibility {
-			// if !slices.Contains(versions, version) {
-			// 	versions = append(versions, version)
-			// }
 			for loader := range mod.Compatibility[version] {
 				if v, e := supported_versions[loader]; e {
 					if !slices.Contains(v.Versions, version) {
@@ -79,7 +74,6 @@ func (pack Pack) Details(
 						supported_versions[loader] = v
 					}
 				} else {
-					// loaders[loader] = "0"
 					supported_versions[loader] = LoaderSupport{"0", []string{version}}
 				}
 			}
