@@ -7,17 +7,24 @@ import (
 	"slices"
 )
 
+type LoaderSupport struct {
+	LoaderVersion string
+	Versions []string
+}
+
 type MetaPack struct {
 	Name     string
 	Desc     string
-	Versions []string
-	Loaders  map[string]string
+	Support map[string]LoaderSupport
+	// Versions []string
+	// Loaders  map[string]string
 }
 
 type MetaPacks struct {
 	Packs    map[string]MetaPack
-	Versions []string
-	Loaders  []string
+	Support map[string]LoaderSupport
+	// Versions []string
+	// Loaders  []string
 	Names    []string
 }
 
@@ -25,7 +32,7 @@ func (packs MetaPacks) CompatiblePacks(version string, loader string) ([]string,
 	has_main_pack := false
 	var pack_ids, unique_pack_names []string
 	for _, p := range globals.MAIN_PACKS {
-		if _, e := packs.Packs[p].Loaders[loader]; e && slices.Contains(packs.Packs[p].Versions, version) {
+		if s, e := packs.Packs[p].Support[loader]; e && slices.Contains(s.Versions, version) {
 			has_main_pack = true
 			pack_ids = append(pack_ids, p)
 			unique_pack_names = append(
@@ -35,8 +42,8 @@ func (packs MetaPacks) CompatiblePacks(version string, loader string) ([]string,
 		}
 	}
 	for _, i := range slices.Sorted(maps.Keys(packs.Packs)) {
-		if _, e := packs.Packs[i].Loaders[loader]; e &&
-			slices.Contains(packs.Packs[i].Versions, version) && !slices.Contains(globals.MAIN_PACKS, i) {
+		if s, e := packs.Packs[i].Support[loader]; e &&
+			slices.Contains(s.Versions, version) && !slices.Contains(globals.MAIN_PACKS, i) {
 			unique_pack_names = append(
 				unique_pack_names,
 				utils.Unique(packs.Packs[i].Name, len(unique_pack_names)),
@@ -45,4 +52,12 @@ func (packs MetaPacks) CompatiblePacks(version string, loader string) ([]string,
 		}
 	}
 	return unique_pack_names, pack_ids, has_main_pack
+}
+
+func (packs MetaPacks) GenericSupport() map[string][]string {
+	support := make(map[string][]string)
+	for l := range packs.Support {
+		support[l] = packs.Support[l].Versions
+	}
+	return support
 }

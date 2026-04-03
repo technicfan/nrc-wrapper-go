@@ -29,7 +29,7 @@ type prismlauncher struct /*implements Launcher*/ {
 	config cfg
 }
 
-func NewPrismLauncher(home string, path string, flatpak bool) mutable_launcher {
+func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
 	var name, flatpak_id string
 	if path == "" {
 		path = utils.LauncherDir(home, flatpak, PRISM_FLATPAK, PRISM_DIR)
@@ -68,6 +68,13 @@ func (launcher prismlauncher) IsRunning() bool {
 	} else {
 		return platform.IsRunning(pname)
 	}
+}
+
+func (launcher prismlauncher) MergeNormal() Launcher {
+	if launcher.flatpak_id != "" {
+		launcher.replaced = true
+	}
+	return launcher
 }
 
 func (launcher prismlauncher) get_instance_dir() string {
@@ -138,8 +145,7 @@ func (launcher prismlauncher) GetCurrentInstanceDetails() (Minecraft, error) {
 }
 
 func (launcher prismlauncher) GetInstances(
-	versions []string,
-	loaders []string,
+	support map[string][]string,
 	ex string,
 ) ([]Instance, error) {
 	var instances []Instance
@@ -160,7 +166,10 @@ func (launcher prismlauncher) GetInstances(
 				continue
 			}
 			version, loader, loader_version := instance.get_details()
-			if !slices.Contains(versions, version) || !slices.Contains(loaders, loader) {
+			// if !slices.Contains(versions, version) || !slices.Contains(loaders, loader) {
+			// 	continue
+			// }
+			if versions, e := support[loader]; !e || !slices.Contains(versions, version) {
 				continue
 			}
 			config, err := parse_cfg(filepath.Join(instance_path, "instance.cfg"))
@@ -269,7 +278,7 @@ type prism_instance_config struct {
 	} `json:"components"`
 }
 
-func (instance *prism_instance_config) get_details() (string, string, string) {
+func (instance prism_instance_config) get_details() (string, string, string) {
 	var version, loader, loader_version string
 	for _, entry := range instance.Components {
 		switch entry.Uid {

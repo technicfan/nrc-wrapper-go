@@ -57,14 +57,10 @@ type Launcher interface {
 	Container() string
 	InstanceDir() string
 	GetCurrentInstanceDetails() (Minecraft, error)
-	GetInstances([]string, []string, string) ([]Instance, error)
+	GetInstances(map[string][]string, string) ([]Instance, error)
 	Exists() bool
 	IsRunning() bool
-}
-
-type mutable_launcher interface {
-	Launcher
-	ReplaceNormal()
+	MergeNormal() Launcher
 }
 
 type launcher_data struct {
@@ -95,7 +91,7 @@ func (data launcher_data) InstanceDir() string {
 	return data.instance_dir
 }
 
-func (data *launcher_data) ReplaceNormal() {
+func (data launcher_data) ReplaceNormal() {
 	if data.flatpak_id != "" {
 		data.replaced = true
 	}

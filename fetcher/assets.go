@@ -1,43 +1,15 @@
 package fetcher
 
 import (
-	"encoding/json"
-	"fmt"
+	"main/api"
 	"main/assets"
 	"main/globals"
 	"main/utils"
 	"maps"
-	"net/http"
 	"sync"
 )
 
-func get_asset_metadata_async(
-	index int,
-	pack string,
-	api_endpoint string,
-	wg *sync.WaitGroup,
-	data chan<- map[int]map[string]assets.Asset,
-) {
-	defer wg.Done()
-
-	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", api_endpoint, pack))
-	if err != nil {
-		return
-	}
-	if response.StatusCode != http.StatusOK {
-		return
-	}
-	defer response.Body.Close()
-
-	var pack_data assets.Assets
-	if err := json.NewDecoder(response.Body).Decode(&pack_data); err != nil {
-		return
-	}
-
-	data <- map[int]map[string]assets.Asset{index: pack_data.Assets(pack)}
-}
-
-func GetAssets(
+func get_assets(
 	packs []string,
 	api_endpoint string,
 ) ([]utils.NrcResource, utils.Index, bool) {
@@ -45,7 +17,7 @@ func GetAssets(
 	data := make(chan map[int]map[string]assets.Asset, len(packs))
 	for i, pack := range packs {
 		wg.Add(1)
-		go get_asset_metadata_async(i, pack, api_endpoint, &wg, data)
+		go api.GetAssets(i, pack, api_endpoint, &wg, data)
 	}
 
 	existing_index := utils.ReadIndex(globals.ASSET_INDEX)

@@ -25,7 +25,7 @@ type modrinthapp struct /*implements Launcher*/ {
 	*launcher_data
 }
 
-func NewModrinthApp(home string, path string, flatpak bool) mutable_launcher {
+func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	var name, flatpak_id string
 	if path == "" {
 		path = utils.LauncherDir(home, flatpak, MODRINTH_FLATPAK, MODRINTH_DIR)
@@ -58,6 +58,13 @@ func (launcher modrinthapp) IsRunning() bool {
 		pname = "modrinth-app"
 	}
 	return platform.IsRunning(pname)
+}
+
+func (launcher modrinthapp) MergeNormal() Launcher {
+	if launcher.flatpak_id != "" {
+		launcher.replaced = true
+	}
+	return launcher
 }
 
 func (launcher modrinthapp) GetCurrentInstanceDetails() (Minecraft, error) {
@@ -110,8 +117,7 @@ func (launcher modrinthapp) GetCurrentInstanceDetails() (Minecraft, error) {
 }
 
 func (launcher modrinthapp) GetInstances(
-	versions []string,
-	loaders []string,
+	support map[string][]string,
 	ex string,
 ) ([]Instance, error) {
 	var instances []Instance
@@ -136,7 +142,11 @@ func (launcher modrinthapp) GetInstances(
 		var wrapper_ptr *string
 
 		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper_ptr, &env)
-		if err == nil && slices.Contains(versions, version) && slices.Contains(loaders, loader) {
+		if err == nil {
+			if versions, e := support[loader]; !e || !slices.Contains(versions, version) {
+				continue
+			}
+
 			var neofd, staging bool
 			var data [][]string
 

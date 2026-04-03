@@ -214,7 +214,7 @@ func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack stri
 
 func appendLaunchers(
 	launchers []Launcher,
-	ctor func(string, string, bool) mutable_launcher,
+	ctor func(string, string, bool) Launcher,
 	home string,
 ) []Launcher {
 	regular := ctor(home, "", false)
@@ -225,8 +225,7 @@ func appendLaunchers(
 	} else {
 		flatpak := ctor(home, "", true)
 		if regular.Exists() && flatpak.Exists() && regular.InstanceDir() == flatpak.InstanceDir() {
-			flatpak.ReplaceNormal()
-			launchers = append(launchers, flatpak)
+			launchers = append(launchers, flatpak.MergeNormal())
 		} else {
 			if regular.Exists() {
 				launchers = append(launchers, regular)
@@ -240,8 +239,7 @@ func appendLaunchers(
 }
 
 func GetInstances(
-	versions []string,
-	loaders []string,
+	support map[string][]string,
 	ex string,
 ) (map[string][]Instance, []Launcher, error) {
 	home, err := os.UserHomeDir()
@@ -255,7 +253,7 @@ func GetInstances(
 	instances := make(map[string][]Instance)
 	for i := range launchers {
 		if !launchers[i].IsRunning() {
-			inst, err := launchers[i].GetInstances(versions, loaders, ex)
+			inst, err := launchers[i].GetInstances(support, ex)
 			if err != nil || len(inst) == 0 {
 				continue
 			}

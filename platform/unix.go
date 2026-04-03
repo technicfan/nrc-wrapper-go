@@ -14,8 +14,6 @@ const (
 	WINDOWS = false
 )
 
-func Cli() {}
-
 func Exec(command string, args []string) error {
 	err := unix.Exec(command, args, os.Environ())
 	return err

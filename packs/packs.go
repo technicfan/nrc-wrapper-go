@@ -5,7 +5,6 @@ import (
 	"main/config"
 	"main/mods"
 	"main/utils"
-	"maps"
 	"slices"
 	"strings"
 )
@@ -34,10 +33,12 @@ type Pack struct {
 
 func (pack Pack) Details(
 	packs map[string]Pack,
-) (NrcMods, []string, []string, map[string]string) {
-	loaders := make(map[string]string)
+) (NrcMods, []string, map[string]LoaderSupport) {
+	supported_versions := make(map[string]LoaderSupport)
+	// loaders := make(map[string]string)
 	for name, loader := range pack.Loader["default"] {
-		loaders[name] = loader.Version
+		// loaders[name] = loader.Version
+		supported_versions[name] = LoaderSupport{loader.Version, []string{}}
 	}
 	var exclude []string
 	if pack.Exclude != nil {
@@ -46,7 +47,7 @@ func (pack Pack) Details(
 		}
 	}
 	var mods []NrcMod
-	var assets, versions []string
+	var assets []string
 	for _, inherited_pack := range pack.Inherits {
 		for i := range packs[inherited_pack].Mods {
 			mod := &packs[inherited_pack].Mods[i]
@@ -68,75 +69,59 @@ func (pack Pack) Details(
 
 	for _, mod := range pack.Mods {
 		for version := range mod.Compatibility {
-			if !slices.Contains(versions, version) {
-				versions = append(versions, version)
-			}
+			// if !slices.Contains(versions, version) {
+			// 	versions = append(versions, version)
+			// }
 			for loader := range mod.Compatibility[version] {
-				if _, e := loaders[loader]; !e {
-					loaders[loader] = "0"
+				if v, e := supported_versions[loader]; e {
+					if !slices.Contains(v.Versions, version) {
+						v.Versions = append(v.Versions, version)
+						supported_versions[loader] = v
+					}
+				} else {
+					// loaders[loader] = "0"
+					supported_versions[loader] = LoaderSupport{"0", []string{version}}
 				}
 			}
 		}
 	}
 
-	return mods, assets, versions, loaders
+	return mods, assets, supported_versions
 }
 
 type Packs map[string]Pack
 
 func (packs Packs) MetaPacks() MetaPacks {
-	var global_versions []string
-	var global_loaders []string
 	var pack_names []string
+	global_support := make(map[string]LoaderSupport)
 	metapacks := make(map[string]MetaPack)
 	for i := range packs {
 		var mc_versions []string
 		pack := packs[i]
 		pack_names = append(pack_names, i)
-		_, _, mc_versions, loaders := pack.Details(packs)
+		_, _, support := pack.Details(packs)
 		slices.SortFunc(mc_versions, utils.CmpVersions)
-		for l := range loaders {
-			if !slices.Contains(global_loaders, l) {
-				global_loaders = append(global_loaders, l)
-			}
-		}
-		for i := range mc_versions {
-			if !slices.Contains(global_versions, mc_versions[i]) {
-				global_versions = append(global_versions, mc_versions[i])
-			}
-		}
-		metapacks[i] = MetaPack{pack.Name, pack.Desc, mc_versions, loaders}
-	}
-
-	return MetaPacks{metapacks, global_versions, global_loaders, pack_names}
-}
-
-func (packs Packs) Print() {
-	fmt.Println("Available NRC packs:")
-	meta := packs.MetaPacks().Packs
-	for _, key := range slices.Sorted(maps.Keys(meta)) {
-		var loaders_string string
-		var loaders_list []string
-		for loader, version := range meta[key].Loaders {
-			if version != "0" {
-				loaders_list = append(
-					loaders_list, fmt.Sprintf("%s %s", loader, version),
-				)
+		for l := range support {
+			slices.SortFunc(support[l].Versions, utils.CmpVersions)
+			if v, e := global_support[l]; e {
+				for _, version := range support[l].Versions {
+					if !slices.Contains(v.Versions, version) {
+						v.Versions = append(v.Versions, version)
+						global_support[l] = v
+					}
+				}
 			} else {
-				loaders_list = append(loaders_list, loader)
+				global_support[l] = LoaderSupport{"0", support[l].Versions}
 			}
 		}
-		if len(loaders_list) > 0 {
-			loaders_string = strings.Join(loaders_list, ", ")
-		} else {
-			loaders_string = "unknown"
-		}
-		fmt.Printf("- %s\n", meta[key].Name)
-		fmt.Printf("  NRC_PACK: %s\n", key)
-		fmt.Printf("  Description: %s\n", meta[key].Desc)
-		fmt.Printf("  Compatible versions: %s\n", strings.Join(meta[key].Versions, ", "))
-		fmt.Printf("  Mod loaders: %s\n", loaders_string)
+		metapacks[i] = MetaPack{pack.Name, pack.Desc, support}
 	}
+
+	for l := range global_support {
+		slices.SortFunc(global_support[l].Versions, utils.CmpVersions)
+	}
+
+	return MetaPacks{metapacks, global_support, pack_names}
 }
 
 // NoriskMod(s)

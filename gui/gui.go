@@ -88,9 +88,7 @@ func Gui() {
 				)
 				if !l.IsRunning() {
 					if !addInstances(
-						l, packs.Versions,
-						packs.Loaders,
-						unique_main,
+						l, unique_main,
 						packs,
 						v, lstack,
 						info_box,
@@ -103,9 +101,7 @@ func Gui() {
 					remove_running_box := func () {
 						lstack.Remove(running_box)
 						addInstances(
-							l, packs.Versions,
-							packs.Loaders,
-							unique_main,
+							l, unique_main,
 							packs,
 							v, lstack,
 							info_box,
@@ -144,27 +140,28 @@ func Gui() {
 		var packs_string_builder strings.Builder
 		for _, id := range packs_main_first {
 			pack := packs.Packs[id]
-			var loaders []string
-			for l, v := range pack.Loaders {
+			var lines []string
+			for l, v := range pack.Support {
 				var version string
-				if v != "0" {
-					version = fmt.Sprintf(" \u2265 %s", v)
+				if v.LoaderVersion != "0" {
+					version = fmt.Sprintf(" \u2265 %s", v.LoaderVersion)
 				}
-				loaders = append(
-					loaders,
-					fmt.Sprintf("%s%s%s", strings.ToUpper(l[:1]), l[1:], version),
-				)
+				line := fmt.Sprintf(`
+- %s%s%s
+    - %s
+`, strings.ToUpper(l[:1]), l[1:], version, strings.Join(v.Versions, ", "))
+				lines = append(lines, line)
 			}
 			fmt.Fprintf(&packs_string_builder, `
 ## %s (%s)
 
 - %s
 
-- Supported Minecraft Versions: %s
+Support:
 
-- Supported Modloaders: %s
+%s
 ---`,
-				pack.Name, id, pack.Desc, strings.Join(pack.Versions, ", "), strings.Join(loaders, ", "),
+				pack.Name, id, pack.Desc, strings.Join(lines, "\n"),
 			)
 		}
 		scroll := container.NewVScroll(

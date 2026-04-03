@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"main/assets"
 	"main/globals"
 	"main/packs"
 	"net/http"
+	"sync"
 )
 
 type Versions struct {
@@ -130,4 +132,30 @@ func GetVersions(api_endpoint string) (Versions, error) {
 	}
 
 	return versions, nil
+}
+
+func GetAssets(
+	index int,
+	pack string,
+	api_endpoint string,
+	wg *sync.WaitGroup,
+	data chan<- map[int]map[string]assets.Asset,
+) {
+	defer wg.Done()
+
+	response, err := http.Get(fmt.Sprintf("%s/launcher/pack/%s", api_endpoint, pack))
+	if err != nil {
+		return
+	}
+	if response.StatusCode != http.StatusOK {
+		return
+	}
+	defer response.Body.Close()
+
+	var pack_data assets.Assets
+	if err := json.NewDecoder(response.Body).Decode(&pack_data); err != nil {
+		return
+	}
+
+	data <- map[int]map[string]assets.Asset{index: pack_data.Assets(pack)}
 }

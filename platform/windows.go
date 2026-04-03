@@ -8,24 +8,12 @@ import (
 	"strings"
 
 	"github.com/kolesnikovae/go-winjob"
-	"golang.org/x/sys/windows"
 )
 
 const (
 	DATA_HOME = "AppData/Roaming"
 	WINDOWS = true
 )
-
-func Cli() {
-	const ATTACH_PARENT_PROCESS = ^uintptr(0)
-
-	windows.NewLazyDLL("kernel32.dll").NewProc("AttachConsole").Call(ATTACH_PARENT_PROCESS)
-
-	stdoutHandle, _ := windows.GetStdHandle(windows.STD_OUTPUT_HANDLE)
-	stderrHandle, _ := windows.GetStdHandle(windows.STD_ERROR_HANDLE)
-	os.Stdout = os.NewFile(uintptr(stdoutHandle), "/dev/stdout")
-	os.Stderr = os.NewFile(uintptr(stderrHandle), "/dev/stderr")
-}
 
 func Exec(command string, args []string) error {
 	cmd := exec.Command(command, args[1:]...)

@@ -8,6 +8,7 @@ import (
 	"main/fetcher"
 	"main/globals"
 	"main/launchers"
+	"main/mods"
 	"main/packs"
 	"main/utils"
 	"maps"
@@ -26,8 +27,6 @@ import (
 
 func addInstances(
 	l launchers.Launcher,
-	versions []string,
-	loaders []string,
 	unique_main []string,
 	packs packs.MetaPacks,
 	v api.Versions,
@@ -36,7 +35,7 @@ func addInstances(
 	w fyne.Window,
 	ex string,
 ) bool {
-	instances, err := l.GetInstances(versions, loaders, ex)
+	instances, err := l.GetInstances(packs.GenericSupport(), ex)
 	if (len(instances) == 0) {
 		heading := info_box.Objects[0].(*fyne.Container).Objects[0].(*widget.RichText)
 		desc := info_box.Objects[1].(*widget.Label)
@@ -53,8 +52,7 @@ func addInstances(
 	var open_configs []launchers.Instance
 	cws := container.NewMultipleWindows()
 	list := container.NewVBox()
-	for i := range instances {
-		instance := instances[i]
+	for _, instance := range instances {
 
 		line := container.NewHBox()
 		line.Add(widget.NewLabel(fmt.Sprintf(
@@ -147,12 +145,12 @@ func addInstances(
 					selected := pack_select.SelectedIndex()
 					if selected != -1 {
 						if p, e := packs.Packs[reference[selected]]; e && utils.CmpVersions(
-							instance.LoaderVersion(), p.Loaders[instance.Loader()],
+							instance.LoaderVersion(), p.Support[instance.Loader()].LoaderVersion,
 						) < 0 {
 							warn_label.SetText(fmt.Sprintf(
 								"Please update your %s%s loader to version %s to use this pack",
 								strings.ToUpper(instance.Loader()[:1]),
-								instance.Loader()[1:], p.Loaders[instance.Loader()],
+								instance.Loader()[1:], p.Support[instance.Loader()].LoaderVersion,
 							))
 							warn_label.Show()
 						} else {
@@ -294,7 +292,7 @@ func addInstances(
 			}
 		}))
 		line.Add(widget.NewButton("NRC Mods", func() {
-			mods, _ := fetcher.GetInstalledMods(instance.Path(), instance.ModDir())
+			mods, _ := mods.GetInstalledMods(instance.Path(), instance.ModDir())
 			var mods_to_toggle []string
 
 			var mod_list *fyne.Container
