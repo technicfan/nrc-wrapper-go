@@ -373,8 +373,8 @@ func addInstances(
 							new_name = strings.TrimSuffix(mods[id].Filename(), ".disabled")
 						}
 						err := os.Rename(
-							filepath.Join(instance.Path(), mods[id].Path()),
-							filepath.Join(instance.Path(), filepath.Dir(mods[id].Path()), new_name),
+							mods[id].Path(),
+							filepath.Join(filepath.Dir(mods[id].Path()), new_name),
 						)
 						if err != nil {
 							log.Printf(
