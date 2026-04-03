@@ -29,7 +29,7 @@ func Fetch(
 				return fmt.Errorf(
 					"Please update %s to version %s",
 					config.Loader(),
-					version,
+					version.LoaderVersion,
 				)
 			}
 		} else {
