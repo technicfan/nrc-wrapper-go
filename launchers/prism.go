@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	PRISM_ID      = "prism"
+	PRISM_NAME    = "Prism Launcher"
 	PRISM_DIR     = "PrismLauncher"
 	PRISM_FLATPAK = "org.prismlauncher.PrismLauncher"
 	PRISM_CLASS   = "org.prismlauncher.EntryPoint"
@@ -30,15 +32,14 @@ type prismlauncher struct /*implements Launcher*/ {
 }
 
 func NewPrismLauncher(home string, path string, flatpak bool) Launcher {
-	var name, flatpak_id string
+	var flatpak_id string
+	name := PRISM_NAME
 	if path == "" {
 		path = utils.LauncherDir(home, flatpak, PRISM_FLATPAK, PRISM_DIR)
 	}
 	if flatpak {
 		flatpak_id = PRISM_FLATPAK
-		name = "Prism Launcher (Flatpak)"
-	} else {
-		name = "Prism Launcher"
+		name += " (Flatpak)"
 	}
 	cfg, _ := parse_cfg(filepath.Join(path, "prismlauncher.cfg"))
 	launcher := prismlauncher{&launcher_data{name, path, "", flatpak_id, false}, cfg}
@@ -51,7 +52,7 @@ func (launcher prismlauncher) Exists() bool {
 }
 
 func (launcher prismlauncher) Id() string {
-	return "prism"
+	return PRISM_ID
 }
 
 func (launcher prismlauncher) IsRunning() bool {
@@ -68,6 +69,10 @@ func (launcher prismlauncher) IsRunning() bool {
 	} else {
 		return platform.IsRunning(pname)
 	}
+}
+
+func (launcher prismlauncher) DefaultNotify() bool {
+	return false
 }
 
 func (launcher prismlauncher) MergeNormal() Launcher {
@@ -166,9 +171,6 @@ func (launcher prismlauncher) GetInstances(
 				continue
 			}
 			version, loader, loader_version := instance.get_details()
-			// if !slices.Contains(versions, version) || !slices.Contains(loaders, loader) {
-			// 	continue
-			// }
 			if versions, e := support[loader]; !e || !slices.Contains(versions, version) {
 				continue
 			}
@@ -218,7 +220,7 @@ func (launcher prismlauncher) GetInstances(
 			}
 			instances = append(instances, &prism_instance{&instance_data{
 				name, version, loader, loader_version, instance_path, mc_root,
-				vars, launcher.flatpak_id, nrc_config, false,
+				vars, launcher.flatpak_id, nrc_config, launcher.DefaultNotify(),
 			}, config})
 		}
 	}

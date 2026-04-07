@@ -64,20 +64,26 @@ func Gui() {
 			name := packs.Packs[globals.MAIN_PACKS[i]].Name
 			unique_main = append(unique_main, utils.Unique(name, i))
 		}
-		launchers, err := launchers.GetLaunchers()
+		installed_launchers, err := launchers.GetLaunchers()
 
 		tabs := container.NewAppTabs()
 
 		if err != nil {
+			var supported_launchers []string
+			for _, l := range launchers.LAUNCHERS {
+				supported_launchers = append(supported_launchers, l.Name)
+			}
+			desc := widget.NewLabel(fmt.Sprintf("Install one of: %s", strings.Join(supported_launchers, ", ")))
+			desc.Alignment = fyne.TextAlignCenter
 			tabs.Append(container.NewTabItem(
 				"Nothing found",
 				container.NewCenter(container.NewVBox(
-					container.NewCenter(widget.NewRichTextFromMarkdown(`## No compatible instances found`)),
-					widget.NewLabel("Create a compatible instance in Modrinth App or Prism Launcher"),
+					container.NewCenter(widget.NewRichTextFromMarkdown(`## No compatible launchers found`)),
+					desc,
 				)),
 			))
 		} else {
-			for _, l := range launchers {
+			for _, l := range installed_launchers {
 				lstack := container.NewStack()
 				heading := widget.NewRichTextFromMarkdown(fmt.Sprintf("## %s is currently running", l.Name()))
 				desc := widget.NewLabel("Close it before changing anything here to prevent corruption")

@@ -16,6 +16,8 @@ import (
 )
 
 const (
+	MODRINTH_ID      = "modrinth"
+	MODRINTH_NAME    = "Modrinth App"
 	MODRINTH_DIR     = "ModrinthApp"
 	MODRINTH_FLATPAK = "com.modrinth.ModrinthApp"
 	MODRINTH_CLASS   = "com.modrinth.theseus.MinecraftLaunch"
@@ -26,15 +28,14 @@ type modrinthapp struct /*implements Launcher*/ {
 }
 
 func NewModrinthApp(home string, path string, flatpak bool) Launcher {
-	var name, flatpak_id string
+	var flatpak_id string
+	name := MODRINTH_NAME
 	if path == "" {
 		path = utils.LauncherDir(home, flatpak, MODRINTH_FLATPAK, MODRINTH_DIR)
 	}
 	if flatpak {
 		flatpak_id = MODRINTH_FLATPAK
-		name = "Modrinth App (Flatpak)"
-	} else {
-		name = "Modrinth App"
+		name += " (Flatpak)"
 	}
 	return modrinthapp{&launcher_data{name, path, filepath.Join(path, "profiles"), flatpak_id, false}}
 }
@@ -45,7 +46,7 @@ func (launcher modrinthapp) Exists() bool {
 }
 
 func (launcher modrinthapp) Id() string {
-	return "modrinth"
+	return MODRINTH_ID
 }
 
 func (launcher modrinthapp) IsRunning() bool {
@@ -58,6 +59,10 @@ func (launcher modrinthapp) IsRunning() bool {
 		pname = "modrinth-app"
 	}
 	return platform.IsRunning(pname)
+}
+
+func (launcher modrinthapp) DefaultNotify() bool {
+	return true
 }
 
 func (launcher modrinthapp) MergeNormal() Launcher {
@@ -186,7 +191,7 @@ func (launcher modrinthapp) GetInstances(
 			path := filepath.Join(launcher.instance_dir, instance_path)
 			instances = append(instances, &modrinth_instance{&instance_data{
 				name, version, loader, loader_version, path, path,
-				vars, launcher.flatpak_id, nrc_config, true,
+				vars, launcher.flatpak_id, nrc_config, launcher.DefaultNotify(),
 			}})
 		}
 	}

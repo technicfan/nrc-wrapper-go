@@ -1,14 +1,10 @@
 package launchers
 
 import (
-	"errors"
 	"fmt"
 	"main/globals"
-	"main/platform"
-	"os"
 	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -30,6 +26,56 @@ type Instance interface {
 	ModDir() string
 	FixPack(string)
 	Save(bool, bool, bool, string, string) error
+}
+
+type Minecraft struct {
+	profile       string
+	version       string
+	loader        string
+	loader_version string
+	username      string
+	uuid          string
+	token         string
+}
+
+func NewMinecraft(
+	instance Instance,
+) Minecraft {
+	return Minecraft{
+		instance.Name(),
+		instance.Version(),
+		instance.Loader(),
+		instance.LoaderVersion(),
+		"", "", "",
+	}
+}
+
+func (minecraft Minecraft) Profile() string {
+	return minecraft.profile
+}
+
+func (minecraft Minecraft) Version() string {
+	return minecraft.version
+}
+
+func (minecraft Minecraft) Loader() string {
+	return minecraft.loader
+}
+
+func (minecraft Minecraft) LoaderVersion() string {
+	return minecraft.loader_version
+}
+
+func (minecraft Minecraft) Username() string {
+	return minecraft.username
+}
+
+func (minecraft Minecraft) Uuid() string {
+	return minecraft.uuid
+}
+
+func (minecraft Minecraft) Token() string {
+	return minecraft.token
 }
 
 type nrc_config struct {
@@ -210,76 +256,4 @@ func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack stri
 		}
 	}
 	return changed
-}
-
-func appendLaunchers(
-	launchers []Launcher,
-	ctor func(string, string, bool) Launcher,
-	home string,
-) []Launcher {
-	regular := ctor(home, "", false)
-	if platform.WINDOWS {
-		if regular.Exists() {
-			launchers = append(launchers, regular)
-		}
-	} else {
-		flatpak := ctor(home, "", true)
-		if regular.Exists() && flatpak.Exists() && regular.InstanceDir() == flatpak.InstanceDir() {
-			launchers = append(launchers, flatpak.MergeNormal())
-		} else {
-			if regular.Exists() {
-				launchers = append(launchers, regular)
-			}
-			if flatpak.Exists() {
-				launchers = append(launchers, flatpak)
-			}
-		}
-	}
-	return launchers
-}
-
-func GetInstances(
-	support map[string][]string,
-	ex string,
-) (map[string][]Instance, []Launcher, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, nil, err
-	}
-	var launchers []Launcher
-	launchers = appendLaunchers(launchers, NewPrismLauncher, home)
-	launchers = appendLaunchers(launchers, NewModrinthApp, home)
-	var order []Launcher
-	instances := make(map[string][]Instance)
-	for i := range launchers {
-		if !launchers[i].IsRunning() {
-			inst, err := launchers[i].GetInstances(support, ex)
-			if err != nil || len(inst) == 0 {
-				continue
-			}
-			slices.SortFunc(inst, func(a Instance, b Instance) int {
-				return strings.Compare(a.Name(), b.Name())
-			})
-			instances[launchers[i].Name()] = inst
-		}
-		order = append(order, launchers[i])
-	}
-	if len(order) == 0 {
-		return nil, nil, errors.New("No instances found")
-	}
-	return instances, order, nil
-}
-
-func GetLaunchers() ([]Launcher, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-	var launchers []Launcher
-	launchers = appendLaunchers(launchers, NewPrismLauncher, home)
-	launchers = appendLaunchers(launchers, NewModrinthApp, home)
-	if len(launchers) == 0 {
-		return nil, errors.New("No launchers installed")
-	}
-	return launchers, nil
 }

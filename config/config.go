@@ -7,7 +7,7 @@ import (
 	"main/launchers"
 	"main/utils"
 	"os"
-	"os/user"
+	"strings"
 )
 
 type Config struct {
@@ -70,8 +70,7 @@ func (config Config) Notify() bool {
 func GetConfig() Config {
 	var config Config
 	var launcher, dir string
-	usr, _ := user.Current()
-	home := usr.HomeDir
+	home, _ := os.UserHomeDir()
 
 	if value := os.Getenv("STAGING"); value != "" {
 		config.api_endpoint = globals.STAGING_NORISK_API_ENDPOINT
@@ -80,26 +79,30 @@ func GetConfig() Config {
 	}
 
 	if value := os.Getenv("LAUNCHER"); value != "" {
-		log.Printf("Set %s manually", value)
-		launcher = value
+		if _, e := launchers.LAUNCHERS[value]; e {
+			log.Printf("Set %s manually", value)
+			launcher = value
+		}
 	} else {
 		for i := len(os.Args) - 1; i >= 0; i-- {
-			switch os.Args[i] {
-			case launchers.PRISM_CLASS:
-				{
-					log.Println("Detected Prism Launcher")
-					launcher = "prism"
-					break
-				}
-			case launchers.MODRINTH_CLASS:
-				{
-					log.Println("Detected Modrinth Launcher")
-					launcher = "modrinth"
+			for id, l := range launchers.LAUNCHERS {
+				if os.Args[i] == l.JavaClass {
+					log.Printf("Detected %s\n", l.Name)
+					launcher = id
 					break
 				}
 			}
 		}
 	}
+
+	if launcher == "" {
+		utils.Notify("No valid launcher detected or set manually", true, config.notify)
+	}
+
+	if value := os.Getenv(fmt.Sprintf("%s_DIR", strings.ToUpper(launcher))); value != "" {
+		dir = value
+	}
+	config.Launcher = launchers.LAUNCHERS[launcher].New(home, dir, os.Getenv("FLATPAK_ID") != "")
 
 	switch os.Getenv("NOTIFY") {
 	case "true", "True", "1":
@@ -107,22 +110,7 @@ func GetConfig() Config {
 	case "false", "False", "0":
 		config.notify = false
 	default:
-		config.notify = launcher == "modrinth"
-	}
-
-	switch launcher {
-	case "prism":
-		if value := os.Getenv("PRISM_DIR"); value != "" {
-			dir = value
-		}
-		config.Launcher = launchers.NewPrismLauncher(home, dir, os.Getenv("FLATPAK_ID") != "")
-	case "modrinth":
-		if value := os.Getenv("MODRINTH_DIR"); value != "" {
-			dir = value
-		}
-		config.Launcher = launchers.NewModrinthApp(home, dir, os.Getenv("FLATPAK_ID") != "")
-	default:
-		utils.Notify("No valid launcher detected or set manually", true, config.notify)
+		config.notify = config.Launcher.DefaultNotify()
 	}
 
 	if value := os.Getenv("NRC_PACK"); value != "" {
