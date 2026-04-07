@@ -124,13 +124,7 @@ func (mod ModResource) IndexPair() utils.Pair {
 }
 
 func (mod ModResource) Type() int {
-	return 0
-}
-
-func (mod *ModResource) SetOldFile(name string) {
-	if strings.HasSuffix(name, ".disabled") && mod.Enabled() {
-		mod.filename += ".disabled"
-	}
+	return 1
 }
 
 type ModResources map[string]ModResource
@@ -143,7 +137,11 @@ func (mods ModResources) GetMissing(
 	for _, mod := range mods {
 		if installed_mod, exists := installed_mods[mod.id]; exists {
 			if mod.version != installed_mod.version {
-				mod.SetOldFile(installed_mod.Filename())
+				if !installed_mod.Enabled() {
+					if mod.Enabled() {
+						mod.filename += ".disabled"
+					}
+				}
 				os.Remove(installed_mod.Path())
 				log.Printf("Removed old file %s", installed_mod.Filename())
 				missing[mod.id] = mod

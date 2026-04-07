@@ -66,8 +66,10 @@ func Fetch(
 		installed_mods,
 		config.ModDir(),
 	)
-	asset_index_chan := make(chan utils.Pair, len(resources))
-	mod_index_chan := make(chan utils.Pair, len(mods_to_download))
+	indexes := []chan utils.Pair{
+		make(chan utils.Pair, len(resources)),
+		make(chan utils.Pair, len(mods_to_download)),
+	}
 	for id := range mods_to_download {
 		resources = append(resources, mods_to_download[id])
 	}
@@ -84,22 +86,22 @@ func Fetch(
 			resources[i],
 			config.ErrorOnFailedDownload(),
 			config.Notify(),
-			mod_index_chan,
-			asset_index_chan,
+			indexes,
 			&wg,
 			limiter,
 		)
 	}
 
 	wg.Wait()
-	close(asset_index_chan)
-	close(mod_index_chan)
-
-	if update_assets || len(asset_index_chan) > 0 {
-		asset_index.Merge(asset_index_chan).Write(filepath.Join(config.Root(), globals.ASSET_INDEX))
+	for i := range indexes {
+		close(indexes[i])
 	}
-	if update_mods || len(mod_index_chan) > 0 {
-		already_installed.Index().Merge(mod_index_chan).Write(filepath.Join(config.Root(), globals.MOD_INDEX))
+
+	if update_assets || len(indexes[0]) > 0 {
+		asset_index.Merge(indexes[0]).Write(filepath.Join(config.Root(), globals.ASSET_INDEX))
+	}
+	if update_mods || len(indexes[1]) > 0 {
+		already_installed.Index().Merge(indexes[1]).Write(filepath.Join(config.Root(), globals.MOD_INDEX))
 	}
 
 	return nil

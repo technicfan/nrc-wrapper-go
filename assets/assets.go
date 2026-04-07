@@ -54,7 +54,7 @@ func (asset Asset) IndexPair() utils.Pair {
 }
 
 func (asset Asset) Type() int {
-	return 1
+	return 0
 }
 
 func (asset Asset) IsMissing(index utils.Index) (bool, bool) {

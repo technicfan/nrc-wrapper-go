@@ -74,8 +74,7 @@ func DownloadAsync(
 	resource NrcResource,
 	eofd bool,
 	notify bool,
-	mods chan <- Pair,
-	assets chan <- Pair,
+	indexes []chan Pair,
 	wg *sync.WaitGroup,
 	limiter chan struct{},
 ) {
@@ -91,11 +90,6 @@ func DownloadAsync(
 			notify,
 		)
 	} else {
-		switch resource.Type() {
-		case 0:
-			mods <- resource.IndexPair()
-		case 1:
-			assets <- resource.IndexPair()
-		}
+		indexes[resource.Type()] <- resource.IndexPair()
 	}
 }
