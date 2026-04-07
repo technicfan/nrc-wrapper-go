@@ -46,7 +46,6 @@ func (mod Mod) Enabled() bool {
 
 type ModResource struct /*implements NrcResource*/ {
 	*Mod
-	old_file      string
 	url           string
 	alt_url       string
 	use_alt_url   bool
@@ -65,7 +64,6 @@ func NewModResource(
 ) ModResource {
 	return ModResource{
 		&Mod{hash, version, id, filename, path},
-		"",
 		url,
 		alt_url,
 		false,
@@ -113,10 +111,6 @@ func (mod ModResource) Download() error {
 	}
 	if err == nil {
 		log.Printf("Downloaded %s", mod.Filename())
-		if mod.Filename() != mod.old_file && mod.Filename() != "" && mod.old_file != "" {
-			os.Remove(filepath.Join(mod.path, mod.old_file))
-			log.Printf("Removed old file %s", mod.old_file)
-		}
 	}
 	return err
 }
@@ -134,7 +128,6 @@ func (mod ModResource) Type() int {
 }
 
 func (mod *ModResource) SetOldFile(name string) {
-	mod.old_file = name
 	if strings.HasSuffix(name, ".disabled") && mod.Enabled() {
 		mod.filename += ".disabled"
 	}
@@ -151,6 +144,8 @@ func (mods ModResources) GetMissing(
 		if installed_mod, exists := installed_mods[mod.id]; exists {
 			if mod.version != installed_mod.version {
 				mod.SetOldFile(installed_mod.Filename())
+				os.Remove(installed_mod.Path())
+				log.Printf("Removed old file %s", installed_mod.Filename())
 				missing[mod.id] = mod
 			} else {
 				mod.hash = installed_mod.hash
