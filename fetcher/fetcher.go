@@ -10,6 +10,7 @@ import (
 	"main/utils"
 	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -35,9 +36,11 @@ func Fetch(
 			}
 		} else {
 			var loaders_str []string
-			for loader, version := range support {
-				if version.LoaderVersion != "0" {
-					loaders_str = append(loaders_str, fmt.Sprintf("%s %s", loader, version.LoaderVersion))
+			for _, loader := range slices.Sorted(maps.Keys(support)) {
+				if support[loader].LoaderVersion != "0" {
+					loaders_str = append(loaders_str,
+						fmt.Sprintf("%s %s", loader, support[loader].LoaderVersion),
+					)
 				} else {
 					loaders_str = append(loaders_str, loader)
 				}

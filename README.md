@@ -67,7 +67,7 @@ Just launch and enjoy.
 
 ### Add launcher Support
 
-To support for another launcher, first look at how the supported ones are done and then implement the `Launcher` ([here](launchers/launchers.go)) and the `Instance` ([here](launchers/instances.go)) interfaces and add the launcher to the `LAUNCHERS` variable in [`launchers.go`](launchers/launchers.go).
+To support for another launcher, first look at how the supported ones are done and then implement the `Launcher` ([here](launchers/launchers.go)) and the `Instance` ([here](launchers/instances.go)) interfaces and add the launcher to the `LAUNCHERS` and `LAUNCHER_SUPPORT` variables in [`launchers.go`](launchers/launchers.go).
 
 ### Important
 

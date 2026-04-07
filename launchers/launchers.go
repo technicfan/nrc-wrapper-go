@@ -6,7 +6,9 @@ import (
 	"os"
 )
 
-var LAUNCHERS = map[string]LauncherSupport{
+var LAUNCHERS = []string{PRISM_ID, MODRINTH_ID}
+
+var LAUNCHER_SUPPORT = map[string]LauncherSupport{
 	PRISM_ID:    LauncherSupport{NewPrismLauncher, PRISM_NAME, PRISM_CLASS},
 	MODRINTH_ID: LauncherSupport{NewModrinthApp, MODRINTH_NAME, MODRINTH_CLASS},
 }
@@ -98,7 +100,7 @@ func GetLaunchers() ([]Launcher, error) {
 	}
 	var launchers []Launcher
 	for _, l := range LAUNCHERS {
-		launchers = appendLaunchers(launchers, l.New, home)
+		launchers = appendLaunchers(launchers, LAUNCHER_SUPPORT[l].New, home)
 	}
 	if len(launchers) == 0 {
 		return nil, errors.New("No launchers installed")

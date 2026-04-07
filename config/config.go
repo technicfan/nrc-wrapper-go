@@ -79,13 +79,13 @@ func GetConfig() Config {
 	}
 
 	if value := os.Getenv("LAUNCHER"); value != "" {
-		if _, e := launchers.LAUNCHERS[value]; e {
+		if _, e := launchers.LAUNCHER_SUPPORT[value]; e {
 			log.Printf("Set %s manually", value)
 			launcher = value
 		}
 	} else {
 		for i := len(os.Args) - 1; i >= 0; i-- {
-			for id, l := range launchers.LAUNCHERS {
+			for id, l := range launchers.LAUNCHER_SUPPORT {
 				if os.Args[i] == l.JavaClass {
 					log.Printf("Detected %s\n", l.Name)
 					launcher = id
@@ -102,7 +102,7 @@ func GetConfig() Config {
 	if value := os.Getenv(fmt.Sprintf("%s_DIR", strings.ToUpper(launcher))); value != "" {
 		dir = value
 	}
-	config.Launcher = launchers.LAUNCHERS[launcher].New(home, dir, os.Getenv("FLATPAK_ID") != "")
+	config.Launcher = launchers.LAUNCHER_SUPPORT[launcher].New(home, dir, os.Getenv("FLATPAK_ID") != "")
 
 	switch os.Getenv("NOTIFY") {
 	case "true", "True", "1":

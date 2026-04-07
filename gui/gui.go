@@ -6,6 +6,7 @@ import (
 	"main/globals"
 	"main/launchers"
 	"main/utils"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -71,7 +72,7 @@ func Gui() {
 		if err != nil {
 			var supported_launchers []string
 			for _, l := range launchers.LAUNCHERS {
-				supported_launchers = append(supported_launchers, l.Name)
+				supported_launchers = append(supported_launchers, launchers.LAUNCHER_SUPPORT[l].Name)
 			}
 			desc := widget.NewLabel(fmt.Sprintf("Install one of: %s", strings.Join(supported_launchers, ", ")))
 			desc.Alignment = fyne.TextAlignCenter
@@ -147,15 +148,15 @@ func Gui() {
 		for _, id := range packs_main_first {
 			pack := packs.Packs[id]
 			var lines []string
-			for l, v := range pack.Support {
+			for _, l := range slices.Sorted(maps.Keys(pack.Support)) {
 				var version string
-				if v.LoaderVersion != "0" {
-					version = fmt.Sprintf(" \u2265 %s", v.LoaderVersion)
+				if pack.Support[l].LoaderVersion != "0" {
+					version = fmt.Sprintf(" \u2265 %s", pack.Support[l].LoaderVersion)
 				}
 				line := fmt.Sprintf(`
 - %s%s%s
     - %s
-`, strings.ToUpper(l[:1]), l[1:], version, strings.Join(v.Versions, ", "))
+`, strings.ToUpper(l[:1]), l[1:], version, strings.Join(pack.Support[l].Versions, ", "))
 				lines = append(lines, line)
 			}
 			fmt.Fprintf(&packs_string_builder, `
