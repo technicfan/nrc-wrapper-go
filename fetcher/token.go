@@ -1,4 +1,4 @@
-package main
+package fetcher
 
 import (
 	"crypto/sha256"
@@ -8,13 +8,16 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"main/api"
+	"main/config"
+	"main/globals"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func is_token_expired(
@@ -41,7 +44,7 @@ func read_token_from_file(
 	path string,
 	uuid string,
 ) (string, error) {
-	file, err := os.Open(fmt.Sprintf("%s/norisk_data.json", path))
+	file, err := os.Open(filepath.Join(path, globals.TOKEN_STORE))
 	if err != nil {
 		return "", err
 	}
@@ -70,9 +73,9 @@ func write_token_to_file(
 	var file *os.File
 	var err error
 	var data map[string]string
-	file, err = os.Open(fmt.Sprintf("%s/norisk_data.json", path))
+	file, err = os.Open(filepath.Join(path, globals.TOKEN_STORE))
 	if err != nil {
-		file, err = os.Create(fmt.Sprintf("%s/norisk_data.json", path))
+		file, err = os.Create(filepath.Join(path, globals.TOKEN_STORE))
 		if err != nil {
 			return err
 		}
@@ -98,7 +101,7 @@ func write_token_to_file(
 	}
 
 	file, err = os.OpenFile(
-		fmt.Sprintf("%s/norisk_data.json", path), os.O_RDWR|os.O_TRUNC, os.ModePerm,
+		filepath.Join(path, globals.TOKEN_STORE), os.O_RDWR|os.O_TRUNC, os.ModePerm,
 	)
 	if err != nil {
 		return err
@@ -113,11 +116,11 @@ func write_token_to_file(
 	return nil
 }
 
-func get_token(
-	config Config,
+func GetToken(
+	config config.Config,
 	offline bool,
 ) (string, error) {
-	uuid := config.Minecraft.Uuid
+	uuid := config.Uuid()
 	if !strings.Contains(uuid, "-") {
 		uuid = fmt.Sprintf("%s-%s-%s-%s-%s",
 			uuid[0:8],
@@ -128,11 +131,11 @@ func get_token(
 		)
 	}
 
-	if config.Minecraft.Token == "offline" {
-		return config.Minecraft.Token, nil
+	if config.Token() == "offline" {
+		return config.Token(), nil
 	}
 
-	nrc_token, err := read_token_from_file(config.LauncherDir, uuid)
+	nrc_token, err := read_token_from_file(config.Dir(), uuid)
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
 			log.Println("Stored token is valid")
@@ -145,28 +148,29 @@ func get_token(
 	}
 
 	log.Println("Requesting new token")
-	server_id, err := request_server_id()
+	server_id, err := api.RequestServerId(config.ApiEndpoint())
 	if err != nil {
 		return "", err
 	}
-	err = join_server_session(config.Minecraft.Token, uuid, server_id)
+	err = api.JoinServerSession(config.Token(), uuid, server_id)
 	if err != nil {
 		return "", err
 	}
 
 	host, _ := os.Hostname()
-	system_id := fmt.Sprintf("%s-%s-%s-%s", config.Launcher+"-"+os.Getenv("container"), runtime.GOOS, runtime.GOARCH, host)
+	system_id := fmt.Sprintf("%s-%s-%s-%s-%s", config.Id(), config.Container(), runtime.GOOS, runtime.GOARCH, host)
 	hash := sha256.Sum256([]byte(system_id))
-	nrc_token, err = request_token(
-		config.Minecraft.Username,
+	nrc_token, err = api.RequestToken(
+		config.Username(),
 		server_id,
 		hex.EncodeToString(hash[:]),
+		config.ApiEndpoint(),
 	)
 	if err != nil {
 		return "", err
 	}
 
-	err = write_token_to_file(config.LauncherDir, uuid, nrc_token)
+	err = write_token_to_file(config.Dir(), uuid, nrc_token)
 	if err != nil {
 		return "", err
 	}

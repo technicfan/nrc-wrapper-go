@@ -1,18 +1,20 @@
-package main
+package utils
 
 import (
 	"crypto/md5"
 	"encoding/hex"
 	"io"
 	"log"
+	"main/platform"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/gen2brain/beeep"
 )
 
-func calc_hash(
+func Hash(
 	path string,
 ) (string, error) {
 	var file, err = os.Open(path)
@@ -36,7 +38,34 @@ func calc_hash(
 	return hex.EncodeToString(bytesHash[:]), nil
 }
 
-func cmp_mc_versions(
+func Unique(str string, index int) string {
+	var builder strings.Builder
+	builder.WriteString(str)
+	for range index {
+		builder.WriteRune('\u200d')
+	}
+	return builder.String()
+}
+
+func LauncherDir(
+	home string,
+	flatpak bool,
+	id string,
+	dir string,
+) string {
+	data_home := os.Getenv("XDG_DATA_HOME")
+	if data_home == "" {
+		if flatpak {
+			data_home = filepath.Join(".var/app", id, "data")
+		} else {
+			data_home = platform.DATA_HOME
+		}
+		data_home = filepath.Join(home, data_home)
+	}
+	return filepath.Join(data_home, dir)
+}
+
+func CmpVersions(
 	a string,
 	b string,
 ) int {
@@ -76,7 +105,7 @@ func cmp_mc_versions(
 	}
 }
 
-func notify(
+func Notify(
 	msg string,
 	error bool,
 	notify bool,
@@ -89,7 +118,7 @@ func notify(
 				log.Fatalf("Notify failed: %s", err.Error())
 			}
 		}
-		log.Fatal(msg)
+		log.Fatalln(msg)
 	} else {
 		if notify {
 			err := beeep.Notify("Info", msg, "")
