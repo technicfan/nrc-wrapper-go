@@ -1,13 +1,11 @@
 package fetcher
 
 import (
-	"log"
 	"main/api"
 	"main/assets"
 	"main/globals"
 	"main/utils"
 	"maps"
-	"os"
 	"path/filepath"
 	"sync"
 )
@@ -16,7 +14,7 @@ func get_assets(
 	root string,
 	packs []string,
 	api_endpoint string,
-) ([]utils.NrcResource, utils.Index, bool) {
+) ([]utils.NrcResource, utils.Index, utils.Index, bool) {
 	var wg sync.WaitGroup
 	data := make(chan map[int]map[string]assets.Asset, len(packs))
 	for i, pack := range packs {
@@ -42,14 +40,6 @@ func get_assets(
 
 	index_updated := false
 	var missing_assets []utils.NrcResource
-	for path := range existing_index {
-		if _, e := merged[path]; !e {
-			index_updated = true
-			delete(existing_index, path)
-			os.Remove(filepath.Join(root, globals.ASSETS_PATH, path))
-			log.Printf("Removed left over file %s", filepath.Base(path))
-		}
-	}
 	for _, asset := range merged {
 		missing, untracked := asset.IsMissing(existing_index)
 		if missing {
@@ -63,6 +53,14 @@ func get_assets(
 			existing_index[asset.AssetPath()] = map[string]string{"hash": asset.ExpectedHash()}
 		}
 	}
+	left_over := make(utils.Index)
+	for path := range existing_index {
+		if _, e := merged[path]; !e {
+			index_updated = true
+			delete(existing_index, path)
+			left_over[path] = map[string]string{"path": globals.ASSETS_PATH}
+		}
+	}
 
-	return missing_assets, existing_index, index_updated
+	return missing_assets, existing_index, left_over, index_updated
 }

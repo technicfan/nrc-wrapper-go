@@ -292,7 +292,7 @@ func addInstances(
 			}
 		}))
 		line.Add(widget.NewButton("NRC Mods", func() {
-			mods, _ := mods.GetInstalledMods(instance.Path(), instance.ModDir())
+			mods, _, _ := mods.GetInstalledMods(instance.Path(), instance.ModDir())
 			var mods_to_toggle []string
 
 			var mod_list *fyne.Container

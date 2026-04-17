@@ -9,6 +9,7 @@ import (
 	"main/mods"
 	"main/utils"
 	"maps"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -63,12 +64,23 @@ func Fetch(
 	}
 	maps.Copy(pack_mods, inherited_mods.CompatibleMods(config, versions.Repositories))
 
-	resources, asset_index, update_assets := get_assets(config.Root(), assets, config.ApiEndpoint())
-	installed_mods, update_mods := mods.GetInstalledMods(config.Root(), config.ModDir())
-	mods_to_download, already_installed := pack_mods.GetMissing(
+	resources, asset_index, left_over, update_assets := get_assets(config.Root(), assets, config.ApiEndpoint())
+	installed_mods, left_over1, update_mods := mods.GetInstalledMods(config.Root(), config.ModDir())
+	mods_to_download, already_installed, left_over2 := pack_mods.GetMissing(
 		installed_mods,
 		config.ModDir(),
 	)
+	maps.Copy(left_over, left_over1)
+	maps.Copy(left_over, left_over2)
+	for file, entry := range left_over {
+		if path, e := entry["path"]; e && path != config.ModDir() {
+			os.Remove(filepath.Join(path, file))
+			log.Printf("Removed left over file %s", filepath.Base(file))
+			if f, _ := os.ReadDir(path); path != "mods" && len(f) == 0 {
+				os.Remove(path)
+			}
+		}
+	}
 	indexes := []chan utils.Pair{
 		make(chan utils.Pair, len(resources)),
 		make(chan utils.Pair, len(mods_to_download)),

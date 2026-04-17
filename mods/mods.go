@@ -46,6 +46,19 @@ func (mod Mod) Enabled() bool {
 	return strings.HasSuffix(mod.filename, ".jar")
 }
 
+func (mod Mod) IndexPair() utils.Pair {
+	hash, _ := utils.Hash(mod.Path())
+	return utils.Pair{
+		Key: mod.filename,
+		Value: map[string]string{
+			"id": mod.id,
+			"hash": hash,
+			"version": mod.version,
+			"path": mod.mod_dir,
+		},
+	}
+}
+
 type ModResource struct /*implements NrcResource*/ {
 	*Mod
 	url           string
@@ -118,17 +131,12 @@ func (mod ModResource) Download() error {
 	return err
 }
 
-func (mod ModResource) IndexPair() utils.Pair {
-	hash, _ := utils.Hash(mod.Path())
-	return utils.Pair{
-		Key: mod.filename,
-		Value: map[string]string{
-			"id": mod.id,
-			"hash": hash,
-			"version": mod.version,
-			"path": mod.mod_dir,
-		},
+func (mods ModResources) Index() utils.Index {
+	results := make(utils.Index)
+	for _, mod := range mods {
+		results[mod.filename] = mod.IndexPair().Value
 	}
+	return results
 }
 
 func (mod ModResource) Type() int {
@@ -140,7 +148,7 @@ type ModResources map[string]ModResource
 func (mods ModResources) GetMissing(
 	installed_mods map[string]Mod,
 	path string,
-) (ModResources, ModResources) {
+) (ModResources, ModResources, utils.Index) {
 	missing, installed := make(ModResources), make(ModResources)
 	for _, mod := range mods {
 		if installed_mod, exists := installed_mods[mod.id]; exists {
@@ -163,36 +171,23 @@ func (mods ModResources) GetMissing(
 		}
 	}
 
-	for _, mod := range installed_mods {
-		os.Remove(mod.Path())
-		log.Printf("Removed left over file %s", mod.Filename())
+	index := make(utils.Index)
+	for id, _ := range installed_mods {
+		index[installed_mods[id].filename] = installed_mods[id].IndexPair().Value
 	}
 
-	return missing, installed
-}
-
-func (mods ModResources) Index() utils.Index {
-	results := make(utils.Index)
-	for _, mod := range mods {
-		results[mod.filename] = map[string]string{
-			"hash": mod.hash,
-			"version": mod.version,
-			"id": mod.id,
-			"path": mod.mod_dir,
-		}
-	}
-	return results
+	return missing, installed, index
 }
 
 func GetInstalledMods(
 	root string,
 	mod_dir string,
-) (map[string]Mod, bool) {
+) (map[string]Mod, utils.Index, bool) {
 	files, _ := os.ReadDir(filepath.Join(root, mod_dir))
 	index := utils.ReadIndex(filepath.Join(root, globals.MOD_INDEX))
 
 	updated := false
-	results := make(map[string]Mod)
+	result := make(map[string]Mod)
 	for _, f := range files {
 		if !f.IsDir() &&
 			(filepath.Ext(f.Name()) == ".jar" || filepath.Ext(f.Name()) == ".disabled") {
@@ -213,7 +208,7 @@ func GetInstalledMods(
 				if !e {
 					path = mod_dir
 				}
-				results[entry["id"]] = Mod{
+				result[entry["id"]] = Mod{
 					entry["hash"],
 					entry["version"],
 					entry["id"],
@@ -228,16 +223,7 @@ func GetInstalledMods(
 
 	if len(index) != 0 {
 		updated = true
-		for file, entry := range index {
-			if path, e := entry["path"]; e && path != mod_dir {
-				os.Remove(filepath.Join(path, file))
-				log.Printf("Removed left over file %s", file)
-				if f, _ := os.ReadDir(path); path != "mods" && len(f) == 0 {
-					os.Remove(path)
-				}
-			}
-		}
 	}
 
-	return results, updated
+	return result, index, updated
 }
