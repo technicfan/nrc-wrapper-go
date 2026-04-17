@@ -2,11 +2,14 @@ package assets
 
 import (
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"hash"
+	"io/fs"
 	"log"
 	"main/globals"
 	"main/utils"
+	"os"
 	"path/filepath"
 )
 
@@ -59,7 +62,8 @@ func (asset Asset) Type() int {
 
 func (asset Asset) IsMissing(index utils.Index) (bool, bool) {
 	if entry, e := index[asset.path]; e && entry["hash"] == asset.hash {
-		return false, false
+		_, err := os.Open(asset.Path())
+		return errors.Is(err, fs.ErrNotExist), false
 	}
 	if hash, err := utils.Hash(asset.Path()); err == nil && hash == asset.hash {
 		return false, true

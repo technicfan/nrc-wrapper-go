@@ -19,7 +19,8 @@ type Mod struct {
 	version string
 	id string
 	filename string
-	path string
+	mod_dir string
+	root string
 }
 
 func NewMod(
@@ -27,13 +28,14 @@ func NewMod(
 	version string,
 	id string,
 	filename string,
-	path string,
+	mod_dir string,
+	root string,
 ) Mod {
-	return Mod{hash, version, id, filename, path}
+	return Mod{hash, version, id, filename, mod_dir, root}
 }
 
 func (mod Mod) Path() string {
-	return filepath.Join(mod.path, mod.filename)
+	return filepath.Join(mod.root, mod.mod_dir, mod.filename)
 }
 
 func (mod Mod) Filename() string {
@@ -57,13 +59,14 @@ func NewModResource(
 	version string,
 	id string,
 	filename string,
-	path string,
+	mod_dir string,
+	root string,
 	url string,
 	alt_url string,
 	check_hash bool,
 ) ModResource {
 	return ModResource{
-		&Mod{hash, version, id, filename, path},
+		&Mod{hash, version, id, filename, mod_dir, root},
 		url,
 		alt_url,
 		false,
@@ -119,7 +122,12 @@ func (mod ModResource) IndexPair() utils.Pair {
 	hash, _ := utils.Hash(mod.Path())
 	return utils.Pair{
 		Key: mod.filename,
-		Value: map[string]string{"id": mod.id, "hash": hash, "version": mod.version},
+		Value: map[string]string{
+			"id": mod.id,
+			"hash": hash,
+			"version": mod.version,
+			"path": mod.mod_dir,
+		},
 	}
 }
 
@@ -170,6 +178,7 @@ func (mods ModResources) Index() utils.Index {
 			"hash": mod.hash,
 			"version": mod.version,
 			"id": mod.id,
+			"path": mod.mod_dir,
 		}
 	}
 	return results
@@ -200,20 +209,34 @@ func GetInstalledMods(
 				}
 			}
 			if e {
+				path, e := entry["path"]
+				if !e {
+					path = mod_dir
+				}
 				results[entry["id"]] = Mod{
 					entry["hash"],
 					entry["version"],
 					entry["id"],
 					f.Name(),
-					filepath.Join(root, mod_dir),
+					path,
+					root,
 				}
 				delete(index, name)
 			}
 		}
 	}
-	
+
 	if len(index) != 0 {
 		updated = true
+		for file, entry := range index {
+			if path, e := entry["path"]; e && path != mod_dir {
+				os.Remove(filepath.Join(path, file))
+				log.Printf("Removed left over file %s", file)
+				if f, _ := os.ReadDir(path); path != "mods" && len(f) == 0 {
+					os.Remove(path)
+				}
+			}
+		}
 	}
 
 	return results, updated

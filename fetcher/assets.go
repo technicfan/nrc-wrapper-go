@@ -1,11 +1,13 @@
 package fetcher
 
 import (
+	"log"
 	"main/api"
 	"main/assets"
 	"main/globals"
 	"main/utils"
 	"maps"
+	"os"
 	"path/filepath"
 	"sync"
 )
@@ -40,13 +42,25 @@ func get_assets(
 
 	index_updated := false
 	var missing_assets []utils.NrcResource
+	for path := range existing_index {
+		if _, e := merged[path]; !e {
+			index_updated = true
+			delete(existing_index, path)
+			os.Remove(filepath.Join(root, globals.ASSETS_PATH, path))
+			log.Printf("Removed left over file %s", filepath.Base(path))
+		}
+	}
 	for _, asset := range merged {
 		missing, untracked := asset.IsMissing(existing_index)
 		if missing {
 			missing_assets = append(missing_assets, asset)
+			if (!untracked) {
+				index_updated = true
+				delete(existing_index, asset.AssetPath())
+			}
 		} else if untracked {
 			index_updated = true
-			existing_index[asset.Path()] = map[string]string{"hash": asset.ExpectedHash()}
+			existing_index[asset.AssetPath()] = map[string]string{"hash": asset.ExpectedHash()}
 		}
 	}
 
