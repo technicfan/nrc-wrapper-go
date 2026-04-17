@@ -73,7 +73,7 @@ func Fetch(
 	maps.Copy(left_over, left_over1)
 	maps.Copy(left_over, left_over2)
 	for file, entry := range left_over {
-		if path, e := entry["path"]; e && path != config.ModDir() {
+		if path, e := entry["path"]; e {
 			os.Remove(filepath.Join(path, file))
 			log.Printf("Removed left over file %s", filepath.Base(file))
 			if f, _ := os.ReadDir(path); path != "mods" && len(f) == 0 {
