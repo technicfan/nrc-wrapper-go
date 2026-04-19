@@ -53,15 +53,15 @@ func (asset Asset) Download() error {
 }
 
 func (asset Asset) IndexPair() utils.Pair {
-	return utils.Pair{Key: asset.path, Value: map[string]string{"hash": asset.hash}}
+	return utils.Pair{Key: asset.path, Value: utils.NewAssetIndexItem(asset.hash)}
 }
 
 func (asset Asset) Type() int {
 	return 0
 }
 
-func (asset Asset) IsMissing(index utils.Index) (bool, bool) {
-	if entry, e := index[asset.path]; e && entry["hash"] == asset.hash {
+func (asset Asset) IsMissing(index utils.AssetIndex) (bool, bool) {
+	if entry, e := index[asset.path]; e && entry.Hash == asset.hash {
 		_, err := os.Open(asset.Path())
 		return errors.Is(err, fs.ErrNotExist), false
 	}

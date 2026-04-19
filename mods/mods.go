@@ -50,12 +50,12 @@ func (mod Mod) IndexPair() utils.Pair {
 	hash, _ := utils.Hash(mod.Path())
 	return utils.Pair{
 		Key: mod.filename,
-		Value: map[string]string{
-			"id": mod.id,
-			"hash": hash,
-			"version": mod.version,
-			"path": mod.mod_dir,
-		},
+		Value: utils.NewModIndexItem(
+			mod.id,
+			hash,
+			mod.version,
+			mod.mod_dir,
+		),
 	}
 }
 
@@ -184,7 +184,8 @@ func GetInstalledMods(
 	mod_dir string,
 ) (map[string]Mod, utils.Index, bool) {
 	files, _ := os.ReadDir(filepath.Join(root, mod_dir))
-	index := utils.ReadIndex(filepath.Join(root, globals.MOD_INDEX))
+	index := make(utils.ModIndex)
+	utils.ReadIndex(filepath.Join(root, globals.MOD_INDEX), &index)
 
 	updated := false
 	result := make(map[string]Mod)
@@ -204,14 +205,14 @@ func GetInstalledMods(
 				}
 			}
 			if e {
-				path, e := entry["path"]
+				path, e := entry.Path()
 				if !e {
 					path = mod_dir
 				}
-				result[entry["id"]] = Mod{
-					entry["hash"],
-					entry["version"],
-					entry["id"],
+				result[entry.Id] = Mod{
+					entry.Hash,
+					entry.Version,
+					entry.Id,
 					f.Name(),
 					path,
 					root,
@@ -225,5 +226,5 @@ func GetInstalledMods(
 		updated = true
 	}
 
-	return result, index, updated
+	return result, utils.NewIndex(index), updated
 }

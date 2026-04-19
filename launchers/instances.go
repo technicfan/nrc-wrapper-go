@@ -228,14 +228,6 @@ func (instance *instance_data) save(nrc bool, notify bool, neofd bool, pack stri
 				instance.env["NRC_PACK"] = instance.config.pack
 			}
 		}
-		// if instance.config.ModDir != instance.NewConfig.ModDir {
-		// 	instance.config.ModDir = instance.NewConfig.ModDir
-		// 	if instance.config.ModDir != "" && instance.Config.ModDir != globals.DEFAULT_MOD_DIR {
-		// 		instance.Env["NRC_MOD_DIR"] = instance.config.ModDir
-		// 	} else {
-		// 		delete(instance.Env, "NRC_MOD_DIR")
-		// 	}
-		// }
 		if instance.config.notify != notify {
 			instance.config.notify = notify
 			changed = true

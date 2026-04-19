@@ -22,7 +22,8 @@ func get_assets(
 		go api.GetAssets(i, pack, root, api_endpoint, &wg, data)
 	}
 
-	existing_index := utils.ReadIndex(filepath.Join(root, globals.ASSET_INDEX))
+	existing_index := make(utils.AssetIndex)
+	utils.ReadIndex(filepath.Join(root, globals.ASSET_INDEX), &existing_index)
 
 	go func() {
 		wg.Wait()
@@ -50,7 +51,7 @@ func get_assets(
 			}
 		} else if untracked {
 			index_updated = true
-			existing_index[asset.AssetPath()] = map[string]string{"hash": asset.ExpectedHash()}
+			existing_index[asset.AssetPath()] = utils.NewAssetIndexItem(asset.ExpectedHash())
 		}
 	}
 	left_over := make(utils.Index)
@@ -58,9 +59,9 @@ func get_assets(
 		if _, e := merged[path]; !e {
 			index_updated = true
 			delete(existing_index, path)
-			left_over[path] = map[string]string{"path": globals.ASSETS_PATH}
+			left_over[path] = utils.NewAssetIndexItem("")
 		}
 	}
 
-	return missing_assets, existing_index, left_over, index_updated
+	return missing_assets, utils.NewIndex(existing_index), left_over, index_updated
 }
