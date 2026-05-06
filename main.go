@@ -44,6 +44,7 @@ func main() {
 	args := append(
 		[]string{
 			command, fmt.Sprintf("-Dnorisk.token=%s", token),
+			fmt.Sprintf("-Dnorisk.experimental=%t", cfg.Staging()),
 			fmt.Sprintf("-Dnorisk.profile.name=%s", cfg.Profile()),
 			fmt.Sprintf("-Dfabric.addMods=%s", cfg.ModDir()),
 		}, os.Args[2:]...,

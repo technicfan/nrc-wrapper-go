@@ -13,38 +13,36 @@ import (
 type Config struct {
 	launchers.Launcher
 	launchers.Minecraft
-	api_endpoint string
-	root         string
-	pack         string
-	mod_dir      string
-	eofd         bool
-	notify       bool
+	root    string
+	pack    string
+	mod_dir string
+	eofd    bool
+	notify  bool
+	staging bool
 }
 
 func NewConfigFromGui(
 	launcher launchers.Launcher,
 	instance launchers.Instance,
 ) Config {
-	var api_endpoint string
-	if instance.Staging() {
-		api_endpoint = globals.STAGING_NORISK_API_ENDPOINT
-	} else {
-		api_endpoint = globals.NORISK_API_ENDPOINT
-	}
 	return Config{
 		launcher,
 		launchers.NewMinecraft(instance),
-		api_endpoint,
 		instance.Path(),
 		instance.Pack(),
 		instance.ModDir(),
 		false,
 		true,
+		instance.Staging(),
 	}
 }
 
 func (config Config) ApiEndpoint() string {
-	return config.api_endpoint
+	if config.staging {
+		return globals.STAGING_NORISK_API_ENDPOINT
+	} else {
+		return globals.NORISK_API_ENDPOINT
+	}
 }
 
 func (config Config) Root() string {
@@ -67,16 +65,16 @@ func (config Config) Notify() bool {
 	return config.notify
 }
 
+func (config Config) Staging() bool {
+	return config.staging
+}
+
 func GetConfig() Config {
 	var config Config
 	var launcher, dir string
 	home, _ := os.UserHomeDir()
 
-	if value := os.Getenv("STAGING"); value != "" {
-		config.api_endpoint = globals.STAGING_NORISK_API_ENDPOINT
-	} else {
-		config.api_endpoint = globals.NORISK_API_ENDPOINT
-	}
+	config.staging = os.Getenv("STAGING") != ""
 
 	if value := os.Getenv("LAUNCHER"); value != "" {
 		if _, e := launchers.LAUNCHER_SUPPORT[value]; e {

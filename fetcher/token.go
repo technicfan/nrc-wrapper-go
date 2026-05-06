@@ -40,73 +40,96 @@ func is_token_expired(
 	return false, errors.New("Invalid token")
 }
 
-func read_token_from_file(
-	path string,
-	uuid string,
-) (string, error) {
+type token_store map[string]token_data
+
+type token_data struct {
+	Prod *string `json:"prod"`
+	Exp *string `json:"exp"`
+}
+
+func token_store_from_old(old_store map[string]string) token_store {
+	token_store := make(token_store)
+	for uuid, token := range old_store {
+		token_store[uuid] = token_data{&token, nil}
+	}
+	return token_store
+}
+
+func token_store_from_file(path string) (token_store, error) {
 	file, err := os.Open(filepath.Join(path, globals.TOKEN_STORE))
 	if err != nil {
-		return "", err
+		return token_store{}, err
 	}
 
 	byte_data, err := io.ReadAll(file)
 	if err != nil {
-		return "", err
+		return token_store{}, err
 	}
 
-	var data map[string]string
+	var data token_store
 	json.Unmarshal(byte_data, &data)
-
-	token, exists := data[uuid]
-	if exists {
-		return token, nil
+	if data.empty() {
+		var old_data map[string]string
+		json.Unmarshal(byte_data, &old_data)
+	    data = token_store_from_old(old_data)
 	}
-
-	return "", errors.New("uuid not cached")
+	return data, nil
 }
 
-func write_token_to_file(
-	path string,
+func (store token_store) empty() bool {
+	for _, data := range store {
+		if data.Prod != nil || data.Exp != nil {
+			return false
+		}
+	}
+	return true
+}
+
+func (store token_store) get_token(
+	uuid string,
+	exp bool,
+) (string, error) {
+	if data, e := store[uuid]; e {
+		if exp && data.Exp != nil {
+			return *data.Exp, nil
+		}
+		if !exp && data.Prod != nil {
+			return *data.Prod, nil
+		}
+	}
+	return "", errors.New("requested token is not cached")
+}
+
+func (store token_store) add(
 	uuid string,
 	token string,
-) error {
-	var file *os.File
-	var err error
-	var data map[string]string
-	file, err = os.Open(filepath.Join(path, globals.TOKEN_STORE))
-	if err != nil {
-		file, err = os.Create(filepath.Join(path, globals.TOKEN_STORE))
-		if err != nil {
-			return err
-		}
+	exp bool,
+) {
+	data, e := store[uuid]
+	if !e {
+		data = token_data{}
+	}
+	if exp {
+		data.Exp = &token
 	} else {
-		byte_data, err := io.ReadAll(file)
-		if err != nil {
-			return err
-		}
-
-		json.Unmarshal(byte_data, &data)
+		data.Prod = &token
 	}
-	defer file.Close()
+	store[uuid] = data
+}
 
-	if data == nil {
-		data = make(map[string]string)
-	}
-
-	data[uuid] = token
-
-	json_string, err := json.MarshalIndent(data, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	file, err = os.OpenFile(
-		filepath.Join(path, globals.TOKEN_STORE), os.O_RDWR|os.O_TRUNC, os.ModePerm,
+func (store token_store) write_store(path string) error {
+	file, err := os.OpenFile(
+		filepath.Join(path, globals.TOKEN_STORE), os.O_RDWR|os.O_TRUNC|os.O_CREATE, os.ModePerm,
 	)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	json_string, err := json.MarshalIndent(store, "", "    ")
+	if err != nil {
+		return err
+	}
 
 	_, err = file.WriteString(string(json_string))
 	if err != nil {
@@ -135,10 +158,18 @@ func GetToken(
 		return config.Token(), nil
 	}
 
-	nrc_token, err := read_token_from_file(config.Dir(), uuid)
+	var nrc_token string
+	token_store, err := token_store_from_file(config.Dir())
+	if err == nil {
+		nrc_token, err = token_store.get_token(uuid, config.Staging())
+	}
 	if err == nil {
 		if result, err := is_token_expired(nrc_token); !result && err == nil {
-			log.Println("Stored token is valid")
+			if config.Staging() {
+				log.Println("Stored token (exp) is valid")
+			} else {
+				log.Println("Stored token is valid")
+			}
 			return nrc_token, nil
 		}
 	}
@@ -147,7 +178,11 @@ func GetToken(
 		return "offline", nil
 	}
 
-	log.Println("Requesting new token")
+	if config.Staging() {
+		log.Println("Requesting new token (exp)")
+	} else {
+		log.Println("Requesting new token")
+	}
 	server_id, err := api.RequestServerId(config.ApiEndpoint())
 	if err != nil {
 		return "", err
@@ -170,7 +205,8 @@ func GetToken(
 		return "", err
 	}
 
-	err = write_token_to_file(config.Dir(), uuid, nrc_token)
+	token_store.add(uuid, nrc_token, config.Staging())
+	err = token_store.write_store(config.Dir())
 	if err != nil {
 		return "", err
 	}
