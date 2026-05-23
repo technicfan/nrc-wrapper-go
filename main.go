@@ -10,6 +10,7 @@ import (
 	"main/platform"
 	"main/utils"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -20,6 +21,7 @@ func main() {
 
 	var token string
 	var cfg config.Config
+	var assets []string
 	log.Println("Loading NoRiskClient...")
 	cfg = config.GetConfig()
 
@@ -27,7 +29,8 @@ func main() {
 	if err == nil {
 		token, err = fetcher.GetToken(cfg, false)
 
-		fetch_err := fetcher.Fetch(versions, cfg)
+		var fetch_err error
+		assets, fetch_err = fetcher.Fetch(versions, cfg)
 		if fetch_err != nil {
 			utils.Notify(fetch_err.Error(), true, cfg.Notify())
 		}
@@ -44,6 +47,7 @@ func main() {
 	args := append(
 		[]string{
 			command, fmt.Sprintf("-Dnorisk.token=%s", token),
+			fmt.Sprintf("-Dnrc.assets.bucket=%s", strings.Join(assets, ",")),
 			fmt.Sprintf("-Dnorisk.experimental=%t", cfg.Staging()),
 			fmt.Sprintf("-Dnorisk.profile.name=%s", cfg.Profile()),
 			fmt.Sprintf("-Dfabric.addMods=%s", cfg.ModDir()),

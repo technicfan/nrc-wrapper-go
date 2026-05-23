@@ -69,7 +69,7 @@ func addInstances(
 			download_button.SetText("Loading...")
 			download_button.Disable()
 			go func ()  {
-				err = fetcher.Fetch(v, config.NewConfigFromGui(l, instance))
+				_, err = fetcher.Fetch(v, config.NewConfigFromGui(l, instance))
 				if err != nil {
 					fyne.Do(func() {
 						download_button.SetText("Failed")
@@ -221,7 +221,7 @@ func addInstances(
 						warn_label.SetText(
 							"An error occurred while saving\nSee log (stdout) for more details",
 						)
-						log.Printf("Failed to save %s: %s", instance.Name, err.Error())
+						log.Printf("Failed to save %s: %s", instance.Name(), err.Error())
 						warn_label.Show()
 					} else {
 						warn_label.SetText("Your settings have been saved successfully")

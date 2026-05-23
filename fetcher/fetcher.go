@@ -19,17 +19,17 @@ import (
 func Fetch(
 	versions api.Versions,
 	config config.Config,
-) error {
+) ([]string, error) {
 	pack, exists := versions.Packs[config.Pack()]
 	if !exists {
-		return fmt.Errorf("%s is not a valid NRC pack", config.Pack())
+		return nil, fmt.Errorf("%s is not a valid NRC pack", config.Pack())
 	}
 	inherited_mods, assets, support := pack.Details(versions.Packs)
 
 	if len(support) > 0 {
 		if version, exists := support[config.Loader()]; exists {
 			if utils.CmpVersions(config.LoaderVersion(), version.LoaderVersion) < 0 {
-				return fmt.Errorf(
+				return nil, fmt.Errorf(
 					"Please update %s to version %s",
 					config.Loader(),
 					version.LoaderVersion,
@@ -46,7 +46,7 @@ func Fetch(
 					loaders_str = append(loaders_str, loader)
 				}
 			}
-			return fmt.Errorf(
+			return nil, fmt.Errorf(
 				"%s requires one of the following modloaders: %s",
 				config.Pack(),
 				strings.Join(loaders_str, ", "),
@@ -56,7 +56,7 @@ func Fetch(
 
 	pack_mods := pack.Mods.CompatibleMods(config, versions.Repositories)
 	if len(pack_mods) == 0 {
-		return fmt.Errorf(
+		return nil, fmt.Errorf(
 			"There are no NRC mods for %s in %s",
 			config.Version(),
 			config.Pack(),
@@ -119,5 +119,5 @@ func Fetch(
 		already_installed.Index().Merge(indexes[1]).Write(filepath.Join(config.Root(), globals.MOD_INDEX))
 	}
 
-	return nil
+	return assets, nil
 }
