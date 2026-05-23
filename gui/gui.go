@@ -164,16 +164,16 @@ func Gui() {
 
 - %s
 
-Support:
+**Support**:
 
 %s
 ---`,
 				pack.Name, id, pack.Desc, strings.Join(lines, "\n"),
 			)
 		}
-		scroll := container.NewVScroll(
-			container.NewCenter(widget.NewRichTextFromMarkdown(packs_string_builder.String())),
-		)
+		pack_list := widget.NewRichTextFromMarkdown(packs_string_builder.String())
+		pack_list.Wrapping = fyne.TextWrapWord
+		scroll := container.NewVScroll(pack_list)
 		tabs.Append(container.NewTabItem("NRC packs", scroll))
 
 		tabs.SetTabLocation(container.TabLocationTop)
