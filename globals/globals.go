@@ -1,6 +1,6 @@
 package globals
 
-var MAIN_PACKS = []string{"norisk-prod", "norisk-bughunter", "norisk-development"}
+var MAIN_PACKS = []string{"norisk-prod", "nrc-nightly"}
 
 const (
 	NORISK_API_ENDPOINT         = "https://api.norisk.gg/api/v1"
