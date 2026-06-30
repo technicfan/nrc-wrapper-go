@@ -144,7 +144,6 @@ func (launcher modrinthapp) GetInstances(
 		"SELECT i.name, i.id, c.game_version, c.loader, c.loader_version, i.path, json(o.overrides) FROM instances i INNER JOIN instance_content_sets c ON c.id = i.applied_content_set_id LEFT JOIN instance_launch_overrides o ON o.instance_id = i.id",
 	)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	defer rows.Close()
