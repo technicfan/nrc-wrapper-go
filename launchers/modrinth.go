@@ -27,6 +27,13 @@ type modrinthapp struct /*implements Launcher*/ {
 	*launcher_data
 }
 
+type launch_overrides struct {
+	Env [][]string `json:"custom_env_vars"`
+	Hooks struct {
+		Wrapper *string `json:"wrapper"`
+	} `json:"hooks"`
+}
+
 func NewModrinthApp(home string, path string, flatpak bool) Launcher {
 	var flatpak_id string
 	name := MODRINTH_NAME
@@ -87,7 +94,7 @@ func (launcher modrinthapp) GetCurrentInstanceDetails() (Minecraft, error) {
 	}
 	rows, err := db.Query(
 		fmt.Sprintf(
-			"SELECT name, game_version, mod_loader, mod_loader_version FROM profiles WHERE path = '%s'",
+			"SELECT i.name, c.game_version, c.loader, c.loader_version FROM instances i INNER JOIN instance_content_sets c ON i.applied_content_set_id = c.id WHERE i.path = '%s'",
 			filepath.Base(cwd),
 		),
 	)
@@ -134,40 +141,40 @@ func (launcher modrinthapp) GetInstances(
 	defer db.Close()
 
 	rows, err := db.Query(
-		"SELECT name, game_version, mod_loader, mod_loader_version, path, override_hook_wrapper, json(override_custom_env_vars) FROM profiles",
+		"SELECT i.name, i.id, c.game_version, c.loader, c.loader_version, i.path, json(o.overrides) FROM instances i INNER JOIN instance_content_sets c ON c.id = i.applied_content_set_id LEFT JOIN instance_launch_overrides o ON o.instance_id = i.id",
 	)
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var env []byte
-		var name, version, loader, loader_version, instance_path, wrapper string
-		var wrapper_ptr *string
+		var raw_overrides []byte
+		var name, id, version, loader, loader_version, instance_path, wrapper string
 
-		err = rows.Scan(&name, &version, &loader, &loader_version, &instance_path, &wrapper_ptr, &env)
+		err = rows.Scan(&name, &id, &version, &loader, &loader_version, &instance_path, &raw_overrides)
 		if err == nil {
 			if versions, e := support[loader]; !e || !slices.Contains(versions, version) {
 				continue
 			}
 
 			var neofd, staging bool
-			var data [][]string
+			var overrides launch_overrides
 
 			pack := globals.DEFAULT_PACK
 			mod_path := globals.DEFAULT_MOD_DIR
 			notify := true
-			if wrapper_ptr != nil {
-				wrapper = *wrapper_ptr
-			}
-			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
-			err := json.Unmarshal(env, &data)
+			err := json.Unmarshal(raw_overrides, &overrides)
 			if err != nil {
 				return nil, err
 			}
+			if overrides.Hooks.Wrapper != nil {
+				wrapper = *overrides.Hooks.Wrapper
+			}
+			nrc := strings.Contains(wrapper, filepath.Base(ex)) || strings.Contains(wrapper, ex)
 			vars := make(map[string]string)
-			for _, line := range data {
+			for _, line := range overrides.Env {
 				vars[line[0]] = line[1]
 			}
 			if v, e := vars["NRC_PACK"]; e {
@@ -192,7 +199,7 @@ func (launcher modrinthapp) GetInstances(
 			instances = append(instances, &modrinth_instance{&instance_data{
 				name, version, loader, loader_version, path, path,
 				vars, launcher.flatpak_id, nrc_config, launcher.DefaultNotify(),
-			}})
+			}, id})
 		}
 	}
 	slices.SortFunc(instances, func(a Instance, b Instance) int {
@@ -203,6 +210,7 @@ func (launcher modrinthapp) GetInstances(
 
 type modrinth_instance struct /*implements Instance*/ {
 	*instance_data
+	id string
 }
 
 func (instance modrinth_instance) LauncherClass() string {
@@ -226,8 +234,8 @@ func (instance *modrinth_instance) Save(nrc bool, notify bool, neofd bool, pack 
 			return err
 		}
 		defer db.Close()
-		sql_cmd := `UPDATE profiles SET override_hook_wrapper = ?, override_custom_env_vars = jsonb(?) WHERE path = ?;`
-		_, err = db.Exec(sql_cmd, instance.config.command, raw, filepath.Base(instance.path))
+		sql_cmd := `UPDATE instance_launch_overrides SET overrides = jsonb(json_set(overrides, '$.custom_env_vars', jsonb(?), '$.hooks.wrapper', ?)) WHERE instance_id = ?;`
+		_, err = db.Exec(sql_cmd, raw, instance.config.command, instance.id)
 		return err
 	}
 	return nil
