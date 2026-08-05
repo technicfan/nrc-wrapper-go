@@ -139,10 +139,6 @@ func (mods ModResources) Index() utils.Index {
 	return results
 }
 
-func (mod ModResource) Type() int {
-	return 1
-}
-
 type ModResources map[string]ModResource
 
 func (mods ModResources) GetMissing(
@@ -172,7 +168,7 @@ func (mods ModResources) GetMissing(
 	}
 
 	index := make(utils.Index)
-	for id, _ := range installed_mods {
+	for id := range installed_mods {
 		index[installed_mods[id].filename] = installed_mods[id].IndexPair().Value
 	}
 

@@ -66,7 +66,6 @@ func Download(resource resource) error {
 
 type NrcResource interface {
 	resource
-	Type() int
 	IndexPair() Pair
 }
 
@@ -74,7 +73,7 @@ func DownloadAsync(
 	resource NrcResource,
 	eofd bool,
 	notify bool,
-	indexes []chan Pair,
+	index chan Pair,
 	wg *sync.WaitGroup,
 	limiter chan struct{},
 ) {
@@ -90,6 +89,6 @@ func DownloadAsync(
 			notify,
 		)
 	} else {
-		indexes[resource.Type()] <- resource.IndexPair()
+		index <- resource.IndexPair()
 	}
 }

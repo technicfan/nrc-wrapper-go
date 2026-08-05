@@ -7,6 +7,7 @@ import (
 	"main/launchers"
 	"main/utils"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -82,9 +83,9 @@ func GetConfig() Config {
 			launcher = value
 		}
 	} else {
-		for i := len(os.Args) - 1; i >= 0; i-- {
+		for _, arg := range slices.Backward(os.Args) {
 			for id, l := range launchers.LAUNCHER_SUPPORT {
-				if os.Args[i] == l.JavaClass {
+				if arg == l.JavaClass {
 					log.Printf("Detected %s\n", l.Name)
 					launcher = id
 					break

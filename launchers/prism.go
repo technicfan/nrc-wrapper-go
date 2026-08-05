@@ -96,7 +96,7 @@ func (launcher prismlauncher) get_instance_dir() string {
 }
 
 func (launcher prismlauncher) GetCurrentInstanceDetails() (Minecraft, error) {
-	var profile, version, loader, loader_version, token, username, uuid string
+	var profile, version, loader, loader_version string
 
 	instance, err := get_prism_instance_config("../")
 	if err != nil {
@@ -129,23 +129,12 @@ func (launcher prismlauncher) GetCurrentInstanceDetails() (Minecraft, error) {
 	if err != nil {
 		return Minecraft{}, err
 	}
-	if id, e := config["General"]["InstanceAccountId"]; e && config["General"]["UseAccountForInstance"] == "true" {
-		token, username, uuid, err = data.get(&id)
-	} else {
-		token, username, uuid, err = data.get_active()
-	}
-	if err != nil {
-		return Minecraft{}, err
-	}
 
 	return Minecraft{
 		profile,
 		version,
 		loader,
 		loader_version,
-		username,
-		uuid,
-		token,
 	}, nil
 }
 
@@ -243,34 +232,6 @@ type prism_data struct {
 		} `json:"ygg"`
 	} `json:"accounts"`
 	FormatVersion int `json:"formatVersion"`
-}
-
-func (data prism_data) get(
-	id *string,
-) (string, string, string, error) {
-	var token string
-	for _, v := range data.Accounts {
-		if (id != nil && v.Profile.Id == *id) || (id == nil && v.Active != nil && v.Active.(bool)) {
-			if v.Type == "Offline" {
-				token = "offline"
-			} else {
-				token = v.Ygg.Token
-			}
-			return token, v.Profile.Name, v.Profile.Id, nil
-		}
-	}
-
-	var err error
-	if id != nil {
-		err = fmt.Errorf("Account with id %s not found", id)
-	} else {
-		err = errors.New("No active account found")
-	}
-	return "", "", "", err
-}
-
-func (data prism_data) get_active() (string, string, string, error) {
-	return data.get(nil)
 }
 
 type prism_instance_config struct {
@@ -408,7 +369,7 @@ func parse_cfg(
 	config := make(cfg)
 
 	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
+	for scanner.Scan() && scanner.Err() == nil {
 		if scanner.Text() == "" || strings.HasPrefix(scanner.Text(), "#") {
 			continue
 		}

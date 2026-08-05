@@ -5,7 +5,6 @@ go 1.25.0
 require (
 	fyne.io/fyne/v2 v2.7.4
 	github.com/gen2brain/beeep v0.11.2
-	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/kolesnikovae/go-winjob v1.0.0
 	github.com/mattn/go-sqlite3 v1.14.34
 	golang.org/x/sys v0.41.0

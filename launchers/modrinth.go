@@ -80,7 +80,7 @@ func (launcher modrinthapp) MergeNormal() Launcher {
 }
 
 func (launcher modrinthapp) GetCurrentInstanceDetails() (Minecraft, error) {
-	var profile, version, loader, loader_version, token, username, uuid string
+	var cwd, profile, version, loader, loader_version string
 
 	db, err := sql.Open("sqlite3", filepath.Join(launcher.path, "app.db"))
 	if err != nil {
@@ -104,28 +104,14 @@ func (launcher modrinthapp) GetCurrentInstanceDetails() (Minecraft, error) {
 	defer rows.Close()
 
 	for rows.Next() {
-		err = rows.Scan(&profile, &version, &loader, &loader_version)
+		rows.Scan(&profile, &version, &loader, &loader_version)
+		err = rows.Err();
 		if err != nil {
 			return Minecraft{}, err
 		}
 	}
 
-	rows, err = db.Query(
-		"SELECT access_token, username, uuid FROM minecraft_users where active = 1",
-	)
-	if err != nil {
-		return Minecraft{}, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		err = rows.Scan(&token, &username, &uuid)
-		if err != nil {
-			return Minecraft{}, err
-		}
-	}
-
-	return Minecraft{profile, version, loader, loader_version, username, uuid, token}, nil
+	return Minecraft{profile, version, loader, loader_version}, nil
 }
 
 func (launcher modrinthapp) GetInstances(
@@ -152,7 +138,8 @@ func (launcher modrinthapp) GetInstances(
 		var raw_overrides []byte
 		var name, id, version, loader, loader_version, instance_path, wrapper string
 
-		err = rows.Scan(&name, &id, &version, &loader, &loader_version, &instance_path, &raw_overrides)
+		rows.Scan(&name, &id, &version, &loader, &loader_version, &instance_path, &raw_overrides)
+		err = rows.Err()
 		if err == nil {
 			if versions, e := support[loader]; !e || !slices.Contains(versions, version) {
 				continue

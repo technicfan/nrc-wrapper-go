@@ -64,14 +64,12 @@ func Fetch(
 	}
 	maps.Copy(pack_mods, inherited_mods.CompatibleMods(config, versions.Repositories))
 
-	resources, asset_index, left_over, update_assets := get_assets(config.Root(), assets, config.ApiEndpoint())
-	installed_mods, left_over1, update_mods := mods.GetInstalledMods(config.Root(), config.ModDir())
-	mods_to_download, already_installed, left_over2 := pack_mods.GetMissing(
+	installed_mods, left_over, update_mods := mods.GetInstalledMods(config.Root(), config.ModDir())
+	resources, already_installed, left_over1 := pack_mods.GetMissing(
 		installed_mods,
 		config.ModDir(),
 	)
 	maps.Copy(left_over, left_over1)
-	maps.Copy(left_over, left_over2)
 	for file, entry := range left_over {
 		if path, e := entry.Path(); e {
 			os.Remove(filepath.Join(path, file))
@@ -81,16 +79,10 @@ func Fetch(
 			}
 		}
 	}
-	indexes := []chan utils.Pair{
-		make(chan utils.Pair, len(resources)),
-		make(chan utils.Pair, len(mods_to_download)),
-	}
-	for id := range mods_to_download {
-		resources = append(resources, mods_to_download[id])
-	}
+	index := make(chan utils.Pair, len(resources))
 
 	if len(resources) > 0 {
-		log.Println("Downloading missing/updated resources")
+		log.Println("Downloading missing/updated mods")
 	}
 
 	var wg sync.WaitGroup
@@ -101,22 +93,17 @@ func Fetch(
 			resources[i],
 			config.ErrorOnFailedDownload(),
 			config.Notify(),
-			indexes,
+			index,
 			&wg,
 			limiter,
 		)
 	}
 
 	wg.Wait()
-	for i := range indexes {
-		close(indexes[i])
-	}
+	close(index)
 
-	if update_assets || len(indexes[0]) > 0 {
-		asset_index.Merge(indexes[0]).Write(filepath.Join(config.Root(), globals.ASSET_INDEX))
-	}
-	if update_mods || len(indexes[1]) > 0 {
-		already_installed.Index().Merge(indexes[1]).Write(filepath.Join(config.Root(), globals.MOD_INDEX))
+	if update_mods || len(index) > 0 {
+		already_installed.Index().Merge(index).Write(filepath.Join(config.Root(), globals.MOD_INDEX))
 	}
 
 	return assets, nil

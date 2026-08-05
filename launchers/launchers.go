@@ -9,8 +9,8 @@ import (
 var LAUNCHERS = []string{PRISM_ID, MODRINTH_ID}
 
 var LAUNCHER_SUPPORT = map[string]LauncherSupport{
-	PRISM_ID:    LauncherSupport{NewPrismLauncher, PRISM_NAME, PRISM_CLASS},
-	MODRINTH_ID: LauncherSupport{NewModrinthApp, MODRINTH_NAME, MODRINTH_CLASS},
+	PRISM_ID:    {NewPrismLauncher, PRISM_NAME, PRISM_CLASS},
+	MODRINTH_ID: {NewModrinthApp, MODRINTH_NAME, MODRINTH_CLASS},
 }
 
 type LauncherSupport struct {

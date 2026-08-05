@@ -33,9 +33,6 @@ type Minecraft struct {
 	version       string
 	loader        string
 	loader_version string
-	username      string
-	uuid          string
-	token         string
 }
 
 func NewMinecraft(
@@ -46,7 +43,6 @@ func NewMinecraft(
 		instance.Version(),
 		instance.Loader(),
 		instance.LoaderVersion(),
-		"", "", "",
 	}
 }
 
@@ -64,18 +60,6 @@ func (minecraft Minecraft) Loader() string {
 
 func (minecraft Minecraft) LoaderVersion() string {
 	return minecraft.loader_version
-}
-
-func (minecraft Minecraft) Username() string {
-	return minecraft.username
-}
-
-func (minecraft Minecraft) Uuid() string {
-	return minecraft.uuid
-}
-
-func (minecraft Minecraft) Token() string {
-	return minecraft.token
 }
 
 type nrc_config struct {
