@@ -80,7 +80,7 @@ func (launcher modrinthapp) MergeNormal() Launcher {
 }
 
 func (launcher modrinthapp) GetCurrentInstanceDetails() (Minecraft, error) {
-	var cwd, profile, version, loader, loader_version string
+	var profile, version, loader, loader_version string
 
 	db, err := sql.Open("sqlite3", filepath.Join(launcher.path, "app.db"))
 	if err != nil {
